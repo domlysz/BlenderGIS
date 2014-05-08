@@ -5,14 +5,15 @@ Blender GIS
 ESRI Shapefile importer
 --------------------
 
-Import point, pointZ, polyline, polylineZ, polygon, polygonZ feature class. Actually cannot import multipoint, multipointZ, pointM, polylineM, polygonM and multipatch.
+A [Shapefile](http://en.wikipedia.org/wiki/Shapefile) is a popular geospatial vector data format for geographic information system software.
 
-The script can uses data contain in dbf file to define Z elevation values or Z extrusion values. You need to know & manually enter the name of the field that contains the values.
+The script can import in Blender most of shapefile feature type : point, pointZ, polyline, polylineZ, polygon, polygonZ. But actually it cannot import multipoint, multipointZ, pointM, polylineM, polygonM and multipatch.
 
+The script can also uses attributes data to define Z elevation values or Z extrusion values. You need to know & manually enter the name of the field that contains the values.
 
 Troubles:
 
-This script depends on pyshp library that is in beta version, so sometimes it cannot process the shapefile. Typically, if you got "Unable to read shapefile", "Unable to extract geometry" or "Unable to read DBF table" error, these are pyShp issues. In this case:
+This tool depends on pyshp library that is in beta version, so sometimes it cannot process the shapefile. Typically, if you got "Unable to read shapefile", "Unable to extract geometry" or "Unable to read DBF table" error, these are pyShp issues. In this case:
 
 1. Try to check if there is any update of [pyshp lib](http://code.google.com/p/pyshp/downloads/list).
 
@@ -24,7 +25,7 @@ For polygons import, if you see faces which seem to be strangely filled try to r
 ESRI Shapefile exporter
 --------------------
 
-Export a mesh to pointZ, polylineZ or polygonZ shapefile. If the mesh has georef data then this will be considered.
+Export a mesh to pointZ, polylineZ or polygonZ shapefile. If the scene has georef data then this will be considered.
 
 Note that Blender cannot handle attribute data include in dbase file linked to the shapefile. So if you want import a shapefile for edit it into Blender and then re-export it, you will lose attribute data.
 
@@ -34,7 +35,7 @@ Georeferenced raster importer
 
 Import common image format associated with a [world file](http://en.wikipedia.org/wiki/World_file) that describes the location, scale and rotation of the raster in a geographic coordinate system.
 
-You can import as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or as DEM for warp a mesh with the displace modifier.
+You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or as DEM for warp a mesh with the displace modifier.
 
 
 Georeferenced render output
