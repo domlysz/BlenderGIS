@@ -48,3 +48,10 @@ Georeferencing management
 --------------------
 
 Because Blender (and most of 3d software) cannot strongly handle objects that are far away scene origin, and because coordinates values are limited to 7 significant figures, it's necessary to create the mesh near to the scene origin. For avoid georeferencing lost, when you import a shapefile or a georaster, the script creates custom properties to the scene. Theses properties represent the shift values operate in X and Y axis. When you try to import a shapefile or a georaster, if the scene contains these custom properties, you have the possibility to use them to adjust the position of the new imported object.
+
+Delaunay triangulation & Voronoi diagram
+--------------------
+
+This script computes [Delaunay triangulation](http://en.wikipedia.org/wiki/Delaunay_triangulation) in 2.5D. This triangulation is suitable for create a 3D terrain mesh from [points cloud](http://en.wikipedia.org/wiki/Point_cloud) or [contour lines](http://en.wikipedia.org/wiki/Contour_line)
+
+The script can also compute [Voronoi tessellation](http://en.wikipedia.org/wiki/Voronoi) in 2D which is the dual of delaunay triangulation. Voronoi diagram is suitable to make neighborhood analysis map.
