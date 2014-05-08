@@ -306,12 +306,12 @@ class Stats():
 		"""
 		Convert Blender pixel intensity value (from 0.0 to 1.0) in true pixel value in initial image bit depth range
 		"""
-		return val * 2**depth
+		return val * (2**depth - 1) 
 	def fromBitDepth(self, val, depth):
 		"""
 		Convert true pixel value in initial image bit depth range to Blender pixel intensity value (from 0.0 to 1.0)
 		"""
-		return val / 2**depth
+		return val / (2**depth - 1)
 
 def scale(inVal, low, high, mn, mx):
 	#Scale/normalize data : linear stretch from lowest value to highest value
@@ -562,7 +562,8 @@ class DEM_GDAL():
 				#data = np.negative(data)#or data = np.absolute(data)
 				if scaleBounds:
 					#Scale/normalize data : linear stretch from lowest value to highest value
-					low, high = (0, 2**self.depth)
+					data = data.astype(np.float32)#promote data type before perform calculation
+					low, high = (0, 2**self.depth-1)
 					subMin, subMax = scaleBounds
 					data = scale(data, low, high, subMin, subMax)
 				#
