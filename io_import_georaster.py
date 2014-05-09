@@ -400,7 +400,7 @@ class DEM(Raster):
 			else:
 				#with scaled data, min and max raster capacity value (0 and 2^depth) aren't necessary affected
 				#so we can't just considere altmin<-->0 and altmax<-->2^depth, it's not necessaray true
-				#Linear stretch from Blender value (range 0.0 to 1.0) to raster values (range from "scale bounds"
+				#Linear stretch from Blender value (range 0.0 to 1.0) to raster values (range from "scale bounds")
 				altMin, altMax = self.scaleBounds
 				rmin = scale(self.subStats.bmin, altMin, altMax, self.wholeStats.bmin, self.wholeStats.bmax)
 				rmax = scale(self.subStats.bmax, altMin, altMax,  self.wholeStats.bmin, self.wholeStats.bmax)
@@ -754,36 +754,30 @@ def geoRastUVmap(obj, mesh, uvTxtLayer, img, wf, dx, dy):
 			uvLoop = uvLoopLayer.data[i]
 			uvLoop.uv = [u,v]
 
-def setDisplacer(obj, img, uvTxtLayer, warpMode, wholeStats, subStats, mid=0):
-	#Config displacer
-	#Warning : in Blender color/luminosity values are between 0.0 and 1.0 and not between 0 and 255
-	if wholeStats.rdelta == 0 or subStats.rdelta == 0:
+def setDisplacer(obj, rast, uvTxtLayer, mid=0):
+	#Config displacer	
+	if rast.wholeStats.rdelta == 0 or rast.subStats.rdelta == 0:
 		return False
 	displacer = obj.modifiers.new('DEM', type='DISPLACE')
 	demTex = bpy.data.textures.new('demText', type = 'IMAGE')
-	demTex.image = img
+	demTex.image = rast.img
 	demTex.use_interpolation = False
 	demTex.extension = 'CLIP'
 	displacer.texture = demTex
 	displacer.texture_coords = 'UV'
 	displacer.uv_layer = uvTxtLayer.name
-	displacer.mid_level = mid #texture value which will be treated as no displacement by the modifier. Texture values below this value will result in negative displacement, while texture values above this value will result in positive displacement.
-	if warpMode == 'strength':
-		#Method 1 : setting the strength to the good value (this value depends on raster bit depth)
-		#alt min and alt max values used to compute deltaZ are for the whole DEM pixels not only for overlay part
-		#displacement = (texture value - Midlevel) × Strength
-		displacer.strength = wholeStats.rdelta / wholeStats.bdelta#b_deltaZ = Blender texture value that match deltaZ target displacement value
-	elif warpMode == 'setDimZ':
-		#Method 2 : setting strength to 1 and then setting obj dimension z to deltaZ (= setting scale Z)
-		#In this way we don't need to know raster bit depth and
-		#it's more convenience for the user to play with obj dimension Z
-		#but alt min and alt max values used to compute deltaZ are for the overlay part only
-		displacer.strength = 1
-		bpy.context.scene.update()#needed to ensure that the displacer correctly warp the mesh
-		obj.dimensions.z = subStats.rdelta#warning, doesn't work if the mesh is not yet warp by the displacer 
+	displacer.mid_level = mid #Texture values below this value will result in negative displacement
+	#Setting the displacement strength :
+	#displacement = (texture value - Midlevel) × Strength <--> Strength = displacement / texture value (because mid=0)
+	displacer.strength = rast.wholeStats.rdelta / rast.wholeStats.bdelta
+	#If DEM non scaled then
+	#	*displacement = alt max - alt min = delta Z
+	#	*texture value = delta Z / (2^depth-1) #in Blender pixel values are normalized between 0.0 and 1.0
+	#Strength = displacement / texture value = delta Z / (delta Z / (2^depth-1)) 
+	#--> Strength = 2^depth-1
+	#displacer.strength = 2**rast.depth-1
 	bpy.ops.object.shade_smooth()
 	return displacer
-
 
 #------------------------------------------------------------------------
 
@@ -882,13 +876,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			description="Will convert decimal degrees coordinates to meters",
 			default=False
 			)
-	#How to set displacer
-	warpMode = EnumProperty(
-			name="Warp method",
-			description="Select how to warp the mesh",
-			items=[ ('setDimZ', 'Dim. Z', "Set object dimension Z (displacer strength = 1)"),
-			('strength', 'Strength', "Set displacer strength")]
-			)
 	#GDAL mode (python binding or binary)
 	gdalMode = EnumProperty(
 			name="GDAL mode",
@@ -938,7 +925,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				self.useGeoref = True
 				layout.prop(self, 'objectsLst')
 				layout.prop(self, 'subdivision')
-				layout.prop(self, 'warpMode')
 				layout.prop(self, 'imgBitDepth')
 				if self.imgBitDepth.split(';')[0] == 's':#signed data
 					layout.label("Warning, negatives values will be set to 0")
@@ -967,7 +953,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					layout.prop(self, 'objectsLst')
 					self.adjustGridSize = False
 					layout.prop(self, 'subdivision')
-					layout.prop(self, 'warpMode')
 					self.isScaled = False
 					layout.prop(self, 'scale')
 					layout.prop(self, 'angCoords')
@@ -1171,7 +1156,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			elif self.subdivision == 'None':
 				pass
 			#Set displacer
-			dsp = setDisplacer(obj, img, uvTxtLayer, self.warpMode, rast.wholeStats, rast.subStats)
+			dsp = setDisplacer(obj, rast, uvTxtLayer)
 			if not dsp :
 				return self.err("Alt min == alt max, unable to config displacer")
 
