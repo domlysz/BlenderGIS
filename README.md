@@ -11,14 +11,6 @@ The script can import in Blender most of shapefile feature type : point, pointZ,
 
 The script can also uses attributes data to define Z elevation values or Z extrusion values.
 
-Troubles:
-
-This tool depends on pyshp library that is in beta version, so sometimes it cannot process the shapefile. Typically, if you got "Unable to read shapefile", "Unable to extract geometry" or "Unable to read DBF table" error, these are pyShp issues. In this case:
-
-1. Try to check if there is any update of [pyshp lib](http://code.google.com/p/pyshp/downloads/list).
-
-2. If there is no update available or if update doesn't correct the problem, try to open and re-export the shapefile with any GIS software. You can also try to clean/repair geometry, delete unnecessary fields...
-
 
 ESRI Shapefile exporter
 --------------------
@@ -41,11 +33,6 @@ Georeferenced render output
 
 This is a tool to create a new camera correctly setup for produce a map render. Georeferencing data (worldfile) are writing in text file accessible from the Blender text editor.
 
-
-Georeferencing management
---------------------
-
-Because Blender (and most of 3d software) cannot strongly handle objects that are far away scene origin, it's necessary to create the mesh near to the scene origin. For avoid georeferencing lost, when you import a shapefile or a georaster, the script creates custom properties to the scene. Theses properties represent the shift values operate in X and Y axis. When you try to import a shapefile or a georaster, if the scene already contains these custom properties, you will have the opportunity to use them to adjust the position of the new imported object.
 
 Delaunay triangulation & Voronoi diagram
 --------------------
