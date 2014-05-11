@@ -1,7 +1,7 @@
 Blender GIS
 ==========
 
-[Wiki](https://github.com/domlysz/BlenderGIS/wiki/1.1-Install-and-usage) available for further information.
+[Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
 ESRI Shapefile importer
 --------------------
