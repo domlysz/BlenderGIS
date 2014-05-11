@@ -19,7 +19,7 @@ import bmesh
 import os
 import math
 import mathutils
-import numpy as np#Ship with with Blender sice 2.70
+import numpy as np#Ship with Blender since 2.70
 
 try:
 	from osgeo import gdal
@@ -400,6 +400,7 @@ class DEM(Raster):
 			else:
 				#with scaled data, min and max raster capacity value (0 and 2^depth) aren't necessary affected
 				#so we can't just considere altmin<-->0 and altmax<-->2^depth, it's not necessaray true
+				#we need to know real min and max value affected in the scaled raster
 				#Linear stretch from Blender value (range 0.0 to 1.0) to raster values (range from "scale bounds")
 				altMin, altMax = self.scaleBounds
 				rmin = scale(self.subStats.bmin, altMin, altMax, self.wholeStats.bmin, self.wholeStats.bmax)
@@ -664,7 +665,7 @@ def placeObj(mesh, objName):
 	#bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 	return obj
 
-def updateGridSize(nbLines, scaleSize):
+def update3dViews(nbLines, scaleSize):
 	targetDst=nbLines*scaleSize
 	areas = bpy.context.screen.areas
 	for area in areas:
@@ -827,10 +828,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	#
 	objectsLst = EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
 	#
-	#Adjust grid size
-	adjustGridSize = BoolProperty(
-			name="Adjust grid size",
-			description="Adjust grid floor lines and scale",
+	#Adjust 3d view (grid size and clip distance)
+	adjust3dView = BoolProperty(
+			name="Adjust 3d view",
+			description="Adjust grid floor and clip distances",
 			default=False
 			)
 	#Subdivise (as DEM option)
@@ -900,7 +901,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			else:
 				self.useGeoref = False
 			layout.prop(self, 'angCoords')
-			layout.prop(self, 'adjustGridSize')
+			layout.prop(self, 'adjust3dView')
 		#
 		if self.importMode == 'bkg':
 			if isGeoref:
@@ -908,14 +909,14 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			else:
 				self.useGeoref = False
 			layout.prop(self, 'angCoords')
-			self.adjustGridSize = False
+			self.adjust3dView = False
 		#
 		if self.importMode == 'mesh':
 			if isGeoref and len(self.objectsLst) > 0:
 				self.useGeoref = True
 				layout.prop(self, 'objectsLst')
 				layout.prop(self, 'angCoords')
-				self.adjustGridSize = False
+				self.adjust3dView = False
 			else:
 				self.useGeoref = False
 				layout.label("There isn't georef mesh to UVmap on")
@@ -934,7 +935,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					layout.prop(self, 'scale_altMax')
 				layout.prop(self, 'angCoords')
 				self.scale = False
-				self.adjustGridSize = False
+				self.adjust3dView = False
 			else:
 				self.useGeoref = False
 				layout.label("There isn't georef mesh to apply DEM on")
@@ -951,7 +952,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				else:
 					self.useGeoref = True
 					layout.prop(self, 'objectsLst')
-					self.adjustGridSize = False
+					self.adjust3dView = False
 					layout.prop(self, 'subdivision')
 					self.isScaled = False
 					layout.prop(self, 'scale')
@@ -1161,24 +1162,24 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				return self.err("Alt min == alt max, unable to config displacer")
 
 		######################################
-		#Adjust grid size
-		if self.adjustGridSize:
+		#Adjust 3d view
+		if self.adjust3dView:
 			bb = getBBox(obj)
 			#la coordonnée x ou y la + éloignée de l'origin = la distance d'un demi coté du carré --> fois 2 pr avoir la longueur d'un coté
 			dstMax = round(max(abs(bb.xmax), abs(bb.xmin), abs(bb.ymax), abs(bb.ymin)))*2
 			nbDigit = len(str(dstMax))
 			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
 			nbLines = round(dstMax/scale)
-			updateGridSize(nbLines, scale)
+			update3dViews(nbLines, scale)
 
-		"""
+
 		# forced view mode with textures
 		areas = bpy.context.screen.areas
 		for area in areas:
 			if area.type == 'VIEW_3D':
 				area.spaces.active.viewport_shade='TEXTURED'
 				area.spaces.active.show_textured_solid = True
-		"""
+
 
 		return {'FINISHED'}
 

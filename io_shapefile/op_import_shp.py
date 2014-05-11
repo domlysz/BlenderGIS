@@ -237,7 +237,7 @@ def placeObj(shpMesh, objName):
 	return obj
 
 
-def updateGridSize(nbLines, scaleSize):
+def update3dViews(nbLines, scaleSize):
 	targetDst=nbLines*scaleSize
 	wms=bpy.data.window_managers
 	for wm in wms:
@@ -303,9 +303,9 @@ class IMPORT_SHP(Operator, ImportHelper):
 			default=False
 			)
 	#Adjust grid size
-	adjustGridSize = BoolProperty(
-			name="Adjust grid size",
-			description="Adjust grid floor lines and scale",
+	adjust3dView = BoolProperty(
+			name="Adjust 3D view",
+			description="Adjust grid floor and clip distances",
 			default=False
 			)
 
@@ -326,7 +326,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		else:
 			self.useGeoref = False
 		layout.prop(self, 'angCoords')
-		layout.prop(self, 'adjustGridSize')
+		layout.prop(self, 'adjust3dView')
 
 	def execute(self, context):
 		try:
@@ -469,7 +469,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		#Add custom properties define x & y translation to retrieve georeferenced model
 		scn["Georef X"], scn["Georef Y"] = dx, dy
 		#Adjust grid size
-		if self.adjustGridSize:
+		if self.adjust3dView:
 			bbox = obj.bound_box
 			xmin=min([pt[0] for pt in bbox])
 			xmax=max([pt[0] for pt in bbox])
@@ -480,7 +480,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 			nbDigit=len(str(dstMax))
 			scale=10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
 			nbLines=round(dstMax/scale)
-			updateGridSize(nbLines, scale)
+			update3dViews(nbLines, scale)
 		print("Finish")
 		return {'FINISHED'}
 
