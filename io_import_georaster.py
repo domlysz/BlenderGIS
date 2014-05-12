@@ -699,6 +699,7 @@ def addTexture(mat, img, uvLay):
 	# Create image texture from image
 	imgTex = bpy.data.textures.new('rastText', type = 'IMAGE')
 	imgTex.image = img
+	imgTex.extension = 'CLIP'
 	# Add texture slot
 	mtex = mat.texture_slots.add()
 	mtex.texture = imgTex
@@ -1177,8 +1178,11 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		areas = bpy.context.screen.areas
 		for area in areas:
 			if area.type == 'VIEW_3D':
-				area.spaces.active.viewport_shade='TEXTURED'
 				area.spaces.active.show_textured_solid = True
+				if scn.render.engine == 'CYCLES':
+					area.spaces.active.viewport_shade = 'TEXTURED'
+				elif scn.render.engine == 'BLENDER_RENDER':
+					area.spaces.active.viewport_shade = 'SOLID'
 
 
 		return {'FINISHED'}
