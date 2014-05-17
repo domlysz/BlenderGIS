@@ -678,24 +678,29 @@ def update3dViews(nbLines, scaleSize):
 
 def addTexture(mat, img, uvLay):
 	engine = bpy.context.scene.render.engine
-	#CYCLES
-	bpy.context.scene.render.engine = 'CYCLES' #force Cycles render
 	mat.use_nodes = True
 	node_tree = mat.node_tree
-	#get the default BSDF diffuse
-	bsdf_diffuse = node_tree.nodes['Diffuse BSDF']
-	#create image texture node
-	if bpy.app.version[0] == 2 and bpy.app.version[1] < 67:
-		tex_image = node_tree.nodes.new('TEX_IMAGE')#Blender <2.67
-	else:
-		tex_image = node_tree.nodes.new('ShaderNodeTexImage')#Blender >2.67
-	tex_image.image = img
-	tex_image.show_texture = True
-	#connect the nodes
-	node_tree.links.new(tex_image.outputs['Color'] , bsdf_diffuse.inputs['Color'])
+	node_tree.nodes.clear()
+	#
+	#CYCLES
+	bpy.context.scene.render.engine = 'CYCLES' #force Cycles render
+	# create image texture node
+	textureNode = node_tree.nodes.new('ShaderNodeTexImage')
+	textureNode.image = img
+	textureNode.show_texture = True
+	textureNode.location = (-200, 200)
+	# Create BSDF diffuse node
+	diffuseNode = node_tree.nodes.new('ShaderNodeBsdfDiffuse')
+	diffuseNode.location = (0, 200)
+	# Create output node
+	outputNode = node_tree.nodes.new('ShaderNodeOutputMaterial')
+	outputNode.location = (200, 200)
+	# Connect the nodes
+	node_tree.links.new(textureNode.outputs['Color'] , diffuseNode.inputs['Color'])
+	node_tree.links.new(diffuseNode.outputs['BSDF'] , outputNode.inputs['Surface'])
+	#
 	#BLENDER_RENDER
-	if engine == 'BLENDER_RENDER' :
-		mat.use_nodes = False
+	bpy.context.scene.render.engine = 'BLENDER_RENDER'
 	# Create image texture from image
 	imgTex = bpy.data.textures.new('rastText', type = 'IMAGE')
 	imgTex.image = img
@@ -706,8 +711,18 @@ def addTexture(mat, img, uvLay):
 	mtex.texture_coords = 'UV'
 	mtex.uv_layer = uvLay.name
 	mtex.mapping = 'FLAT'
+	# Add material node
+	matNode = node_tree.nodes.new('ShaderNodeMaterial')
+	matNode.material = mat
+	matNode.location = (-100, -100)
+	# Add output node
+	outNode = node_tree.nodes.new('ShaderNodeOutput')
+	outNode.location = (100, -100)
+	# Connect the nodes
+	node_tree.links.new(matNode.outputs['Color'] , outNode.inputs['Color'])
 	#
-	bpy.context.scene.render.engine = engine#restore initial engine
+	# restore initial engine
+	bpy.context.scene.render.engine = engine
 
 def getBBox(obj):
 	boundPts = obj.bound_box
@@ -833,7 +848,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	adjust3dView = BoolProperty(
 			name="Adjust 3d view",
 			description="Adjust grid floor and clip distances",
-			default=False
+			default=True
 			)
 	#Subdivise (as DEM option)
 	subdivision = EnumProperty(
