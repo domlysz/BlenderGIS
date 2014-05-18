@@ -70,8 +70,8 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, angCoords=F
 			zGeom=True
 		geoms=extractGeoms(shapes, zGeom, zFieldValues=zValues)
 		shiftGeom(geoms, dx, dy, angCoords)
-		edges, initialGeoFeatureIdx = polylinesToLines(geoms)
-		mesh=addMesh(meshName, edges, shpType, zExtrude, initialGeoFeatureIdx)
+		#edges, initialGeoFeatureIdx = polylinesToLines(geoms)
+		mesh=addMesh(meshName, geoms, shpType, zExtrude)
 
 	elif (shpType == 'Polygon' or shpType == 'PolygonZ'):
 		if shpType[-1] == 'Z' and not zValues:
@@ -137,18 +137,15 @@ def shiftGeom(geoms, dx, dy, angCoords=False):
 			pts = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in geom]
 		geoms[i]=pts
 
-def polylinesToLines(geoms):
+def polylinesToLines(geom):
 	edges=[]
-	initialGeoFeatureIdx=[]
-	for k, geom in enumerate(geoms):
-		nbPts=len(geom)
-		for i in range(nbPts):
-			if i < nbPts-1:
-				edges.append([geom[i],geom[i+1]])
-				initialGeoFeatureIdx.append(k)
-	return (edges, initialGeoFeatureIdx)
+	nbPts=len(geom)
+	for i in range(nbPts):
+		if i < nbPts-1:
+			edges.append([geom[i],geom[i+1]])
+	return edges
 
-def addMesh(name, geoms, shpType, extrudeValues, initialGeoFeatureIdx=[]):
+def addMesh(name, geoms, shpType, extrudeValues):
 	print("Create mesh...")
 	#Create an empty BMesh
 	bm = bmesh.new()
@@ -176,13 +173,22 @@ def addMesh(name, geoms, shpType, extrudeValues, initialGeoFeatureIdx=[]):
 				bmesh.ops.translate(bm, verts=verts, vec=vect)
 		#LINES
 		if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
-			#build edge
-			pts= [bm.verts.new(pt) for pt in geom]
-			edge = bm.edges.new(pts)
+			#Split polyline to lines
+			lines = polylinesToLines(geom)
+			#build edges
+			edges = []
+			##edgesVerts = []
+			for line in lines:
+				verts = [bm.verts.new(pt) for pt in line]
+				edge = bm.edges.new(verts)
+				edges.append(edge)
+				##edgesVerts.extend(verts)
 			#Extrusion
 			if extrudeValues:
-				offset = extrudeValues[initialGeoFeatureIdx[i]]
-				extrudeEdgesBm(bm, edge, offset)
+				verts = extrudeEdgesBm(bm, edges, extrudeValues[i])
+				##edgesVerts.extend(verts)
+			#Merge edges to retrieve polyline
+			##bmesh.ops.remove_doubles(bm, verts=edgesVerts, dist=0.0001)
 		#NGONS
 		if (shpType == 'Polygon' or shpType == 'PolygonZ'):
 			if len(geom) >= 3:#needs 3 points to get face
@@ -193,19 +199,21 @@ def addMesh(name, geoms, shpType, extrudeValues, initialGeoFeatureIdx=[]):
 				if extrudeValues:
 					extrudeFacesBm(bm, f, extrudeValues[i])
 	#Finish up, write the bmesh to a new mesh
+	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 	mesh = bpy.data.meshes.new(name)
 	bm.to_mesh(mesh)
 	bm.free()
 	return mesh
 
 
-def extrudeEdgesBm(bm, edge, offset):#Blender >= 2.65
+def extrudeEdgesBm(bm, edges, offset):#Blender >= 2.65
 	vect=(0,0,offset)#normal = Z
-	result=bmesh.ops.extrude_edge_only(bm, edges=[edge])
+	result=bmesh.ops.extrude_edge_only(bm, edges=edges)
 	#geom type filter
-	verts=[elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
+	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 	#translate
 	bmesh.ops.translate(bm, verts=verts, vec=vect)
+	return verts
 
 def extrudeFacesBm(bm, face, offset):#Blender >= 2.65
 	#update normal to avoid null vector
@@ -306,7 +314,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 	adjust3dView = BoolProperty(
 			name="Adjust 3D view",
 			description="Adjust grid floor and clip distances",
-			default=False
+			default=True
 			)
 
 	def draw(self, context):
