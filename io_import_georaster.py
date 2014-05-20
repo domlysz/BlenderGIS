@@ -1181,7 +1181,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		#Adjust 3d view
 		if self.adjust3dView:
 			bb = getBBox(obj)
-			#la coordonn�e x ou y la + �loign�e de l'origin = la distance d'un demi cot� du carr� --> fois 2 pr avoir la longueur d'un cot�
 			dstMax = round(max(abs(bb.xmax), abs(bb.xmin), abs(bb.ymax), abs(bb.ymin)))*2
 			nbDigit = len(str(dstMax))
 			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
