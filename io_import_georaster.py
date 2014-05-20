@@ -4,7 +4,7 @@ bl_info = {
 	'name': 'Import raster georeferenced with world file',
 	'author': 'domLysz',
 	'version': (2, 0),
-	'blender': (2, 7, 0),#min version = 2.63
+	'blender': (2, 7, 0),#min version = 2.67
 	'location': 'File > Import > Georeferenced raster',
 	'description': 'Import raster georeferenced with world file',
 	'warning': '',
