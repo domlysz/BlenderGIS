@@ -785,7 +785,7 @@ def setDisplacer(obj, rast, uvTxtLayer, mid=0):
 	displacer.uv_layer = uvTxtLayer.name
 	displacer.mid_level = mid #Texture values below this value will result in negative displacement
 	#Setting the displacement strength :
-	#displacement = (texture value - Midlevel) × Strength <--> Strength = displacement / texture value (because mid=0)
+	#displacement = (texture value - Midlevel) ï¿½ Strength <--> Strength = displacement / texture value (because mid=0)
 	displacer.strength = rast.wholeStats.rdelta / rast.wholeStats.bdelta
 	#If DEM non scaled then
 	#	*displacement = alt max - alt min = delta Z
@@ -1000,7 +1000,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			if self.gdalMode == "PYTHON" and not GDAL_PY:
 				return self.err("GDAL Python binding isn't installed")
 			if self.gdalMode == "BINARY" and not GDAL_BIN:
-				layout.label("GDAL binary executables aren't installed")
+				return self.err("GDAL binaries executables aren't installed")
 		#Get bbox of reference plane
 		if self.importMode in ['mesh', 'DEM', 'DEM_GDAL']:#on mesh or as DEM
 			if not self.useGeoref:
@@ -1181,7 +1181,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		#Adjust 3d view
 		if self.adjust3dView:
 			bb = getBBox(obj)
-			#la coordonnée x ou y la + éloignée de l'origin = la distance d'un demi coté du carré --> fois 2 pr avoir la longueur d'un coté
+			#la coordonnï¿½e x ou y la + ï¿½loignï¿½e de l'origin = la distance d'un demi cotï¿½ du carrï¿½ --> fois 2 pr avoir la longueur d'un cotï¿½
 			dstMax = round(max(abs(bb.xmax), abs(bb.xmin), abs(bb.ymax), abs(bb.ymin)))*2
 			nbDigit = len(str(dstMax))
 			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
