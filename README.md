@@ -8,7 +8,7 @@ ESRI Shapefile import / export
 
 A [Shapefile](http://en.wikipedia.org/wiki/Shapefile) is a popular geospatial vector data format for geographic information system software.
 
-This tool can import into Blender most of shapefile feature type : point, pointZ, polyline, polylineZ, polygon, polygonZ. But actually it cannot import multipoint, multipointZ, pointM, polylineM, polygonM and multipatch. The addon can also uses attributes data to define Z elevation values or Z extrusion values.
+This tool can import into Blender most of shapefile feature type. It can also uses attributes data to define Z elevation values or Z extrusion values.
 
 Exporter script can export a mesh to pointZ, polylineZ or polygonZ shapefile.
 
