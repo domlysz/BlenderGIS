@@ -1,15 +1,33 @@
-# -*- coding:Latin-1 -*-
+#  ***** GPL LICENSE BLOCK *****
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  All rights reserved.
+#  ***** GPL LICENSE BLOCK *****
 
 bl_info = {
 	'name': 'Import raster georeferenced with world file',
 	'author': 'domLysz',
+	'license': 'GPL',
+	'deps': 'numpy, gdal',
 	'version': (2, 0),
 	'blender': (2, 7, 0),#min version = 2.67
 	'location': 'File > Import > Georeferenced raster',
 	'description': 'Import raster georeferenced with world file',
 	'warning': '',
-	'wiki_url': '',
+	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
 	'tracker_url': '',
+	'link': '',
 	'support': 'COMMUNITY',
 	'category': 'Import-Export',
 	}
