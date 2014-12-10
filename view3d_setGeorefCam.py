@@ -158,10 +158,10 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		scale = max((dimx, dimy))
 		ratio = max((dimx, dimy)) / min((dimx, dimy))
 		
-		camLocZ = locz + max(georefObj.dimensions) / 2#arbitrary
-		delta = abs(locz - camLocZ)
-		camClipStart = delta * 1/4
-		camClipEnd = delta + delta * 3/4
+		bbox2 = getBBox(georefObj)
+		camLocZ = georefObj.location.z + bbox2['zmax'] * georefObj.scale.z
+		camClipStart = 0
+		camClipEnd = georefObj.dimensions.z#this prop takes account of scaleZ 
 		
 		if context.scene.camLst == 'NEW':
 			#Add camera data
