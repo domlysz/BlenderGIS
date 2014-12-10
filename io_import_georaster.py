@@ -785,6 +785,10 @@ def geoRastUVmap(obj, mesh, uvTxtLayer, img, wf, dx, dy):
 			dx_px, dy_px = wf.pxFromGeo(pt[0], pt[1], reverseY=True, round2Floor=False)
 			u = dx_px / wf.rasterSize[0]
 			v = dy_px / wf.rasterSize[1]
+			#make sure uv coords are inside texture pixels (ie < rasterSize)
+			eps=0.00001
+			if u == 1: u = u - eps
+			if v == 1: v = v - eps
 			#Assign coords
 			uvLoop = uvLoopLayer.data[i]
 			uvLoop.uv = [u,v]
