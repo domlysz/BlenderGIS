@@ -827,7 +827,7 @@ from bpy.types import Operator
 
 class IMPORT_GEORAST(Operator, ImportHelper):
 	"""Import georeferenced raster (need world file)"""
-	bl_idname = "import.georaster"  # important since its how bpy.ops.import.georaster is constructed
+	bl_idname = "import_gis.rast"  # important since its how bpy.ops.import.georaster is constructed
 	bl_description = 'Import raster georeferenced with world file'
 	bl_label = "Import georaster"
 	bl_options = {"UNDO"}
