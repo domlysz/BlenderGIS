@@ -421,7 +421,9 @@ class IMPORT_SHP(Operator, ImportHelper):
 					return {'FINISHED'}
 			else:
 				try:
-					elevValues=[float(record[fieldIdx]) for i, record in enumerate(records) for part in range(len(shapes[i].parts))]
+					#elevValues=[float(record[fieldIdx]) for i, record in enumerate(records) for part in range(len(shapes[i].parts))]
+					#finally extractGeom funtion doesn't needs elevValues splited by parts
+					elevValues=[float(record[fieldIdx]) for i, record in enumerate(records)]
 				except ValueError:
 					self.report({'ERROR'}, "Elevation values aren't numeric")
 					print("Elevation values aren't numeric")
