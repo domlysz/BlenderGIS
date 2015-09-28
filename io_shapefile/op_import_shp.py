@@ -378,7 +378,12 @@ class IMPORT_SHP(Operator, ImportHelper):
 		#Purge null geom
 		nbFeatures = len(shapes)
 		if self.useFieldElev or self.useFieldExtrude:
-			shapes, records = zip(*[(shape, records[i]) for i, shape in enumerate(shapes) if len(shape.points) > 0])
+			try:
+				shapes, records = zip(*[(shape, records[i]) for i, shape in enumerate(shapes)])# if len(shape.points) > 0])
+			except IndexError:
+				self.report({'ERROR'}, "Shapefiles reading error: number of shapes does not match number of table records.")
+				print("Shapefiles reading error: number of shapes does not match number of table records")
+				return {'FINISHED'}				
 		else:
 			shapes = [shape for shape in shapes if len(shape.points) > 0]
 		print(str(nbFeatures-len(shapes))+' null features ignored')
