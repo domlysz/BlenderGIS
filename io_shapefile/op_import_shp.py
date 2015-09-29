@@ -1,4 +1,4 @@
-# -*- coding:Latin-1 -*-
+# -*- coding:utf-8 -*-
 import os
 import bpy
 import bmesh
@@ -34,12 +34,12 @@ class ellps():
 ellpsGRS80 = ellps(6378137, 6356752.314245)#ellipsoid GRS80
 
 def dd2meters(val):
-		"""
-		Convert decimal degrees to meters
-		Correct at equator only but it's the way that "plate carré" works, we all know these horizontal distortions...
-		"""
-		global ellpsGRS80
-		return val*(ellpsGRS80.perimeter/360)
+	"""
+	Convert decimal degrees to meters
+	Correct at equator only but it's the way that "plate carrÃ©" works, we all know these horizontal distortions...
+	"""
+	global ellpsGRS80
+	return val*(ellpsGRS80.perimeter/360)
 
 def getFeaturesType(shapes):
 	shpType=shapes[0].shapeType#Shapetype of first feature, if this feature is null then shapefile will not be process...
@@ -269,7 +269,8 @@ from bpy.types import Operator
 
 class IMPORT_SHP(Operator, ImportHelper):
 	"""Import from ESRI shapefile file format (.shp)"""
-	bl_idname = "import.shapefile"  # important since its how bpy.ops.import.shapefile is constructed
+	bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
+	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
 	bl_description = 'Import from ESRI shapefile file format (.shp)'
 	bl_label = "Import SHP"
 	bl_options = {"UNDO"}
@@ -352,7 +353,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		try:
 			shp=shpReader(filePath)
 			#Get fields names
-			fields = shp.fields #3 values tuple (nom, type, longueur, précision)
+			fields = shp.fields #3 values tuple (nom, type, longueur, prÃ©cision)
 			fieldsNames=[field[0].lower() for field in fields if field[0] != 'DeletionFlag']#lower() allows case-insensitive
 			print("DBF fields : "+str(fieldsNames))
 		except:
@@ -490,7 +491,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 			xmax=max([pt[0] for pt in bbox])
 			ymin=min([pt[1] for pt in bbox])
 			ymax=max([pt[1] for pt in bbox])
-			#la coordonnée x ou y la + éloignée de l'origin = la distance d'un demi coté du carré --> fois 2 pr avoir la longueur d'un coté
+			#la coordonnÃ©e x ou y la + Ã©loignÃ©e de l'origin = la distance d'un demi cotÃ© du carrÃ© --> fois 2 pr avoir la longueur d'un cotÃ©
 			dstMax=round(max(abs(xmax), abs(xmin), abs(ymax), abs(ymin)))*2
 			nbDigit=len(str(dstMax))
 			scale=10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m

@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 #  ***** GPL LICENSE BLOCK *****
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -807,7 +809,7 @@ def setDisplacer(obj, rast, uvTxtLayer, mid=0):
 	displacer.uv_layer = uvTxtLayer.name
 	displacer.mid_level = mid #Texture values below this value will result in negative displacement
 	#Setting the displacement strength :
-	#displacement = (texture value - Midlevel) � Strength <--> Strength = displacement / texture value (because mid=0)
+	#displacement = (texture value - Midlevel) * Strength <--> Strength = displacement / texture value (because mid=0)
 	displacer.strength = rast.wholeStats.rdelta / rast.wholeStats.bdelta
 	#If DEM non scaled then
 	#	*displacement = alt max - alt min = delta Z
@@ -827,7 +829,8 @@ from bpy.types import Operator
 
 class IMPORT_GEORAST(Operator, ImportHelper):
 	"""Import georeferenced raster (need world file)"""
-	bl_idname = "import.georaster"  # important since its how bpy.ops.import.georaster is constructed
+	bl_idname = "importgis.georaster"  # important since its how bpy.ops.importgis.georaster is constructed (allows calling operator from python console or another script)
+	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
 	bl_description = 'Import raster georeferenced with world file'
 	bl_label = "Import georaster"
 	bl_options = {"UNDO"}
@@ -892,6 +895,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			default=0
 			)
 	scale_altMax = IntProperty(
+
 			name="DEM max value",
 			default=0
 			)

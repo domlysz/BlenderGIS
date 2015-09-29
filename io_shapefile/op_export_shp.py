@@ -1,4 +1,4 @@
-# -*- coding:Latin-1 -*-
+# -*- coding:utf-8 -*-
 import os
 import bpy
 import bmesh
@@ -13,7 +13,8 @@ from bpy.types import Operator
 
 class EXPORT_SHP(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
-	bl_idname = "export.shapefile"
+	bl_idname = "exportgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
+	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
 	bl_description = 'export to ESRI shapefile file format (.shp)'
 	bl_label = "Export SHP"
 	bl_options = {"UNDO"}
