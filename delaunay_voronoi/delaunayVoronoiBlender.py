@@ -1,4 +1,4 @@
-
+# -*- coding:utf-8 -*-
 #import DelaunayVoronoi
 import bpy
 from .DelaunayVoronoi import computeVoronoiDiagram, computeDelaunayTriangulation
