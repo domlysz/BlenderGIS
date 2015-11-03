@@ -46,7 +46,7 @@ def getFeaturesType(shapes):
 	#nt: Point features layer cannot be multipart
 	return featureType[shpType]
 
-def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, angCoords=False):
+def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis, angCoords=False):
 	print("Process geometry...")
 	zGeom=False
 	mesh=False
@@ -71,14 +71,14 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, angCoords=F
 		geoms=extractGeoms(shapes, zGeom, zFieldValues=zValues)
 		shiftGeom(geoms, dx, dy, angCoords)
 		#edges, initialGeoFeatureIdx = polylinesToLines(geoms)
-		mesh=addMesh(meshName, geoms, shpType, zExtrude)
+		mesh=addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis)
 
 	elif (shpType == 'Polygon' or shpType == 'PolygonZ'):
 		if shpType[-1] == 'Z' and not zValues:
 			zGeom=True
 		geoms=extractGeoms(shapes, zGeom, zFieldValues=zValues, polygon=True)
 		shiftGeom(geoms, dx, dy, angCoords)
-		mesh=addMesh(meshName, geoms, shpType, zExtrude)
+		mesh=addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis)
 
 	print("Mesh created")
 	return mesh
@@ -145,7 +145,7 @@ def polylinesToLines(geom):
 			edges.append([geom[i],geom[i+1]])
 	return edges
 
-def addMesh(name, geoms, shpType, extrudeValues):
+def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis):
 	print("Create mesh...")
 	#Create an empty BMesh
 	bm = bmesh.new()
@@ -185,7 +185,10 @@ def addMesh(name, geoms, shpType, extrudeValues):
 				##edgesVerts.extend(verts)
 			#Extrusion
 			if extrudeValues:
-				verts = extrudeEdgesBm(bm, edges, extrudeValues[i])
+				extrudeValue = extrudeValues[i]
+				if not extrudeValue:
+					extrudeValue = 0
+				verts = extrudeEdgesBm(bm, edges, extrudeValue, extrudeAxis)
 				##edgesVerts.extend(verts)
 			#Merge edges to retrieve polyline
 			##bmesh.ops.remove_doubles(bm, verts=edgesVerts, dist=0.0001)
@@ -197,7 +200,10 @@ def addMesh(name, geoms, shpType, extrudeValues):
 				#if f.normal < 0: #this is a polygon hole, bmesh cannot handle polygon hole
 				#Extrusion
 				if extrudeValues:
-					extrudeFacesBm(bm, f, extrudeValues[i])
+					extrudeValue = extrudeValues[i]
+					if not extrudeValue:
+						extrudeValue = 0
+					extrudeFacesBm(bm, f, extrudeValue, extrudeAxis)
 	#Finish up, write the bmesh to a new mesh
 	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 	mesh = bpy.data.meshes.new(name)
@@ -206,27 +212,32 @@ def addMesh(name, geoms, shpType, extrudeValues):
 	return mesh
 
 
-def extrudeEdgesBm(bm, edges, offset):#Blender >= 2.65
-	vect=(0,0,offset)#normal = Z
-	result=bmesh.ops.extrude_edge_only(bm, edges=edges)
+def extrudeEdgesBm(bm, edges, offset, axis):#Blender >= 2.65
+	#if axis == 'NORMAL'
+	#elif axis == 'Z':
+	vect = (0,0,offset)#normal = Z
+	result = bmesh.ops.extrude_edge_only(bm, edges=edges)
 	#geom type filter
 	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 	#translate
 	bmesh.ops.translate(bm, verts=verts, vec=vect)
 	return verts
 
-def extrudeFacesBm(bm, face, offset):#Blender >= 2.65
+def extrudeFacesBm(bm, face, offset, axis):#Blender >= 2.65
 	#update normal to avoid null vector
 	bm.normal_update()
-	#get normal and build translate vector
-	normal=face.normal
-	vect=normal*offset
+	#build translate vector
+	if axis == 'NORMAL':
+		normal=face.normal
+		vect=normal*offset
+	elif axis == 'Z':
+		vect=(0,0,offset)
 	#make geom list for bmesh ops input --> [BMVert, BMEdge, BMFace]
-	geom=list(face.verts)+list(face.edges)+[face]
+	geom = list(face.verts)+list(face.edges)+[face]
 	#extrude
-	result=bmesh.ops.extrude_face_region(bm, geom=geom)#return dict {"geom":[BMVert, BMEdge, BMFace]}
+	result = bmesh.ops.extrude_face_region(bm, geom=geom)#return dict {"geom":[BMVert, BMEdge, BMFace]}
 	#geom type filter
-	verts=[elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
+	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 	##edges=[elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMEdge)]
 	##faces=[elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMFace)]
 	#translate
@@ -299,6 +310,13 @@ class IMPORT_SHP(Operator, ImportHelper):
 			default=False
 			)
 	fieldExtrudeName = StringProperty(name = "Field name")
+	#Extrusion axis
+	extrusionAxis = EnumProperty(
+			name="Extrude along",
+			description="Select extrusion axis",
+			items=[ ('Z', 'z axis', "Extrude along Z axis"),
+			('NORMAL', 'Normal', "Extrude along normal")]
+			)
 	#Use previous object translation
 	useGeoref = BoolProperty(
 			name="Consider georeferencing",
@@ -318,6 +336,8 @@ class IMPORT_SHP(Operator, ImportHelper):
 			default=True
 			)
 
+
+
 	def draw(self, context):
 		#Function used by blender to draw the panel.
 		scn = bpy.context.scene
@@ -327,9 +347,12 @@ class IMPORT_SHP(Operator, ImportHelper):
 			isGeoref = False
 		layout = self.layout
 		layout.prop(self, 'useFieldElev')
-		layout.prop(self, 'fieldElevName')
+		if self.useFieldElev:
+			layout.prop(self, 'fieldElevName')
 		layout.prop(self, 'useFieldExtrude')
-		layout.prop(self, 'fieldExtrudeName')
+		if self.useFieldExtrude:
+			layout.prop(self, 'fieldExtrudeName')
+			layout.prop(self, 'extrusionAxis')
 		if isGeoref:
 			layout.prop(self, 'useGeoref')
 		else:
@@ -476,7 +499,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		else:
 			dx, dy = center[0], center[1]
 		#Launch geometry builder
-		mesh = buildGeoms(name, shapes, shpType, elevValues, dx, dy, extrudeValues, self.angCoords)
+		mesh = buildGeoms(name, shapes, shpType, elevValues, dx, dy, extrudeValues, self.extrusionAxis, self.angCoords)
 		if not mesh:
 			print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 			return {'FINISHED'}
