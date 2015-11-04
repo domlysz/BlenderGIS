@@ -335,30 +335,54 @@ class IMPORT_SHP(Operator, ImportHelper):
 			description="Adjust grid floor and clip distances",
 			default=True
 			)
-
+	#Create separate objects
+	separateObjects = BoolProperty(
+			name="Separate objects",
+			description="Import to separate objects instead one large object",
+			default=False
+			)
+	#Name objects from field
+	useFieldName = BoolProperty(
+			name="Object name from field",
+			description="Extract name for created objects from an attribute field",
+			default=False
+			)
+	fieldObjName = StringProperty(name = "Field name")
 
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
 		scn = bpy.context.scene
-		if "Georef X" in scn and "Georef Y" in scn:
-			isGeoref = True
-		else:
-			isGeoref = False
 		layout = self.layout
+		#
 		layout.prop(self, 'useFieldElev')
 		if self.useFieldElev:
 			layout.prop(self, 'fieldElevName')
+		#
 		layout.prop(self, 'useFieldExtrude')
 		if self.useFieldExtrude:
 			layout.prop(self, 'fieldExtrudeName')
 			layout.prop(self, 'extrusionAxis')
+		#
+		layout.prop(self, 'separateObjects')
+		if self.separateObjects:
+			layout.prop(self, 'useFieldName')
+		if self.separateObjects and self.useFieldName:
+			layout.prop(self, 'fieldObjName')
+		#
+		if "Georef X" in scn and "Georef Y" in scn:
+			isGeoref = True
+		else:
+			isGeoref = False
 		if isGeoref:
 			layout.prop(self, 'useGeoref')
 		else:
 			self.useGeoref = False
+		#
 		layout.prop(self, 'angCoords')
+		#
 		layout.prop(self, 'adjust3dView')
+
 
 	def execute(self, context):
 		try:
@@ -392,7 +416,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 			print("Unable to extract geometry")
 			return {'FINISHED'}
 		#Extract data
-		if self.useFieldElev or self.useFieldExtrude:
+		if self.useFieldElev or self.useFieldExtrude or self.useFieldName:
 			try:
 				records=shp.records()
 			except:
@@ -401,7 +425,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 				return {'FINISHED'}
 		#Purge null geom
 		nbFeatures = len(shapes)
-		if self.useFieldElev or self.useFieldExtrude:
+		if self.useFieldElev or self.useFieldExtrude or self.useFieldName:
 			try:
 				shapes, records = zip(*[(shape, records[i]) for i, shape in enumerate(shapes)])# if len(shape.points) > 0])
 			except IndexError:
@@ -432,6 +456,15 @@ class IMPORT_SHP(Operator, ImportHelper):
 		bbox_dx=xmax-xmin
 		bbox_dy=ymax-ymin
 		center=(xmin+bbox_dx/2, ymin+bbox_dy/2)
+		#Get obj names from field
+		if self.useFieldName:
+			try:
+				fieldIdx = fieldsNames.index(self.fieldObjName.lower())
+			except:
+				self.report({'ERROR'}, "Unable to find name field")
+				print("Unable to find name field");
+				return {'FINISHED'}
+			nameValues = [str(record[fieldIdx]) for record in records]
 		#Get Elevation Values
 		if self.useFieldElev:
 			try:
@@ -499,21 +532,49 @@ class IMPORT_SHP(Operator, ImportHelper):
 		else:
 			dx, dy = center[0], center[1]
 		#Launch geometry builder
-		mesh = buildGeoms(name, shapes, shpType, elevValues, dx, dy, extrudeValues, self.extrusionAxis, self.angCoords)
-		if not mesh:
-			print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
-			return {'FINISHED'}
-		#Place the mesh
-		obj = placeObj(mesh, name)
+		if not self.separateObjects:#create one object
+			mesh = buildGeoms(name, shapes, shpType, elevValues, dx, dy, extrudeValues, self.extrusionAxis, self.angCoords)
+			if not mesh:
+				print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
+				return {'FINISHED'}
+			#Place the mesh
+			obj = placeObj(mesh, name)
+		else:#create multiple objects
+			for i, shape in enumerate(shapes):
+				#get obj name
+				if self.useFieldName:
+					objName = nameValues[i]
+				else:
+					objName = name
+				#get elevation value
+				if self.useFieldElev:
+					elevValue = [elevValues[i]]
+				else:
+					elevValue = False
+				#get extrusion value
+				if self.useFieldExtrude:
+					extrudeValue = [extrudeValues[i]]
+				else:
+					extrudeValue = False
+				#build geom &place obj
+				mesh = buildGeoms(objName, [shape], shpType, elevValue, dx, dy, extrudeValue, self.extrusionAxis, self.angCoords)
+				if not mesh:
+					print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
+					return {'FINISHED'}
+				obj = placeObj(mesh, objName)
 		#Add custom properties define x & y translation to retrieve georeferenced model
 		scn["Georef X"], scn["Georef Y"] = dx, dy
 		#Adjust grid size
 		if self.adjust3dView:
-			bbox = obj.bound_box
-			xmin=min([pt[0] for pt in bbox])
-			xmax=max([pt[0] for pt in bbox])
-			ymin=min([pt[1] for pt in bbox])
-			ymax=max([pt[1] for pt in bbox])
+			#bbox = obj.bound_box
+			#xmin=min([pt[0] for pt in bbox])
+			#xmax=max([pt[0] for pt in bbox])
+			#ymin=min([pt[1] for pt in bbox])
+			#ymax=max([pt[1] for pt in bbox])
+			xmin-=dx
+			xmax-=dx
+			ymin-=dy
+			ymax-=dy
 			#la coordonnée x ou y la + éloignée de l'origin = la distance d'un demi coté du carré --> fois 2 pr avoir la longueur d'un coté
 			dstMax=round(max(abs(xmax), abs(xmin), abs(ymax), abs(ymin)))*2
 			nbDigit=len(str(dstMax))
