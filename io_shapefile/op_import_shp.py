@@ -145,7 +145,7 @@ def polylinesToLines(geom):
 			edges.append([geom[i],geom[i+1]])
 	return edges
 
-def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis):
+def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 	print("Create mesh...")
 	#Create an empty BMesh
 	bm = bmesh.new()
