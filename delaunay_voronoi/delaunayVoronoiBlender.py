@@ -94,8 +94,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		#Create an object with that mesh
 		tinObj = bpy.data.objects.new("TIN", tinMesh)
 		#Place object
-		bpy.ops.view3d.snap_cursor_to_selected()#move 3d-cursor
-		tinObj.location = bpy.context.scene.cursor_location #position object at 3d-cursor
+		tinObj.location = obj.location.copy()
 		tinObj.rotation_euler = r
 		tinObj.scale = s
 		#Update scene
@@ -177,8 +176,7 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		#create an object with that mesh
 		voronoiObj = bpy.data.objects.new("VoronoiDiagram", voronoiDiagram)
 		#place object
-		bpy.ops.view3d.snap_cursor_to_selected()#move 3d-cursor
-		voronoiObj.location = bpy.context.scene.cursor_location #position object at 3d-cursor
+		voronoiObj.location = obj.location.copy()
 		voronoiObj.rotation_euler = r
 		voronoiObj.scale = s
 		#update scene
