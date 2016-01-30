@@ -18,7 +18,7 @@
 #  ***** GPL LICENSE BLOCK *****
 
 bl_info = {
-	'name': 'Import raster georeferenced with world file',
+	'name': '[bgis] Import raster georeferenced with world file',
 	'author': 'domLysz',
 	'license': 'GPL',
 	'deps': 'numpy, gdal',
@@ -886,6 +886,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	#Scale DEM
 	scale = BoolProperty(
 			name="Scale",
+
 			description="Scale the DEM according to bit depth",
 			default=False
 			)

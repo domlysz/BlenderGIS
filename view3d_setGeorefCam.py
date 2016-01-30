@@ -18,7 +18,7 @@
 #  ***** GPL LICENSE BLOCK *****
 
 bl_info = {
-	"name": "Set georef cam",
+	"name": "[bgis] Set georef cam",
 	"description": "",
 	"author": "This script is public domain",
 	'license': 'GPL',

@@ -18,7 +18,7 @@
 #  ***** GPL LICENSE BLOCK *****
 
 bl_info = {
-	"name": "Delaunay Voronoi ",
+	"name": "[bgis] Delaunay Voronoi",
 	"description": "Points cloud Delaunay triangulation in 2.5D (suitable for terrain modelling) or Voronoi diagram in 2D",
 	"author": "Domlysz",
 	'license': 'GPL',

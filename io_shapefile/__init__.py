@@ -18,7 +18,7 @@
 #  ***** GPL LICENSE BLOCK *****
 
 bl_info = {
-	'name': 'Import/export from ESRI shapefile file format (.shp)',
+	'name': '[bgis] Import/export from ESRI shapefile file format (.shp)',
 	'author': 'domLysz',
 	'license': 'GPL',
 	'deps': 'pyShp',
