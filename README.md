@@ -37,3 +37,11 @@ Delaunay triangulation & Voronoi diagram
 This script computes [Delaunay triangulation](http://en.wikipedia.org/wiki/Delaunay_triangulation) in 2.5D. This triangulation is suitable for create a 3D terrain mesh from [points cloud](http://en.wikipedia.org/wiki/Point_cloud) or [contour lines](http://en.wikipedia.org/wiki/Contour_line)
 
 The script can also compute [Voronoi tessellation](http://en.wikipedia.org/wiki/Voronoi) in 2D which is the dual of delaunay triangulation. Voronoi diagram is suitable to make neighborhood analysis map.
+
+
+Terrain analysis
+--------------------
+
+This part of Blender GIS is designed to assist in the analysis of the topography : height, slope and azimuth (aspect).
+
+There are 2 tools, one to build materials nodes setup for Cycles engine, and a second to configure the color ramp as usual in common GIS software (reclassify values and apply color ramp presets).
