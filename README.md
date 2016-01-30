@@ -2,7 +2,8 @@ Blender GIS
 ==========
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
-Update 2016, [new tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
+
+**Update 2016**, [new tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
 
 ESRI Shapefile import / export
 --------------------
