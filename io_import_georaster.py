@@ -38,7 +38,7 @@ import bpy
 import bmesh
 import os
 import math
-import mathutils
+from mathutils import Vector
 import numpy as np#Ship with Blender since 2.70
 
 try:
@@ -744,8 +744,11 @@ def addTexture(mat, img, uvLay):
 	# restore initial engine
 	bpy.context.scene.render.engine = engine
 
-def getBBox(obj):
-	boundPts = obj.bound_box
+def getBBox(obj, applyTransform = True):
+	if applyTransform:
+		boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
+	else:
+		boundPts = obj.bound_box
 	xmin=min([pt[0] for pt in boundPts])
 	xmax=max([pt[0] for pt in boundPts])
 	ymin=min([pt[1] for pt in boundPts])
@@ -1038,7 +1041,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			obj = scn.objects[int(self.objectsLst)]
 			obj.select = True
 			scn.objects.active = obj
-			bpy.ops.object.transform_apply(rotation=True, scale=True)
+			#bpy.ops.object.transform_apply(rotation=True, scale=True)
 			bb = getBBox(obj)
 			loc = obj.location
 			projBBox = bbox(bb.xmin+dx+loc.x, bb.xmax+dx+loc.x, bb.ymin+dy+loc.y, bb.ymax+dy+loc.y)

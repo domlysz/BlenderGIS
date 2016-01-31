@@ -33,7 +33,7 @@ bl_info = {
 	"category": "3D View"}
 
 import bpy
-import bmesh
+from mathutils import Vector
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 
@@ -53,14 +53,11 @@ def listCams(self, context):
 			objs.append((str(index), object.name, "Camera : "+object.name)) #put each object in a tuple (key, label, tooltip) and add this to the objects list
 	return objs
 
-def getBBoxCenter(bbox):
-	x = bbox['xmin'] + (bbox['xmax'] - bbox['xmin']) / 2
-	y = bbox['ymin'] + (bbox['ymax'] - bbox['ymin']) / 2
-	z = bbox['zmin'] + (bbox['zmax'] - bbox['zmin']) / 2
-	return (x,y,z)
-
-def getBBox(obj):
-	boundPts = obj.bound_box
+def getBBox(obj, applyTransform = True):
+	if applyTransform:
+		boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
+	else:
+		boundPts = obj.bound_box
 	bbox={}
 	bbox['xmin']=min([pt[0] for pt in boundPts])
 	bbox['xmax']=max([pt[0] for pt in boundPts])
@@ -70,32 +67,17 @@ def getBBox(obj):
 	bbox['zmax']=max([pt[2] for pt in boundPts])
 	return bbox
 
-def getTrueBBox(obj, applyTransform):
-	#Compute true bbox (with scale, translation and rotation applied)
-	
-	def bboxFromBmesh(bm):
-		bbox={}
-		bbox['xmin']=min([pt.co.x for pt in bm.verts])
-		bbox['xmax']=max([pt.co.x for pt in bm.verts])
-		bbox['ymin']=min([pt.co.y for pt in bm.verts])
-		bbox['ymax']=max([pt.co.y for pt in bm.verts])
-		bbox['zmin']=min([pt.co.z for pt in bm.verts])
-		bbox['zmax']=max([pt.co.z for pt in bm.verts])
-		return bbox
-	
-	def getBBoxAsBmesh(obj, applyTransform):
-		bm = bmesh.new()
-		bm.from_mesh(obj.data) 
-		bm.verts.index_update()
-		if applyTransform:
-			bm.transform(obj.matrix_world)
-		return bm
-	
-	bm = getBBoxAsBmesh(obj, applyTransform)
-	bbox=bboxFromBmesh(bm)
-	bm.free()
-	return bbox
+def getBBoxCenter(bbox):
+	x = bbox['xmin'] + (bbox['xmax'] - bbox['xmin']) / 2
+	y = bbox['ymin'] + (bbox['ymax'] - bbox['ymin']) / 2
+	z = bbox['zmin'] + (bbox['zmax'] - bbox['zmin']) / 2
+	return (x,y,z)
 
+def getBBoxDim(bbox):
+	dx = bbox['xmax'] - bbox['xmin']
+	dy = bbox['ymax'] - bbox['ymin']
+	dz = bbox['zmax'] - bbox['zmin']
+	return (dx,dy,dz)
 
 #store property in scene
 bpy.types.Scene.objLst = EnumProperty(attr="obj_list", name="Object", description="Choose an object", items=listObjects)
@@ -152,18 +134,12 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		
 		#Get object
 		objIdx = context.scene.objLst
-		georefObj=bpy.context.scene.objects[int(objIdx)]
-		bbox=getTrueBBox(georefObj, True)
-		center=getBBoxCenter(bbox)
-		locx, locy, locz = center
-		dimx, dimy, dimz = georefObj.dimensions
-		scale = max((dimx, dimy))
-		ratio = max((dimx, dimy)) / min((dimx, dimy))
-		
-		bbox2 = getBBox(georefObj)
-		camLocZ = georefObj.location.z + bbox2['zmax'] * georefObj.scale.z + 1
-		camClipStart = 0.5
-		camClipEnd = georefObj.dimensions.z + 1.5#this prop takes account of scaleZ 
+		georefObj = bpy.context.scene.objects[int(objIdx)]
+
+		#Object properties
+		bbox = getBBox(georefObj, True)
+		locx, locy, locz = getBBoxCenter(bbox)
+		dimx, dimy, dimz = getBBoxDim(bbox)
 		
 		if context.scene.camLst == 'NEW':
 			#Add camera data
@@ -180,11 +156,16 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 
 		#Set camera data
 		cam.type = 'ORTHO'
-		cam.ortho_scale = scale
-		cam.clip_start = camClipStart
-		cam.clip_end = camClipEnd
+		cam.ortho_scale = max((dimx, dimy)) #ratio = max((dimx, dimy)) / min((dimx, dimy))
+		
+		#Set camera location
+		camLocZ = bbox['zmin'] + dimz + 1 #add one unit to avoid clipping
+		camObj.location = (locx, locy, camLocZ)
+
+		#Set camera clipping
+		cam.clip_start = 0.5
+		cam.clip_end = dimz + 2 #add 2 units to avoid clipping
 		cam.show_limits = True
-		camObj.location = (locx, locy, camLocZ)#arbitrary z value
 
 		if context.scene.camLst != 'NEW':
 			if self.redo == 1:#in update mode, we don't want overwrite initial camera name
