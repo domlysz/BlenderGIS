@@ -3,6 +3,8 @@
 import os
 import bpy
 import math
+from mathutils import Vector
+#import numpy as np
 from .utils import getBBox, scale
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
 from bpy.types import PropertyGroup, UIList, Panel, Operator
@@ -29,7 +31,7 @@ node = None
 #Set up a propertyGroup and populate a CollectionProperty
 #########################################
 class CustomItem(PropertyGroup):
-	
+
 	#Define update function for FloatProperty
 	def updStop(item, context):
 		#first arg is the container of the prop to update, here a customItem
@@ -189,7 +191,7 @@ class Reclass_uilist(UIList):
 		elif vals == [0, 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]:
 			return ['N', 'N-E', 'E', 'S-E', 'S', 'S-W', 'W', 'N-W', 'N']
 		elif vals == [0, 30, 90, 150, 210, 270, 330]:
-			return ['N', 'N-E', 'S-E', 'S', 'S-W', 'N-W', 'N']	
+			return ['N', 'N-E', 'S-E', 'S', 'S-W', 'N-W', 'N']
 		elif vals == [0, 60, 120, 180, 240, 300, 360]:
 			return ['N-E', 'E', 'S-E', 'S-W', 'W', 'N-W', 'N-E']
 		elif vals == [0, 90, 270]:
@@ -198,7 +200,7 @@ class Reclass_uilist(UIList):
 			return ['E', 'W']
 		else:
 			return False
-	
+
 	def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
 		'''
 		called for each item of the collection visible in the list
@@ -221,7 +223,7 @@ class Reclass_uilist(UIList):
 				split = split.split(percentage=0.4)
 				split.prop(item, "color", text="")
 				split.prop(item, "val", text="")
-			else:	
+			else:
 				split = layout.split(percentage=0.2)
 				#split.label(str(index))
 				split.label(str(item.idx+1))
@@ -276,7 +278,7 @@ class Reclass_panel(Panel):
 				row.label("max = " + str(round(inMax,2)))
 				row = layout.row()
 				row.label("delta = " + str(round(inMax-inMin,2)))
-			
+
 
 #Make Operators to manage ui list
 #########################################
@@ -285,7 +287,7 @@ class Reclass_switchInterpolation(Operator):
 	'''Switch color interpolation (continuous / discrete)'''
 	bl_idname = "reclass.switch_interpolation"
 	bl_label = "Switch color interpolation (continuous or discrete)"
-	
+
 	def execute(self, context):
 		node = context.active_node
 		cr = node.color_ramp
@@ -300,7 +302,7 @@ class Reclass_flip(Operator):
 	'''Flip color ramp'''
 	bl_idname = "reclass.flip"
 	bl_label = "Flip color ramp"
-	
+
 	def execute(self, context):
 		node = context.active_node
 		cr = node.color_ramp
@@ -315,7 +317,7 @@ class Reclass_flip(Operator):
 		for i, stop in enumerate(stops):
 			#stop.position = newStops[i][0]
 			stop.color = revStops[i][1]
-		#refresh	
+		#refresh
 		populateList(node)
 		return {'FINISHED'}
 
@@ -323,7 +325,7 @@ class Reclass_refresh(Operator):
 	"""Refresh list to match node setting"""
 	bl_idname = "reclass.list_refresh"
 	bl_label = "Populate list"
-	
+
 	def execute(self, context):
 		node = context.active_node
 		populateList(node)
@@ -334,7 +336,7 @@ class Reclass_clear(Operator):
 	"""Clear color ramp"""
 	bl_idname = "reclass.list_clear"
 	bl_label = "Clear list"
-	
+
 	def execute(self, context):
 		#bpy.context.scene.uiListCollec.clear()
 		node = context.active_node
@@ -427,6 +429,46 @@ def clearRamp(stops, startColor=(0,0,0,1), endColor=(1,1,1,1), startPos=0, endPo
 	last.color = endColor
 	return (first, last)
 
+def getValues():
+	'''Return mesh data values (z, slope or az) for classification'''
+	scn = bpy.context.scene
+	obj = scn.objects.active
+	#make a temp mesh with modifiers apply
+	#mesh = obj.data #modifiers not apply
+	mesh = obj.to_mesh(scn, apply_modifiers=True, settings='PREVIEW')
+	mesh.transform(obj.matrix_world)
+	#
+	mode = scn.analysisMode
+	if mode == 'HEIGHT':
+		values = [vertex.co.z for vertex in mesh.vertices]
+	elif mode == 'SLOPE':
+		z = Vector((0,0,1))
+		m = obj.matrix_world
+		values =  [math.degrees(z.angle(m * face.normal)) for face in mesh.polygons]
+	elif mode == 'ASPECT':
+		y = Vector((0,1,0))
+		m = obj.matrix_world
+		#values =  [math.degrees(y.angle(m * face.normal)) for face in mesh.polygons]
+		values = []
+		for face in mesh.polygons:
+			normal = face.normal.copy()
+			normal.z = 0 #project vector into XY plane
+			try:
+				a = math.degrees(y.angle(m * normal))
+			except ValueError:
+				pass#zero length vector as no angle
+			else:
+				#returned angle is between 0° (north) to 180° (south)
+				#we must correct it to get angle between 0 to 360°
+				if normal.x <0:
+					a = 360 - a
+				values.append(a)
+	values.sort()
+	#remove temp mesh
+	bpy.data.meshes.remove(mesh)
+
+	return values
+
 
 class Reclass_auto(Operator):
 	'''Auto reclass by equal interval or fixed classe number'''
@@ -440,12 +482,13 @@ class Reclass_auto(Operator):
 			('CLASSES_NB', 'Fixed classes number', "Define the expected number of classes"),
 			('EQUAL_STEP', 'Equal interval value', "Define step value between classes"),
 			('TARGET_STEP', 'Target interval value', "Define target step value that stops will match"),
+			('QUANTILE', 'Quantile', ''),
 			('ASPECT', 'Aspect reclassification', "Value define the number of azimuth")]
 			)
 	color1 = FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
 	color2 = FloatVectorProperty(name="End color", subtype='COLOR', min=0, max=1, size=4)
 	value = IntProperty(name="Value", default=4)
-	
+
 	def invoke(self, context, event):
 		#Set color to actual ramp
 		node = context.active_node
@@ -495,14 +538,17 @@ class Reclass_auto(Operator):
 				val += interval
 				position = scale(val, inMin, inMax, 0, 1)
 				stop = stops.new(position)
-	
+
 		if self.autoReclassMode == 'CLASSES_NB':
 			nbClasses = self.value
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
 				return {'FINISHED'}
-			clearRamp(stops, startColor, endColor)
 			delta = inMax-inMin
+			if nbClasses >= delta:
+				self.report({'ERROR'}, "Too many classes")
+				return {'FINISHED'}
+			clearRamp(stops, startColor, endColor)
 			interval = delta/nbClasses
 			val = inMin
 			for i in range(nbClasses-1):
@@ -512,14 +558,14 @@ class Reclass_auto(Operator):
 
 		if self.autoReclassMode == 'ASPECT':
 			bpy.context.scene.analysisMode = 'ASPECT'
-			delta = inMax-inMin #360�
+			delta = inMax-inMin #360°
 			interval = 360 / self.value
 			nbClasses = self.value #math.ceil(delta/interval)
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
 				return {'FINISHED'}
 			first, last = clearRamp(stops, startColor, endColor)
-			offset = interval/2	
+			offset = interval/2
 			intervalNorm = scale(interval, inMin, inMax, 0, 1)
 			offsetNorm = scale(offset, inMin, inMax, 0, 1)
 			#move actual last stop to before last position
@@ -537,7 +583,34 @@ class Reclass_auto(Operator):
 			stop = stops.new(1-offsetNorm)
 			stop.color = first.color
 			cr.interpolation = 'CONSTANT'
-			
+
+		if self.autoReclassMode == 'QUANTILE':
+			nbClasses = self.value
+			if nbClasses >= 32:
+				self.report({'ERROR'}, "Ramp is limited to 32 colors")
+				return {'FINISHED'}
+			clearRamp(stops, startColor, endColor)
+			values = getValues()
+			if nbClasses >= len(values):
+				self.report({'ERROR'}, "Too many classes")
+				return {'FINISHED'}
+			n = len(values)
+			q = int(n/nbClasses) #number of value per quantile
+			cumulative_q = q
+			previousVal = scale(0, 0, 1, inMin, inMax)
+			for i in range(nbClasses-1):
+				val = values[cumulative_q]
+				if val != previousVal:
+					position = scale(val, inMin, inMax, 0, 1)
+					stop = stops.new(position)
+					previousVal = val
+				cumulative_q += q
+
+		if self.autoReclassMode == 'JENKS':
+			values = getValues()
+			nbClasses = self.value
+			print("Not implemented")
+
 		#refresh
 		populateList(node)
 		return {'FINISHED'}
@@ -563,7 +636,7 @@ class Reclass_gradient(Operator):
 
 	color1 = FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
 	color2 = FloatVectorProperty(name="End color", subtype='COLOR', min=0, max=1, size=4)
-	
+
 	def invoke(self, context, event):
 		#Set color to actual ramp
 		node = context.active_node
@@ -603,7 +676,7 @@ bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
 
 class BoolList(PropertyGroup):
 	useIt = BoolProperty(default=True)
-	
+
 bpy.utils.register_class(BoolList)
 bpy.types.Scene.useColors = CollectionProperty(type=BoolList)
 
@@ -618,7 +691,7 @@ class Reclass_gradient2(Operator):
 			name="Space",
 			description="Select interpolation color space",
 			items = colorSpaces)
-			
+
 	method = EnumProperty(
 			name="Method",
 			description="Select interpolation method",
@@ -636,21 +709,21 @@ class Reclass_gradient2(Operator):
 		else:
 			delta = 1
 		offset = delta/(nbColors-1)
-		position = 0		
+		position = 0
 		for i in range(nbColors):
 			item = bpy.context.scene.colorRampPreview[i]
 			item.color = cr.evaluate(position)
-			position += offset	
+			position += offset
 		return
-	
+
 	fitGradient = BoolProperty()#(update=updatePreview)
-	
+
 	def invoke(self, context, event):
 		#clear collection(s)
 		context.scene.useColors.clear()
 		context.scene.colorRampPreview.clear()
 		#feed collections(s)
-		nbColors = colorEditRange	
+		nbColors = colorEditRange
 		for i in range(nbColors):
 			bpy.context.scene.colorRampPreview.add()
 			boolItem = bpy.context.scene.useColors.add()
@@ -769,7 +842,7 @@ class Reclass_gradient3(Operator):
 			items = colorSpaces,
 			update = updatePreview
 			)
-			
+
 	method = EnumProperty(
 			name="Method",
 			description="Select interpolation method",
@@ -778,7 +851,7 @@ class Reclass_gradient3(Operator):
 			)
 
 	fitGradient = BoolProperty()
-			
+
 	def invoke(self, context, event):
 		#clear collection
 		context.scene.colorRampPreview.clear()
@@ -854,7 +927,7 @@ class Reclass_exportSVG(Operator):
 			name="Color space",
 			description="Select interpolation color space",
 			items = colorSpaces)
-			
+
 	method = EnumProperty(
 			name="Interp. method",
 			description="Select interpolation method",
