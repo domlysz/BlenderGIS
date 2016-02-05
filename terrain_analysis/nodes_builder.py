@@ -2,7 +2,7 @@
 
 import bpy
 import math
-from .utils import getBBox, scale
+from .utils.misc import getBBox, scale
 from bpy.types import Panel, Operator
 
 class Analysis_panel(Panel):

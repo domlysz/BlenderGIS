@@ -5,7 +5,8 @@ import bpy
 import math
 from mathutils import Vector
 #import numpy as np
-from .utils import getBBox, scale
+from .utils.misc import getBBox, scale
+from .utils.kmeans1D import kmeans1d
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
@@ -482,7 +483,8 @@ class Reclass_auto(Operator):
 			('CLASSES_NB', 'Fixed classes number', "Define the expected number of classes"),
 			('EQUAL_STEP', 'Equal interval value', "Define step value between classes"),
 			('TARGET_STEP', 'Target interval value', "Define target step value that stops will match"),
-			('QUANTILE', 'Quantile', ''),
+			('QUANTILE', 'Quantile', 'Assigns the same number of data values to each class.'),
+			('1DKMEANS', 'Natural breaks', 'kmeans clustering optimized for one dimensional data'),
 			('ASPECT', 'Aspect reclassification', "Value define the number of azimuth")]
 			)
 	color1 = FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
@@ -586,14 +588,14 @@ class Reclass_auto(Operator):
 
 		if self.autoReclassMode == 'QUANTILE':
 			nbClasses = self.value
+			values = getValues()
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
 				return {'FINISHED'}
-			clearRamp(stops, startColor, endColor)
-			values = getValues()
 			if nbClasses >= len(values):
 				self.report({'ERROR'}, "Too many classes")
 				return {'FINISHED'}
+			clearRamp(stops, startColor, endColor)
 			n = len(values)
 			q = int(n/nbClasses) #number of value per quantile
 			cumulative_q = q
@@ -606,10 +608,22 @@ class Reclass_auto(Operator):
 					previousVal = val
 				cumulative_q += q
 
-		if self.autoReclassMode == 'JENKS':
-			values = getValues()
+		if self.autoReclassMode == '1DKMEANS':
 			nbClasses = self.value
-			print("Not implemented")
+			values = getValues()
+			if nbClasses >= 32:
+				self.report({'ERROR'}, "Ramp is limited to 32 colors")
+				return {'FINISHED'}
+			if nbClasses >= len(values):
+				self.report({'ERROR'}, "Too many classes")
+				return {'FINISHED'}
+			clearRamp(stops, startColor, endColor)
+			#compute clusters
+			clusters = kmeans1d(values, nbClasses)
+			for c in clusters[:-1]:
+				val = max(c.values)
+				position = scale(val, inMin, inMax, 0, 1)
+				stop = stops.new(position)
 
 		#refresh
 		populateList(node)
