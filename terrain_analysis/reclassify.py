@@ -6,7 +6,7 @@ import math
 from mathutils import Vector
 #import numpy as np
 from .utils.misc import getBBox, scale
-from .utils.kmeans1D import kmeans1d
+from .utils.kmeans1D import kmeans1d, getBreaks
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
@@ -620,8 +620,7 @@ class Reclass_auto(Operator):
 			clearRamp(stops, startColor, endColor)
 			#compute clusters
 			clusters = kmeans1d(values, nbClasses)
-			for c in clusters[:-1]:
-				val = max(c)
+			for val in getBreaks(values, clusters):
 				position = scale(val, inMin, inMax, 0, 1)
 				stop = stops.new(position)
 
