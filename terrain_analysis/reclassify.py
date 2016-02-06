@@ -621,7 +621,7 @@ class Reclass_auto(Operator):
 			#compute clusters
 			clusters = kmeans1d(values, nbClasses)
 			for c in clusters[:-1]:
-				val = max(c.values)
+				val = max(c)
 				position = scale(val, inMin, inMax, 0, 1)
 				stop = stops.new(position)
 
