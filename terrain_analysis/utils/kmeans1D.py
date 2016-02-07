@@ -53,7 +53,7 @@ def kmeans1d(data, k, cutoff=0.1):
 	# Step 1: Create k clusters with quantile classification
 	n = len(data)
 	q = int(math.ceil(n/k))
-	clusters = [ [i, i+q+1] for i in range(0,n,q)] #store only first and last index
+	clusters = [ [i, i+q-1] for i in range(0,n,q)] #store only first and last index
 	clusters[-1][1] = n-1 #adjust the last index of the last cluster
 
 	#Centroid = mean = virtual center point for a group of 1-dimensional values
