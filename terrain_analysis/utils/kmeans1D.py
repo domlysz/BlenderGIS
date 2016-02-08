@@ -23,20 +23,22 @@ There are Python implementations of these alg. based on javascript code from sim
 * Jenks : https://gist.github.com/llimllib/4974446 (https://gist.github.com/tmcw/4977508)
 * Ckmeans : https://github.com/llimllib/ckmeans (https://github.com/simple-statistics/simple-statistics/blob/master/src/ckmeans.js)
 
-But both are terribly slow, even standard kmeans alg. gives better running times.
-In contrast, this script works in a reasonable time. 
+But both are terribly slow because there is a lot of exponential-time looping. These algorithms makes this somewhat inevitable.
+In contrast, this script works in a reasonable time, but keep in mind it's not Jenks. We just use cluster's centroids (mean) as  
+reference to distribute the values while Jenks try to minimize within-class variance, and maximizes between group variance.
 """
 
 import math
 
 
-def kmeans1d(data, k, cutoff=0.1):
+def kmeans1d(data, k, cutoff=False, maxIter=False):
 	'''
 	Compute natural breaks of a one dimensionnal list through an optimized kmeans algorithm
 	Inputs:
 	* data = input list, must be sorted beforehand
 	* k = number of expected classes
-	* cutoff = stop algorithm when centroids shift are under this value
+	* cutoff (optional) = stop algorithm when centroids shift are under this value
+	* maxIter (optional) = stop algorithm when iteration count reach this value
 	Output:
 	* A list of k clusters. A cluster is represented by a tuple containing first and last index of the cluster's values.
 	Use these index on the input data list to retreive the effectives values containing in a cluster.
@@ -49,25 +51,45 @@ def kmeans1d(data, k, cutoff=0.1):
 	def getClusterCentroid(cluster):
 		values = getClusterValues(cluster)
 		return sum(values) / len(values)
-		
-	# Step 1: Create k clusters with quantile classification
-	n = len(data)
-	q = int(math.ceil(n/k))
-	clusters = [ [i, i+q-1] for i in range(0,n,q)] #store only first and last index
-	clusters[-1][1] = n-1 #adjust the last index of the last cluster
 
-	#Centroid = mean = virtual center point for a group of 1-dimensional values
+	def getClusterVariance(cluster): #not used
+		mean = getClusterCentroid(cluster)
+		return sum( [(v-mean)**2 for v in getClusterValues(cluster)] )
+		
+	n = len(data)
+	if k>=n:
+		raise ValueError('Too many expected classes')
+
+	# Step 1: Create k clusters with quantile classification
+	#  quantile = number of value per clusters
+	q = int(math.floor(n/k)) #with floor, last cluster will be bigger the others, with ceil it will be smaller
+	if q == 1:
+		raise ValueError('Too many expected classes')
+	#  define a cluster with its first and last index						
+	clusters = [ [i, i+q-1] for i in range(0, q*k, q)]
+	#  adjust the last index of the last cluster to the effective number of value
+	clusters[-1][1] = n-1
+
+	# Get centroids before first iter
 	centroids = [getClusterCentroid(c) for c in clusters]
 
 	# Loop through the dataset until the clusters stabilize
 	loopCounter = 0
-	while True:		
+	changeOccured = True
+
+	while changeOccured:	 
 		loopCounter += 1
 		
-		# Step 2 : for each cluster...
-		for i in range(k-1): #do not process last cluster
+		# Will be set to true if at least one border has been adjusted
+		changeOccured = False
+		
+		# Step 2 : for each border...
+		for i in range(k-1):
 			c1 = clusters[i] #current cluster
 			c2 = clusters[i+1] #next cluster
+			
+			#tag if this border has been adjusted or not
+			adjusted = False
 
 			# Test the distance between the right border of the current cluster and the neightbors centroids
 			# Move the values if it's closer to the next cluster's centroid. 
@@ -84,44 +106,48 @@ def kmeans1d(data, k, cutoff=0.1):
 					# Adjust border : move last value of the current cluster to the next cluster
 					c1[1] -= 1 #decrease right border index of current cluster
 					c2[0] -= 1 #decrease left border index of the next cluster
+					adjusted = True
 				else:
-					break		
-			
-			# Test the distance between the left border of the next cluster and the neightbors centroids
-			# Move the values if it's closer to the current cluster's centroid. 
-			# Then, test the new left border or stop if no more move is needed.					
-			while True:
-				if c2[0] + 1 == c2[1]:
-					# only one value remaining in the next cluster
-					# stop executing any more move to avoid having an empty cluster
 					break
-				breakValue = data[c2[0]]
-				dst1 = abs(breakValue - centroids[i])
-				dst2 = abs(breakValue - centroids[i+1])
-				if dst2 > dst1:
-					# Adjust border : move first value of the next cluster to the current cluster
-					c2[0] += 1 #increase left border index of the next cluster
-					c1[1] += 1 #increase right border index of current cluster
-				else:
-					break		
+			
+			# Test left border of next cluster only if we don't have adjusted the right border of current cluster
+			if not adjusted:
+				# Test the distance between the left border of the next cluster and the neightbors centroids
+				# Move the values if it's closer to the current cluster's centroid. 
+				# Then, test the new left border or stop if no more move is needed.		 
+				while True:
+					if c2[0] + 1 == c2[1]:
+						# only one value remaining in the next cluster
+						# stop executing any more move to avoid having an empty cluster
+						break
+					breakValue = data[c2[0]]
+					dst1 = abs(breakValue - centroids[i])
+					dst2 = abs(breakValue - centroids[i+1])
+					if dst2 > dst1:
+						# Adjust border : move first value of the next cluster to the current cluster
+						c2[0] += 1 #increase left border index of the next cluster
+						c1[1] += 1 #increase right border index of current cluster
+						adjusted = True
+					else:
+						break	   
 					
-		# Step 3: update centroids and stop main loop if they have stopped moving much
-		biggest_shift = 0
-		for i in range(k):
-			# Compute cluster centroid according to new affected values
-			c = clusters[i]
-			newCentroid = getClusterCentroid(c)
-			# calculate how far the centroid moved in this iteration
-			shift = abs(newCentroid - centroids[i])
-			# Keep track of the largest move from all cluster centroid updates
-			biggest_shift = max(biggest_shift, shift)
-			# Update centroid value
-			centroids[i] = newCentroid
-		# If the centroids have stopped moving much, say we're done!
-		if biggest_shift < cutoff:
-			print("Converged after %s iterations" % loopCounter)
+			# Loop again if some borders were adjusted
+			# or stop looping if no more move are possible
+			if adjusted:
+				changeOccured = True 
+				
+		# Update centroids and compute the bigger shift
+		newCentroids = [getClusterCentroid(c) for c in clusters]
+		biggest_shift = max([abs(newCentroids[i] - centroids[i]) for i in range(k)])
+		centroids = newCentroids
+		
+		# Force stopping the main loop ...
+		# > if the centroids have stopped moving much (in the case we set a cutoff value)
+		# > or if we reach max iteration value (in the case we set a maxIter value)
+		if (cutoff and biggest_shift < cutoff) or (maxIter and loopCounter == maxIter):
 			break
-
+		
+	print("Converged after %s iterations" % loopCounter)
 	return clusters
 
 
@@ -149,12 +175,11 @@ if __name__ == '__main__':
 	data.sort()
 	
 	k = 4
-	cutoff = 0.1
 	
 	print('---------------')
 	print('%i values, %i classes' %(len(data),k))
 	t1 = time.clock()
-	clusters = kmeans1d(data, k, cutoff)
+	clusters = kmeans1d(data, k)
 	t2 = time.clock()
 	print('Completed in %f seconds' %(t2-t1))
 
