@@ -24,7 +24,7 @@ There are Python implementations of these alg. based on javascript code from sim
 * Ckmeans : https://github.com/llimllib/ckmeans (https://github.com/simple-statistics/simple-statistics/blob/master/src/ckmeans.js)
 
 But both are terribly slow because there is a lot of exponential-time looping. These algorithms makes this somewhat inevitable.
-In contrast, this script works in a reasonable time, but keep in mind it's not Jenks. We just use cluster's centroids (mean) as  
+In contrast, this script works in a reasonable time, but keep in mind it's not Jenks. We just use cluster's centroids (mean) as
 reference to distribute the values while Jenks try to minimize within-class variance, and maximizes between group variance.
 """
 
@@ -46,15 +46,11 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 
 	def getClusterValues(cluster):
 		i, j = cluster
-		return data[i:j]
+		return data[i:j+1]
 		
 	def getClusterCentroid(cluster):
 		values = getClusterValues(cluster)
 		return sum(values) / len(values)
-
-	def getClusterVariance(cluster): #not used
-		mean = getClusterCentroid(cluster)
-		return sum( [(v-mean)**2 for v in getClusterValues(cluster)] )
 		
 	n = len(data)
 	if k>=n:
@@ -65,7 +61,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 	q = int(math.floor(n/k)) #with floor, last cluster will be bigger the others, with ceil it will be smaller
 	if q == 1:
 		raise ValueError('Too many expected classes')
-	#  define a cluster with its first and last index						
+	#  define a cluster with its first and last index
 	clusters = [ [i, i+q-1] for i in range(0, q*k, q)]
 	#  adjust the last index of the last cluster to the effective number of value
 	clusters[-1][1] = n-1
@@ -77,7 +73,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 	loopCounter = 0
 	changeOccured = True
 
-	while changeOccured:	 
+	while changeOccured:
 		loopCounter += 1
 		
 		# Will be set to true if at least one border has been adjusted
@@ -92,7 +88,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 			adjusted = False
 
 			# Test the distance between the right border of the current cluster and the neightbors centroids
-			# Move the values if it's closer to the next cluster's centroid. 
+			# Move the values if it's closer to the next cluster's centroid.
 			# Then, test the new right border or stop if no more move is needed.
 			while True:
 				if c1[0] + 1 == c1[1]:
@@ -113,8 +109,8 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 			# Test left border of next cluster only if we don't have adjusted the right border of current cluster
 			if not adjusted:
 				# Test the distance between the left border of the next cluster and the neightbors centroids
-				# Move the values if it's closer to the current cluster's centroid. 
-				# Then, test the new left border or stop if no more move is needed.		 
+				# Move the values if it's closer to the current cluster's centroid.
+				# Then, test the new left border or stop if no more move is needed.
 				while True:
 					if c2[0] + 1 == c2[1]:
 						# only one value remaining in the next cluster
@@ -129,13 +125,13 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 						c1[1] += 1 #increase right border index of current cluster
 						adjusted = True
 					else:
-						break	   
-					
+						break
+			
 			# Loop again if some borders were adjusted
 			# or stop looping if no more move are possible
 			if adjusted:
-				changeOccured = True 
-				
+				changeOccured = True
+		
 		# Update centroids and compute the bigger shift
 		newCentroids = [getClusterCentroid(c) for c in clusters]
 		biggest_shift = max([abs(newCentroids[i] - centroids[i]) for i in range(k)])
@@ -146,7 +142,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 		# > or if we reach max iteration value (in the case we set a maxIter value)
 		if (cutoff and biggest_shift < cutoff) or (maxIter and loopCounter == maxIter):
 			break
-		
+	
 	print("Converged after %s iterations" % loopCounter)
 	return clusters
 
@@ -161,9 +157,8 @@ def getBreaks(data, clusters, includeBounds=False):
 	if includeBounds:
 		return [data[0]] + [data[j] for i, j in clusters]
 	else:
-		return [data[j] for i, j in clusters[:-1]]	
-	
-	
+		return [data[j] for i, j in clusters[:-1]]
+
 
 
 if __name__ == '__main__':
