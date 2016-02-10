@@ -28,7 +28,6 @@ In contrast, this script works in a reasonable time, but keep in mind it's not J
 reference to distribute the values while Jenks try to minimize within-class variance, and maximizes between group variance.
 """
 
-import math
 
 
 def kmeans1d(data, k, cutoff=False, maxIter=False):
@@ -53,12 +52,14 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 		return sum(values) / len(values)
 		
 	n = len(data)
-	if k>=n:
+	if k >= n:
 		raise ValueError('Too many expected classes')
+	if k == 1:
+		return [ [0, n-1] ]
 
 	# Step 1: Create k clusters with quantile classification
 	#  quantile = number of value per clusters
-	q = int(math.floor(n/k)) #with floor, last cluster will be bigger the others, with ceil it will be smaller
+	q = int(n // k) #with floor, last cluster will be bigger the others, with ceil it will be smaller
 	if q == 1:
 		raise ValueError('Too many expected classes')
 	#  define a cluster with its first and last index
@@ -91,7 +92,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 			# Move the values if it's closer to the next cluster's centroid.
 			# Then, test the new right border or stop if no more move is needed.
 			while True:
-				if c1[0] + 1 == c1[1]:
+				if c1[0] == c1[1]:
 					# only one value remaining in the current cluster
 					# stop executing any more move to avoid having an empty cluster
 					break
@@ -112,7 +113,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 				# Move the values if it's closer to the current cluster's centroid.
 				# Then, test the new left border or stop if no more move is needed.
 				while True:
-					if c2[0] + 1 == c2[1]:
+					if c2[0] == c2[1]:
 						# only one value remaining in the next cluster
 						# stop executing any more move to avoid having an empty cluster
 						break
