@@ -7,6 +7,7 @@ from mathutils import Vector
 #import numpy as np
 from .utils.misc import getBBox, scale
 from .utils.kmeans1D import kmeans1d, getBreaks
+#from .utils.jenks_caspall import jenksCaspall
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
@@ -619,6 +620,8 @@ class Reclass_auto(Operator):
 				return {'FINISHED'}
 			clearRamp(stops, startColor, endColor)
 			#compute clusters
+			#clusters = jenksCaspall(values, nbClasses, 4)
+			#for val in clusters.breaks:
 			clusters = kmeans1d(values, nbClasses)
 			for val in getBreaks(values, clusters):
 				position = scale(val, inMin, inMax, 0, 1)
@@ -687,13 +690,6 @@ class ColorList(PropertyGroup):
 bpy.utils.register_class(ColorList)
 bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
 
-class BoolList(PropertyGroup):
-	useIt = BoolProperty(default=True)
-
-bpy.utils.register_class(BoolList)
-bpy.types.Scene.useColors = CollectionProperty(type=BoolList)
-
-colorEditRange = 5
 
 class Reclass_gradient2(Operator):
 	'''Quick colors gradient edit'''
@@ -710,76 +706,65 @@ class Reclass_gradient2(Operator):
 			description="Select interpolation method",
 			items = interpoMethods)
 
+	#special function to redraw an operator popup called through invoke_props_dialog
+	def check(self, context):
+		return True
+
 	def updatePreview(self, context):
-		#make preview
+		#feed colors collection for preview
+		context.scene.colorRampPreview.clear()
 		node = context.active_node
 		cr = node.color_ramp
 		stops = cr.elements
-		nbColors = colorEditRange
 		if self.fitGradient:
 			minPos, maxPos = stops[0].position, stops[-1].position
 			delta = maxPos-minPos
 		else:
 			delta = 1
-		offset = delta/(nbColors-1)
+		offset = delta/(self.nbColors-1)
 		position = 0
-		for i in range(nbColors):
-			item = bpy.context.scene.colorRampPreview[i]
+		for i in range(self.nbColors):
+			item = bpy.context.scene.colorRampPreview.add()
 			item.color = cr.evaluate(position)
 			position += offset
 		return
 
-	fitGradient = BoolProperty()#(update=updatePreview)
+	fitGradient = BoolProperty(update=updatePreview)
+
+	nbColors = IntProperty(
+			name="Number of colors",
+			description="Set the number of colors needed to define the quick quadient",
+			min=2, default=4, update=updatePreview)
 
 	def invoke(self, context, event):
-		#clear collection(s)
-		context.scene.useColors.clear()
-		context.scene.colorRampPreview.clear()
-		#feed collections(s)
-		nbColors = colorEditRange
-		for i in range(nbColors):
-			bpy.context.scene.colorRampPreview.add()
-			boolItem = bpy.context.scene.useColors.add()
-			if 0 < i < nbColors-1:
-				boolItem.useIt = False
-		#update color preview
+		#update collection of colors preview
 		self.updatePreview(context)
 		#Show dialog with operator properties
 		wm = context.window_manager
 		return wm.invoke_props_dialog(self, width=200, height=200)
 
-	def draw(self, context):#layout for invoke props modal dialog
-		#operator.draw() is different from panel.draw()
-		#because it's only called once (when the pop-up is created)
-		#so we can't redraw if the user change nbColors
+	def draw(self, context):
 		layout = self.layout
 		layout.prop(self, "colorSpace", text='Space')
 		layout.prop(self, "method", text='Method')
 		layout.prop(self, "fitGradient", text="Fit gradient to min/max positions")
+		layout.prop(self, "nbColors", text='Number of colors')
 		row = layout.row(align=True)
 		colorItems = context.scene.colorRampPreview
-		boolItems = context.scene.useColors
-		nbColors = len(colorItems)
-		for i in range(nbColors):
-			col = row.column()
+		for i in range(self.nbColors):
 			colorItem = colorItems[i]
-			col.prop(colorItem, 'color', text='')
-			if 0 < i < nbColors-1:
-				boolItem = boolItems[i]
-				col.prop(boolItem, 'useIt', text='')
+			row.prop(colorItem, 'color', text='')
 
 	def execute(self, context):
 		#build gradient
-		useColors = [item.useIt for item in context.scene.useColors]
 		colorList = context.scene.colorRampPreview
 		colorRamp = Gradient()
 		nbColors = len(colorList)
 		offset = 1/(nbColors-1)
 		position = 0
 		for i, item in enumerate(colorList):
-			if useColors[i]:
-				color = Color(list(item.color), 'rgb')
-				colorRamp.addStop(round(position,4), color)
+			color = Color(list(item.color), 'rgb')
+			colorRamp.addStop(round(position,4), color)
 			position += offset
 		#get color ramp node
 		node = context.active_node
@@ -946,6 +931,10 @@ class Reclass_exportSVG(Operator):
 			description="Select interpolation method",
 			items = interpoMethods)
 
+	#special function to redraw an operator popup called through invoke_props_dialog
+	def check(self, context):
+		return True
+
 	def invoke(self, context, event):
 		#Show dialog with operator properties
 		wm = context.window_manager
@@ -956,11 +945,12 @@ class Reclass_exportSVG(Operator):
 		layout.prop(self, "name", text='Name')
 		layout.prop(self, "gradientType")
 		layout.prop(self, "makeDiscrete")
-		layout.separator()
-		layout.label('Interpolation options')
-		layout.prop(self, "colorSpace", text='Color space')
-		layout.prop(self, "method", text='Method')
-		layout.prop(self, "n", text="Number of colors")
+		if self.gradientType == "INTERPOLATE":
+			layout.separator()
+			layout.label('Interpolation options')
+			layout.prop(self, "colorSpace", text='Color space')
+			layout.prop(self, "method", text='Method')
+			layout.prop(self, "n", text="Number of colors")
 
 	def execute(self, context):
 		#Get node color ramp
