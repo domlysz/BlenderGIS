@@ -387,12 +387,18 @@ class DEM(Raster):
 	def getStats(self, subBox=False):
 		pixels = self.img.pixels[:]#[r,g,b,a,r,g,b,a,r,g,b,a, .... ] counting from bottom to up and left to right
 		nbBands = self.img.channels
-		#Get Numpy array
-		a=np.array(pixels)#[r,g,b,a,r,g,b,a,r,g,b,a, .... ]
-		a=a.reshape(len(a)/nbBands,nbBands)#[[r,g,b,a],[r,g,b,a],[r,g,b,a],[r,g,b,a]...]
-		a=a.reshape(self.size.y, self.size.x, nbBands)#In numpy fist dimension is lines (y) and second dimension is cols (x)
-		a=np.flipud(a)#now origine is topleft
-		a=a.swapaxes(0,1)#now first axis is x, second y
+		# Make a first Numpy array in one dimension
+		a = np.array(pixels)#[r,g,b,a,r,g,b,a,r,g,b,a, .... ]
+		# regroup rgba values
+		a = a.reshape(len(a)/nbBands,nbBands)#[[r,g,b,a],[r,g,b,a],[r,g,b,a],[r,g,b,a]...]
+		# build 2 dimensional array
+		# note that in numpy fist dimension is lines (y) and second dimension is cols (x)
+		a = a.reshape(self.size.y, self.size.x, nbBands)# [ [[rgba], [rgba]...], [lines2], [lines3]...]
+		# swap axes to access pixels with [x,y] indices instead of [y,x]
+		a = a.swapaxes(0,1)
+		# change origin to top left
+		a = np.flipud(a)
+		# extract first band values
 		band1 = a[:,:,0]
 		if not self.unsigned:
 			#with signed data, positive value are coded from 0 to 2**depth/2 (0.0 to 0.5 in Blender)
@@ -505,14 +511,16 @@ class DEM_GDAL():
 					xBlockSize = width - j
 				data = self.band1.ReadAsArray(j, i, xBlockSize, yBlockSize).astype(self.dType)#np dataType : int8, int16, uint16, int32, uint32, float32....
 				blkIdx+=1
-				data = np.where(data==self.noData, 0, data)#filter noData
-				data = np.where(data>0, data, 0)#filter positive values
+				# mask noData
+				data =  np.ma.masked_array(data, data == self.noData)
+				# mask negatives values
+				data =  np.ma.masked_array(data, data < 0)
 				dataMin, dataMax = (data.min(), data.max())
 				if blkIdx == 1:
 					amin, amax = dataMin, dataMax
 				else:
 					if amin > dataMin: amin = dataMin
-					if amax > dataMax: amax = dataMax
+					if amax < dataMax: amax = dataMax
 		data = None
 		return amin, amax
 
