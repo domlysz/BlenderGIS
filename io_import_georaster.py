@@ -290,7 +290,7 @@ class WorldFile(object):
 		ymin = min([pt.y for pt in self.corners])
 		ymax = max([pt.y for pt in self.corners])
 		return bbox(xmin, xmax, ymin, ymax)
-	
+
 	def degrees2meters(self):
 		"""
 		Convert decimal degrees to meters
@@ -326,7 +326,7 @@ class Stats():
 		"""
 		Convert Blender pixel intensity value (from 0.0 to 1.0) in true pixel value in initial image bit depth range
 		"""
-		return val * (2**depth - 1) 
+		return val * (2**depth - 1)
 	def fromBitDepth(self, val, depth):
 		"""
 		Convert true pixel value in initial image bit depth range to Blender pixel intensity value (from 0.0 to 1.0)
@@ -431,7 +431,7 @@ class DEM(Raster):
 				altMin, altMax = self.scaleBounds
 				rmin = scale(self.subStats.bmin, altMin, altMax, self.wholeStats.bmin, self.wholeStats.bmax)
 				rmax = scale(self.subStats.bmax, altMin, altMax,  self.wholeStats.bmin, self.wholeStats.bmax)
-				self.subStats.setRval( (rmin, rmax) )	
+				self.subStats.setRval( (rmin, rmax) )
 			print("Mesh zonal statistics :\n"+ str(self.subStats))
 
 
@@ -459,7 +459,8 @@ class DEM_GDAL():
 
 	def getDtype(self, band):
 		dType = gdal.GetDataTypeName(band.DataType)#Byte, UInt16, Int16, UInt32, Int32, Float32, Float64
-		if dType is "Byte":
+		if dType == "Byte":
+			dType = Int8
 			unsigned = True
 			depth = 8
 		else:
@@ -512,7 +513,8 @@ class DEM_GDAL():
 				data = self.band1.ReadAsArray(j, i, xBlockSize, yBlockSize).astype(self.dType)#np dataType : int8, int16, uint16, int32, uint32, float32....
 				blkIdx+=1
 				# mask noData
-				data =  np.ma.masked_array(data, data == self.noData)
+				if self.noData is not None:
+					data =  np.ma.masked_array(data, data == self.noData)
 				# mask negatives values
 				data =  np.ma.masked_array(data, data < 0)
 				dataMin, dataMax = (data.min(), data.max())
@@ -585,7 +587,8 @@ class DEM_GDAL():
 				else:
 					xBlockSize = width - j
 				data = self.band1.ReadAsArray(j, i, xBlockSize, yBlockSize).astype(self.dType)#np dataType : int8, int16, uint16, int32, uint32, float32....
-				data = np.where(data==self.noData, 0, data)# or set to np.NaN ???
+				if self.noData is not None:
+					data = np.where(data==self.noData, 0, data)# or set to np.NaN ???
 				data = np.where(data>0, data, 0)#filter positive values, seems not necessary because writing dsOut automatically cast values to uint16 & clip neg values
 				#data = np.where(data<0, data, 0)#filter negative values
 				#data = np.negative(data)#or data = np.absolute(data)
@@ -807,7 +810,7 @@ def geoRastUVmap(obj, mesh, uvTxtLayer, img, wf, dx, dy):
 			uvLoop.uv = [u,v]
 
 def setDisplacer(obj, rast, uvTxtLayer, mid=0):
-	#Config displacer	
+	#Config displacer
 	if rast.wholeStats.rdelta == 0 or rast.subStats.rdelta == 0:
 		return False
 	displacer = obj.modifiers.new('DEM', type='DISPLACE')
@@ -825,7 +828,7 @@ def setDisplacer(obj, rast, uvTxtLayer, mid=0):
 	#If DEM non scaled then
 	#	*displacement = alt max - alt min = delta Z
 	#	*texture value = delta Z / (2^depth-1) #in Blender pixel values are normalized between 0.0 and 1.0
-	#Strength = displacement / texture value = delta Z / (delta Z / (2^depth-1)) 
+	#Strength = displacement / texture value = delta Z / (delta Z / (2^depth-1))
 	#--> Strength = 2^depth-1
 	#displacer.strength = 2**rast.depth-1
 	bpy.ops.object.shade_smooth()
@@ -1183,17 +1186,17 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			rast.getStats(subBox=projBBox)
 			# Add UV map texture layer
 			mesh = obj.data
-			previousUVmap = mesh.uv_textures.active
+			previousUVmapIdx = mesh.uv_textures.active_index
 			uvTxtLayer = mesh.uv_textures.new('demUVmap')
 			#UV mapping
 			geoRastUVmap(obj, mesh, uvTxtLayer, img, wf, dx, dy)
 			#Add material and texture
-			if not previousUVmap:
+			if previousUVmapIdx == -1:
 				mat = bpy.data.materials.new('rastMat')
 				obj.data.materials.append(mat)
 				addTexture(mat, img, uvTxtLayer)
 			else:
-				previousUVmap.active = True
+				previousUVmap.active_index = previousUVmapIdx
 			#Make subdivision
 			if self.subdivision == 'mesh':#Mesh cut
 				#if len(mesh.polygons) == 1: #controler que le mesh n'a qu'une face
