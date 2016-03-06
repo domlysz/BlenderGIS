@@ -1196,7 +1196,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				obj.data.materials.append(mat)
 				addTexture(mat, img, uvTxtLayer)
 			else:
-				previousUVmap.active_index = previousUVmapIdx
+				mesh.uv_textures.active_index = previousUVmapIdx
 			#Make subdivision
 			if self.subdivision == 'mesh':#Mesh cut
 				#if len(mesh.polygons) == 1: #controler que le mesh n'a qu'une face
