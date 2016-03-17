@@ -5,6 +5,13 @@ Blender GIS
 
 **Update 2016**, [new tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
 
+**Coming soon** import georaster refactoring :
+- Add support for float32 and negatives values
+- Add abitity to read geotiff tags (no more need a worldfile for tiff raster)
+- A new option to fill no data values
+- More user friendly, discard some useless options
+
+
 ESRI Shapefile import / export
 --------------------
 
