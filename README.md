@@ -7,9 +7,10 @@ Blender GIS
 
 **Coming soon** import georaster refactoring :
 - Add support for float32 and negatives values
-- Add abitity to read geotiff tags (no more need a worldfile for tiff raster)
+- Add abitity to read geotiff tags (worldfile no longer necessary for tiff raster)
 - A new option to fill no data values
-- More user friendly, discard some useless options
+- Possibility to import directly a DEM (i.e without the requirement of a reference plane)
+- More user friendly (discard or self manage useless options)
 
 
 ESRI Shapefile import / export
