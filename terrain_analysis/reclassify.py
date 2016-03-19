@@ -265,8 +265,8 @@ class Reclass_panel(Panel):
 				col.separator()
 				col.operator("reclass.switch_interpolation", text="", icon='SMOOTHCURVE')
 				col.operator("reclass.flip", text="", icon='ARROW_LEFTRIGHT')
-				col.operator("reclass.gradient2", text="", icon="COLOR")
-				col.operator("reclass.gradient3", text="", icon="GROUP_VCOL")
+				col.operator("reclass.quick_gradient", text="", icon="COLOR")
+				col.operator("reclass.svg_gradient", text="", icon="GROUP_VCOL")
 				col.operator("reclass.exportsvg", text="", icon="FORWARD")
 				col.separator()
 				col.operator("reclass.auto", text="", icon='FULLSCREEN_ENTER')
@@ -632,7 +632,7 @@ class Reclass_auto(Operator):
 		return {'FINISHED'}
 
 
-#Operator to change color ramp
+#Operators to change color ramp
 #########################################
 
 colorSpaces = [('RGB', 'RGB', "RGB color space"),
@@ -644,46 +644,7 @@ interpoMethods = [('LINEAR', 'Linear', "Linear interpolation"),
 		('NEAREST', 'Nearest', "No interpolation (return nearest color)") ]
 
 
-##not used
-class Reclass_gradient(Operator):
-	'''Define colors gradient between two colors'''
-	bl_idname = "reclass.gradient"
-	bl_label = "Define colors gradient between two colors"
-
-	color1 = FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
-	color2 = FloatVectorProperty(name="End color", subtype='COLOR', min=0, max=1, size=4)
-
-	def invoke(self, context, event):
-		#Set color to actual ramp
-		node = context.active_node
-		cr = node.color_ramp
-		stops = cr.elements
-		self.color1 = stops[0].color
-		self.color2 = stops[len(stops)-1].color
-		#Show dialog with operator properties
-		wm = context.window_manager
-		return wm.invoke_props_dialog(self)
-
-	def execute(self, context):
-		node = context.active_node
-		cr = node.color_ramp
-		cr.color_mode = 'RGB'
-		cr.interpolation = 'LINEAR'
-		stops = cr.elements
-		positions = [stop.position for stop in stops]
-		#clear actual color ramp
-		clearRamp(stops, self.color1, self.color2, positions[0], positions[-1])
-		#Add intermediate stops
-		for pos in positions[1:len(positions)-1]:
-			stops.new(pos)
-		#refresh
-		populateList(node)
-		return {'FINISHED'}
-
-
-
-
-#Multiple stop
+#QUICK GRADIENT
 class ColorList(PropertyGroup):
 	color = FloatVectorProperty(subtype='COLOR', min=0, max=1, size=4)
 
@@ -691,9 +652,9 @@ bpy.utils.register_class(ColorList)
 bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
 
 
-class Reclass_gradient2(Operator):
+class Reclass_quickGradient(Operator):
 	'''Quick colors gradient edit'''
-	bl_idname = "reclass.gradient2"
+	bl_idname = "reclass.quick_gradient"
 	bl_label = "Quick colors gradient edit"
 
 	colorSpace = EnumProperty(
@@ -710,8 +671,7 @@ class Reclass_gradient2(Operator):
 	def check(self, context):
 		return True
 
-	def updatePreview(self, context):
-		#feed colors collection for preview
+	def initPreview(self, context):
 		context.scene.colorRampPreview.clear()
 		node = context.active_node
 		cr = node.color_ramp
@@ -729,7 +689,21 @@ class Reclass_gradient2(Operator):
 			position += offset
 		return
 
-	fitGradient = BoolProperty(update=updatePreview)
+	def updatePreview(self, context):
+		#Add or remove colors from preview when change nb colors
+		colorItems = bpy.context.scene.colorRampPreview
+		nb = len(colorItems)
+		if nb == self.nbColors:
+			return
+		delta = abs(self.nbColors - nb)
+		for i in range(delta):
+			if self.nbColors > nb:
+				item = colorItems.add()
+				item.color = colorItems[-2].color
+			else:
+				colorItems.remove(nb-1)
+
+	fitGradient = BoolProperty(update=initPreview)
 
 	nbColors = IntProperty(
 			name="Number of colors",
@@ -737,8 +711,8 @@ class Reclass_gradient2(Operator):
 			min=2, default=4, update=updatePreview)
 
 	def invoke(self, context, event):
-		#update collection of colors preview
-		self.updatePreview(context)
+		#initialize colors preview
+		self.initPreview(context)
 		#Show dialog with operator properties
 		wm = context.window_manager
 		return wm.invoke_props_dialog(self, width=200, height=200)
@@ -800,9 +774,9 @@ svgFiles = filesList(folder, '.svg')
 
 colorPreviewRange = 20
 
-class Reclass_gradient3(Operator):
+class Reclass_svgGradient(Operator):
 	'''Define colors gradient with presets'''
-	bl_idname = "reclass.gradient3"
+	bl_idname = "reclass.svg_gradient"
 	bl_label = "Define colors gradient with presets"
 
 	def listSVG(self, context):
