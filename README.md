@@ -3,14 +3,16 @@ Blender GIS
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
-**Update 2016**, [new tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
+**Update 2016**
 
-**Coming soon** import georaster refactoring :
+[New tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
+
+Import georaster refactoring :
 - Add support for float32 and negatives values
 - Add abitity to read geotiff tags (worldfile no longer necessary for tiff raster)
-- A new option to fill no data values
+- A new option to fill nodata values
 - Possibility to import directly a DEM (i.e without the requirement of a reference plane)
-- More user friendly (discard or self manage useless options)
+- More user friendly
 
 
 ESRI Shapefile import / export
@@ -28,7 +30,7 @@ Note that Blender cannot handle attribute data include in dbase file linked to t
 Georeferenced raster importer
 --------------------
 
-Import common image format associated with a [world file](http://en.wikipedia.org/wiki/World_file) that describes the location, scale and rotation of the raster in a geographic coordinate system.
+Import geotiff or common image format georeferenced with a [world file](http://en.wikipedia.org/wiki/World_file).
 
 You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or as DEM for warp a mesh with the displace modifier.
 
