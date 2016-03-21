@@ -17,20 +17,6 @@
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
 
-bl_info = {
-	"name": "[bgis] Set georef cam",
-	"description": "",
-	"author": "This script is public domain",
-	'license': 'GPL',
-	'deps': '',
-	"version": (1, 2),
-	"blender": (2, 7, 0),
-	"location": "View3D > Tools > GIS",
-	"warning": "",
-	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
-	'tracker_url': '',
-	'link': '',
-	"category": "3D View"}
 
 import bpy
 from mathutils import Vector
@@ -117,10 +103,10 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 	redo = 0
 
 	def execute(self, context):#every times operator redo options are modified
-		
+
 		#Operator redo count
 		self.redo+=1
-		
+
 		#Make sure we are in object mode
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -131,7 +117,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		#Get georef data
 		scene = bpy.context.scene
 		dx, dy = scene["Georef X"], scene["Georef Y"]
-		
+
 		#Get object
 		objIdx = context.scene.objLst
 		georefObj = bpy.context.scene.objects[int(objIdx)]
@@ -140,7 +126,8 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		bbox = getBBox(georefObj, True)
 		locx, locy, locz = getBBoxCenter(bbox)
 		dimx, dimy, dimz = getBBoxDim(bbox)
-		
+		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
+
 		if context.scene.camLst == 'NEW':
 			#Add camera data
 			cam = bpy.data.cameras.new(name=self.name)
@@ -157,7 +144,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		#Set camera data
 		cam.type = 'ORTHO'
 		cam.ortho_scale = max((dimx, dimy)) #ratio = max((dimx, dimy)) / min((dimx, dimy))
-		
+
 		#Set camera location
 		camLocZ = bbox['zmin'] + dimz + 1 #add one unit to avoid clipping
 		camObj.location = (locx, locy, camLocZ)
@@ -182,7 +169,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		scene.render.resolution_x = dimx / self.target_res
 		scene.render.resolution_y = dimy / self.target_res
 		scene.render.resolution_percentage = 100
-		
+
 		#write wf
 		res = self.target_res#dimx / scene.render.resolution_x
 		rot=0
@@ -199,12 +186,3 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 
 
 		return {'FINISHED'}
-
-def register():
-	bpy.utils.register_module(__name__)
-
-def unregister():
-	bpy.utils.unregister_module(__name__)
-
-if __name__ == '__main__':
-	register()
