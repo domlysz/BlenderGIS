@@ -247,10 +247,11 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	importMode = EnumProperty(
 			name="Mode",
 			description="Select import mode",
-			items=[ ('plan', 'On plane', "Place raster texture on new plane mesh"),
-			('bkg', 'As background', "Place raster as background image"),
-			('mesh', 'On mesh', "UV map raster on an existing mesh"),
-			('DEM', 'As DEM', "Use DEM raster GRID to wrap an existing mesh")]
+			items=[ ('PLANE', 'On plane', "Place raster texture on new plane mesh"),
+			('BKG', 'As background', "Place raster as background image"),
+			('MESH', 'On mesh', "UV map raster on an existing mesh"),
+			('DEM', 'As DEM', "Use DEM raster GRID to wrap an existing mesh"),
+			('DEM_RAW', 'Raw DEM', "Import a DEM as pixels points cloud")]
 			)
 	#
 	objectsLst = EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
@@ -288,6 +289,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			description="Interpolate existing nodata values to get an usuable displacement texture",
 			default=False
 			)
+	#
+	step = IntProperty(name = "Step", default=1, description="Pixel step", min=1)
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
@@ -299,13 +302,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		else:
 			isGeoref = False
 		#
-		if self.importMode == 'plan':
+		if self.importMode == 'PLANE':
 			layout.prop(self, 'angCoords')
 		#
-		if self.importMode == 'bkg':
+		if self.importMode == 'BKG':
 			layout.prop(self, 'angCoords')
 		#
-		if self.importMode == 'mesh':
+		if self.importMode == 'MESH':
 			if isGeoref and len(self.objectsLst) > 0:
 				layout.prop(self, 'objectsLst')
 				layout.prop(self, 'angCoords')
@@ -325,7 +328,17 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			layout.prop(self, 'angCoords')
 			if GDAL_PY:
 				layout.label("* GDAL works *")
-
+		#
+		if self.importMode == 'DEM_RAW':
+			layout.prop(self, 'step')
+			layout.prop(self, 'clip')
+			if self.clip:
+				if isGeoref and len(self.objectsLst) > 0:
+					layout.prop(self, 'objectsLst')
+				else:
+					layout.label("There isn't georef mesh to refer")
+			layout.prop(self, 'angCoords')
+		#
 		if isGeoref:
 			#layout.label("* Scene is georef *")
 			layout.operator("importgis.reset_georef")
@@ -353,7 +366,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		name = os.path.basename(filePath)[:-4]
 
 		######################################
-		if self.importMode == 'plan':#on plane
+		if self.importMode == 'PLANE':#on plane
 			#Load raster
 			try:
 				rast = GeoRaster(filePath, self.angCoords)
@@ -379,7 +392,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			addTexture(mat, rast.bpyImg, uvTxtLayer)
 
 		######################################
-		if self.importMode == 'bkg':#background
+		if self.importMode == 'BKG':#background
 			#Load raster
 			try:
 				rast = GeoRaster(filePath, self.angCoords)
@@ -414,7 +427,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 						bckImg.offset_y = shiftCenter[1]*ratio
 
 		######################################
-		if self.importMode == 'mesh':
+		if self.importMode == 'MESH':
 			if not isGeoref or len(self.objectsLst) == 0:
 				return self.err("There isn't georef mesh to apply on")
 			# Get choosen object
@@ -504,10 +517,40 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			#Set displacer
 			dsp = setDisplacer(obj, grid, uvTxtLayer)
 
+		######################################
+		if self.importMode == 'DEM_RAW':
+			
+			# Get reference plane
+			subBox = None
+			if self.clip:
+				if not isGeoref or len(self.objectsLst) == 0:
+					return self.err("No working extent")
+				# Get choosen object
+				obj = scn.objects[int(self.objectsLst)]
+				subBox = getBBox(obj, applyDeltas=True)
+
+			# Load raster
+			if not GDAL_PY:
+				try:
+					grid = GeoRaster(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip)
+				except (IOError, OverlapError) as e:
+					return self.err(str(e))
+			else:
+				try:
+					grid = GeoRasterGDAL(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip)
+				except (IOError, OverlapError) as e:
+					return self.err(str(e))
+
+			if not isGeoref:
+				dx, dy = grid.center.x, grid.center.y
+				scn["Georef X"], scn["Georef Y"] = dx, dy
+			mesh = grid.exportAsMesh(dx, dy, self.step)
+			obj = placeObj(mesh, name)
+			grid.unload()
 
 		######################################
 		#Flag is a new object as been created...
-		if self.importMode == 'plan' or (self.importMode == 'DEM' and not self.demOnMesh):
+		if self.importMode == 'PLANE' or (self.importMode == 'DEM' and not self.demOnMesh) or self.importMode == 'DEM_RAW':
 			newObjCreated = True
 		else:
 			newObjCreated = False

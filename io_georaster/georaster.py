@@ -22,6 +22,7 @@
 import os
 import math
 import bpy
+import bmesh
 import numpy as np
 from . import Tyf #geotags reader
 from .utils import xy, GRS80, bbox, overlap, OverlapError
@@ -131,6 +132,10 @@ class GeoRaster():
 		# Linear, Non Color and Raw color spaces will return raw values...
 		self.bpyImg.colorspace_settings.name = 'Non-Color'
 
+	def unload(self):
+		self.bpyImg.user_clear()
+		bpy.data.images.remove(self.bpyImg)
+		self.bpyImg = None
 
 	def getRasterSize(self):
 		if self.isLoaded:
@@ -532,6 +537,31 @@ class GeoRaster():
 			self.subBox = subBox
 
 
+	def exportAsMesh(self, dx=0, dy=0, step=1, subset=False):
+		if subset and self.subBox is None:
+			subset = False
+		
+		data = self.readAsNpArray(0, subset)
+		x0, y0 = self.origin
+		x0 -= dx
+		y0 -= dy
+		
+		bm = bmesh.new()
+		for px in range(0, self.size.x, step):
+			for py in range(0, self.size.y, step):
+				x = x0 + (self.pxSize.x * px)
+				y = y0 +(self.pxSize.y * py)
+				z = data[py, px]
+				if z != self.noData:
+					bm.verts.new((x, y, z))
+		
+		mesh = bpy.data.meshes.new("DEM")
+		bm.to_mesh(mesh)
+		bm.free()
+		
+		return mesh
+
+
 	###############################################
 	# Methods that use bpy.image.pixels and numpy
 	###############################################
@@ -688,7 +718,6 @@ class GeoRaster():
 		# Check some assert
 		if self.ddtype is None:
 			raise IOError("Undefined data type")
-
 		if self.ddtype not in ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'float32']:
 			raise IOError("Unsupported data type")
 		if not self.isLoaded:
@@ -719,6 +748,7 @@ class GeoRaster():
 		self.bpyImg.user_clear()
 		bpy.data.images.remove(self.bpyImg)
 		# Update class properties
+		self.path = None
 		self.bpyImg = img
 		self.dtype = 'float'
 		self.depth = 32
@@ -737,13 +767,16 @@ class GeoRaster():
 
 class GeoRasterGDAL(GeoRaster):
 	'''
-	A subclass of GeoRaster that use GDAL to override and add some methods.
-	Initialization is rather different because it will convert the raster in Geotiff
-	if the original format isn't readable in Blender.
-	Clip et fillNodata options are also available but throught GDAL API. The main
-	difference if that these functions don't use bpy.image.pixels method anymore so they
-	operate directly on source file and before the image is loaded in Blender.
-	This way prevents of memory overflow and Blender crash when trying to open and clip large dataset.
+	A subclass of GeoRaster that use GDAL to override some methods.
+	
+	Reading pixels is now performed through GDAL API and does not use 
+	bpy.image.pixels method anymore.
+	
+	All overriden functions which required reading pixels now operate 
+	directly on source file and before the image is loaded in Blender. 
+	
+	This way prevents memory overflow when trying to open and clip a 
+	large dataset.
 	'''
 
 	def __init__(self, path, angCoords=False, subBox=None, clip=False, fillNodata=False):
@@ -789,7 +822,7 @@ class GeoRasterGDAL(GeoRaster):
 
 	def getGdalInfos(self):
 		'''Extract data type infos'''
-		if not self.fileExists:
+		if self.path is None or not self.fileExists:
 			raise IOError("Cannot find file on disk")
 		# Open dataset
 		ds = gdal.Open(self.path, gdal.GA_ReadOnly)
@@ -828,7 +861,12 @@ class GeoRasterGDAL(GeoRaster):
 
 	#override
 	def getStats(self):
-		ds = gdal.Open(path, gdal.GA_ReadOnly)
+		if self.path is None or not self.fileExists:
+			if self.isLoaded:
+				return super().getStats()
+			else:
+				raise IOError("Cannot find raster on disk or in Blender data")
+		ds = gdal.Open(self.path, gdal.GA_ReadOnly)
 		b1 = ds.GetRasterBand(1) #first band (band index does not count from 0)
 		min, max = b1.GetMinimum(), b1.GetMaximum()
 		if min is None or max is None:
@@ -857,6 +895,16 @@ class GeoRasterGDAL(GeoRaster):
 		so be careful not confusing axes and use syntax like data[row, column]
 		Array origin is top left
 		'''
+		
+		#GDAL need a file on disk, but in some case init() will create a new altered copy directly in Blender.
+		#In this case the class does not refer anymore to the file on disk but to the image in Blender data
+		#and so, we must call the method of the parent class which use bpy to access pixels values
+		if self.path is None or not self.fileExists:
+			if self.isLoaded:
+				return super().readAsNpArray(bandIdx, subset)
+			else:
+				raise IOError("Cannot find raster on disk or in Blender data")
+
 		#ReadAsArray was implemented at both Dataset and Band levels
 		#so when a raster has more than 1 band, it can be read as a 3D array
 		ds = gdal.Open(self.path, gdal.GA_ReadOnly)
@@ -916,8 +964,8 @@ class GeoRasterGDAL(GeoRaster):
 		* fillNodata : use gdal fillnodata function.
 		'''
 		
-		# Check some assert	
-		if not self.fileExists:
+		# Check some assert
+		if self.path is None or not self.fileExists:
 			raise IOError("Cannot find file on disk")
 
 		# Get data
@@ -946,6 +994,7 @@ class GeoRasterGDAL(GeoRaster):
 		img.pack(as_png=True) #as_png needed for generated images)  
 
 		# Update class properties
+		self.path = None
 		self.bpyImg = img
 		self.dtype = 'float'
 		self.depth = 32
