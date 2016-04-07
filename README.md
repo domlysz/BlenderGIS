@@ -14,6 +14,10 @@ Import georaster refactoring :
 - Possibility to import directly a DEM (i.e without the requirement of a reference plane)
 - More user friendly
 
+[Experimental basemaps addon](https://github.com/domlysz/BlenderGIS/wiki/Basemaps) : display web map service like Open Street Map directly in Blender
+
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
+
 
 ESRI Shapefile import / export
 --------------------
