@@ -193,12 +193,9 @@ class TileMatrix():
 		
 		#Convert bbox to grid crs is needed
 		if self.bboxCRS != self.CRS:
-			if self.bboxCRS == 4326:
-				lonMin, latMin, lonMax, latMax = self.bbox
-				self.tm_xmin, self.tm_ymax = self.geoToProj(lonMin, latMax)
-				self.tm_xmax, self.tm_ymin = self.geoToProj(lonMax, latMin)
-			else:
-				raise NotImplementedError
+			lonMin, latMin, lonMax, latMax = self.bbox
+			self.tm_xmin, self.tm_ymax = self.geoToProj(lonMin, latMax)
+			self.tm_xmax, self.tm_ymin = self.geoToProj(lonMax, latMin)
 		else:
 			self.tm_xmin, self.tm_xmax = self.bbox[0], self.bbox[2]
 			self.tm_ymin, self.tm_ymax = self.bbox[1], self.bbox[3]
@@ -220,6 +217,8 @@ class TileMatrix():
 		if self.originLoc == "NW":
 			self.tm_ox, self.tm_oy = self.tm_xmin, self.tm_ymax
 		elif self.originLoc == "SW":
+			self.tm_ox, self.tm_oy = self.tm_xmin, self.tm_ymin
+		else:
 			raise NotImplementedError
 	
 
@@ -253,7 +252,10 @@ class TileMatrix():
 		res = self.getRes(zoom)
 		geoTileSize = self.tileSize * res
 		dx = x - self.tm_ox
-		dy = self.tm_oy - y
+		if self.originLoc == "NW":
+			dy = self.tm_oy - y
+		else:
+			dy = y - self.tm_oy
 		col = dx / geoTileSize
 		row = dy / geoTileSize
 		col = int(math.floor(col))
@@ -261,14 +263,15 @@ class TileMatrix():
 		return col, row
 
 	def getTileCoords(self, col, row, zoom):
-		"""
-		Convert tiles number to projeted coords
-		(top left pixel if matrix origin is NW)
-		"""
+		"""Convert tiles number to projeted coords (top left pixel)"""
 		res = self.getRes(zoom)
 		geoTileSize = self.tileSize * res
 		x = self.tm_ox + (col * geoTileSize)
-		y = self.tm_oy - (row * geoTileSize)
+		if self.originLoc == "NW":
+			y = self.tm_oy - (row * geoTileSize)
+		else:
+			y = self.tm_oy + (row * geoTileSize)
+			y += geoTileSize
 		return x, y
 
 ####################################
@@ -545,7 +548,10 @@ class Map(MapService):
 
 		#Build list of required column and row numbers
 		self.numColLst = [firstCol+i for i in range(nbTilesX)]
-		self.numRowLst = [firstRow+i for i in range(nbTilesY)]
+		if self.originLoc == "NW":
+			self.numRowLst = [firstRow+i for i in range(nbTilesY)]
+		else:
+			self.numRowLst = [firstRow-i for i in range(nbTilesY)]
 		
 		#Stop thread if the request is same as previous
 		if self.previousNumColLst == self.numColLst and self.previousNumRowLst == self.numRowLst:
