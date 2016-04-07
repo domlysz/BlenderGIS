@@ -421,7 +421,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					bckImg.image = rast.bpyImg
 					bckImg.view_axis = 'TOP'
 					bckImg.opacity = 1
-					bckImg.size = trueSizeX/2#at size = 1, width = 2 blender units
+					bckImg.size = trueSizeX #since Blender 2.75
 					if isGeoref:
 						bckImg.offset_x = shiftCenter[0]
 						bckImg.offset_y = shiftCenter[1]*ratio
