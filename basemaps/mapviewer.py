@@ -25,6 +25,7 @@ import threading
 import datetime
 import sqlite3
 import urllib.request
+import imghdr
 
 #bpy imports
 import bpy
@@ -47,78 +48,211 @@ from .servicesDefs import grids, sources
 
 ####################################
 
-class MBTiles():
-	"""
-	specs :
-	https://github.com/mapbox/mbtiles-spec
+#http://www.geopackage.org/spec/#tiles
+#https://github.com/GitHubRGI/geopackage-python/blob/master/Packaging/tiles2gpkg_parallel.py
+#https://github.com/Esri/raster2gpkg/blob/master/raster2gpkg.py
 
-	this classe is a quick mashup from these sources :
-	https://github.com/mapbox/mbutil/blob/master/mbutil/util.py
-	https://github.com/ecometrica/gdal2mbtiles/blob/master/gdal2mbtiles/mbtiles.py
-	https://github.com/mapproxy/mapproxy/blob/master/mapproxy/cache/mbtiles.py
-	https://github.com/TileStache/TileStache/blob/master/TileStache/MBTiles.py  
-	"""
+
+#table_name refer to the name of the table witch contains tiles data
+#here for simplification, table_name will always be named "gpkg_tiles"
+
+class GeoPackage():
 
 	MAX_DAYS = 90
 
-	def __init__(self, path):
-		#self.dbPath = path + name + ".mbtiles"
+	def __init__(self, path, tm):
 		self.dbPath = path
-		if not self.isMBtiles():
-			self.createMBtiles()
-			self.addMetadata()
+		self.name = os.path.splitext(os.path.basename(path))[0]
+		
+		#Get props from TileMatrix object
+		self.crs = tm.CRS
+		self.tileSize = tm.tileSize
+		self.xmin, self.ymin, self.xmax, self.ymax = tm.globalbbox
+		self.resolutions = tm.getResList()
+
+		if not self.isGPKG():
+			self.create()
+			self.insertMetadata()
+			
+			self.insertCRS(self.crs, str(self.crs), wkt='')
+			#self.insertCRS(3857, "Web Mercator", wkt='')
+			#self.insertCRS(4326, "WGS84", wkt='')
+
+			self.insertTileMatrixSet()
 
 
-	def isMBtiles(self):
+	def isGPKG(self):
 		if not os.path.exists(self.dbPath):
 			return False	
 		db = sqlite3.connect(self.dbPath)
+		
+		#check application id
+		app_id = db.execute("PRAGMA application_id").fetchone()
+		if not app_id[0] == 1196437808:
+			db.close()
+			return False
+			
+		#quick check of table schema
 		try:
-			db.execute('SELECT name, value FROM metadata LIMIT 1')
-			db.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles LIMIT 1')
+			db.execute('SELECT table_name FROM gpkg_contents LIMIT 1')
+			db.execute('SELECT srs_name FROM gpkg_spatial_ref_sys LIMIT 1')
+			db.execute('SELECT table_name FROM gpkg_tile_matrix_set LIMIT 1')
+			db.execute('SELECT table_name FROM gpkg_tile_matrix LIMIT 1')
+			db.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM gpkg_tiles LIMIT 1')
 		except:
 			db.close()
 			return False
 		else:
 			db.close()
-			return True		
-
-
-	def createMBtiles(self):
+			return True  
+		
+		
+	def create(self):
+		"""Create default geopackage schema on the database."""
 		db = sqlite3.connect(self.dbPath) #this attempt will create a new file if not exist
 		cursor = db.cursor()
-		cursor.execute("""CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB, last_modified TIMESTAMP DEFAULT (datetime('now','localtime')) );""")
-		cursor.execute("""CREATE TABLE metadata (name TEXT, value TEXT);""")
-		cursor.execute("""CREATE UNIQUE INDEX name ON metadata (name);""")
-		cursor.execute("""CREATE UNIQUE INDEX tile_index ON tiles (zoom_level, tile_column, tile_row);""")
-		db.commit()
-		db.close()
 
-
-	def addMetadata(self, name="", description="", type="baselayer", version=1.1, format='png', bounds='-180.0,-85,180,85'):
-		db = sqlite3.connect(self.dbPath)
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('name', name))
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('type', type))
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('version', version))
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('description', description))
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('format', format))
-		db.execute('INSERT INTO metadata VALUES (?, ?)', ('bounds', bounds))
-		db.commit()
-		db.close()
-
+		# Add GeoPackage version 1.0 ("GP10" in ASCII) to the Sqlite header
+		cursor.execute("PRAGMA application_id = 1196437808;")
 		
+		cursor.execute("""
+			CREATE TABLE gpkg_contents (
+				table_name TEXT NOT NULL PRIMARY KEY,
+				data_type TEXT NOT NULL,
+				identifier TEXT UNIQUE,
+				description TEXT DEFAULT '',
+				last_change DATETIME NOT NULL DEFAULT
+				(strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+				min_x DOUBLE,
+				min_y DOUBLE,
+				max_x DOUBLE,
+				max_y DOUBLE,
+				srs_id INTEGER,
+				CONSTRAINT fk_gc_r_srs_id FOREIGN KEY (srs_id)
+					REFERENCES gpkg_spatial_ref_sys(srs_id));
+		""")
+		
+		cursor.execute("""
+			CREATE TABLE gpkg_spatial_ref_sys (
+				srs_name TEXT NOT NULL,
+				srs_id INTEGER NOT NULL PRIMARY KEY,
+				organization TEXT NOT NULL,
+				organization_coordsys_id INTEGER NOT NULL,
+				definition TEXT NOT NULL,
+				description TEXT);
+		""")
+
+		cursor.execute("""
+			CREATE TABLE gpkg_tile_matrix_set (
+				table_name TEXT NOT NULL PRIMARY KEY,
+				srs_id INTEGER NOT NULL,
+				min_x DOUBLE NOT NULL,
+				min_y DOUBLE NOT NULL,
+				max_x DOUBLE NOT NULL,
+				max_y DOUBLE NOT NULL,
+				CONSTRAINT fk_gtms_table_name FOREIGN KEY (table_name)
+					REFERENCES gpkg_contents(table_name),
+				CONSTRAINT fk_gtms_srs FOREIGN KEY (srs_id)
+					REFERENCES gpkg_spatial_ref_sys(srs_id));
+		""")
+
+		cursor.execute("""
+			CREATE TABLE gpkg_tile_matrix (
+				table_name TEXT NOT NULL,
+				zoom_level INTEGER NOT NULL,
+				matrix_width INTEGER NOT NULL,
+				matrix_height INTEGER NOT NULL,
+				tile_width INTEGER NOT NULL,
+				tile_height INTEGER NOT NULL,
+				pixel_x_size DOUBLE NOT NULL,
+				pixel_y_size DOUBLE NOT NULL,
+				CONSTRAINT pk_ttm PRIMARY KEY (table_name, zoom_level),
+				CONSTRAINT fk_ttm_table_name FOREIGN KEY (table_name)
+					REFERENCES gpkg_contents(table_name));
+		""")		
+		
+		cursor.execute("""
+			CREATE TABLE gpkg_tiles (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				zoom_level INTEGER NOT NULL,
+				tile_column INTEGER NOT NULL,
+				tile_row INTEGER NOT NULL,
+				tile_data BLOB NOT NULL,
+				last_modified TIMESTAMP DEFAULT (datetime('now','localtime')),
+				UNIQUE (zoom_level, tile_column, tile_row));
+		""")
+
+
+
+	def insertMetadata(self):
+		db = sqlite3.connect(self.dbPath)
+		query = """INSERT INTO gpkg_contents (
+					table_name, data_type,
+					identifier, description,
+					min_x, min_y, max_x, max_y,
+					srs_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+		db.execute(query, ("gpkg_tiles", "tiles", self.name, "Created with BlenderGIS", self.xmin, self.ymin, self.xmax, self.ymax, self.crs))  
+		db.commit()
+		db.close()		
+
+
+	def insertCRS(self, code, name, wkt=''):
+		db = sqlite3.connect(self.dbPath)
+		db.execute(""" INSERT INTO gpkg_spatial_ref_sys (
+					srs_id,
+					organization,
+					organization_coordsys_id,
+					srs_name,
+					definition)
+				VALUES (?, ?, ?, ?, ?)
+			""", (code, "EPSG", code, name, wkt))
+		db.commit()
+		db.close()
+
+
+	def insertTileMatrixSet(self):
+		db = sqlite3.connect(self.dbPath)
+		
+		#Tile matrix set
+		query = """INSERT OR REPLACE INTO gpkg_tile_matrix_set (
+					table_name, srs_id,
+					min_x, min_y, max_x, max_y)
+				VALUES (?, ?, ?, ?, ?, ?);"""
+		db.execute(query, ('gpkg_tiles', self.crs, self.xmin, self.ymin, self.xmax, self.ymax))
+		
+		
+		#Tile matrix of each levels
+		for level, res in enumerate(self.resolutions):
+			
+			w = math.ceil( (self.xmax - self.xmin) / (self.tileSize * res) )
+			h = math.ceil( (self.ymax - self.ymin) / (self.tileSize * res) )			
+			
+			query = """INSERT OR REPLACE INTO gpkg_tile_matrix (
+						table_name, zoom_level,
+						matrix_width, matrix_height,
+						tile_width, tile_height,
+						pixel_x_size, pixel_y_size)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""  
+			db.execute(query, ('gpkg_tiles', level, w, h, self.tileSize, self.tileSize, res, res))	   
+		
+		
+		db.commit()
+		db.close()  
+		
+
 	def putTile(self, x, y, z, data):
 		db = sqlite3.connect(self.dbPath)
-		query = "INSERT OR REPLACE INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?,?,?,?)"
+		query = """INSERT OR REPLACE INTO gpkg_tiles 
+		(zoom_level, tile_column, tile_row, tile_data) VALUES (?,?,?,?)"""
 		db.execute(query, (z, x, y, data))
 		db.commit()
 		db.close()
 
-			
 	def getTile(self, x, y, z):
 		#connect with detect_types parameter for automatically convert date to Python object
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
-		query = 'SELECT tile_data, last_modified FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?'
+		query = 'SELECT tile_data, last_modified FROM gpkg_tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?'
 		result = db.execute(query, (z, x, y)).fetchone()
 		db.close()
 		if result is None:
@@ -129,6 +263,23 @@ class MBTiles():
 		return result[0]
 
 
+	def getTiles(self, tiles, z): #work in progress
+		
+		n = len(tiles)
+		xs, ys = zip(*tiles)
+		
+		lst = [z] + list(xs) + list(ys)
+		
+		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
+		query = "SELECT * FROM gpkg_tiles WHERE zoom_level = ? AND tile_column IN (" + ','.join('?'*n) + ") AND tile_row IN (" + ','.join('?'*n) + ")"
+		
+		result = db.execute(query, lst).fetchall()
+		db.close()
+		
+		print(n, len(result))
+		for r in result:
+			id, z, c, r, data, t = r
+			print(c, r)
 
 ####################################
 
@@ -180,10 +331,9 @@ def reproj(crs1, crs2, x1, y1):
 
 ####################################
 
-
-
 class TileMatrix():
 	
+	defaultNbLevels = 24
 	
 	def __init__(self, gridDef):
 
@@ -194,11 +344,11 @@ class TileMatrix():
 		#Convert bbox to grid crs is needed
 		if self.bboxCRS != self.CRS:
 			lonMin, latMin, lonMax, latMax = self.bbox
-			self.tm_xmin, self.tm_ymax = self.geoToProj(lonMin, latMax)
-			self.tm_xmax, self.tm_ymin = self.geoToProj(lonMax, latMin)
+			self.xmin, self.ymax = self.geoToProj(lonMin, latMax)
+			self.xmax, self.ymin = self.geoToProj(lonMax, latMin)
 		else:
-			self.tm_xmin, self.tm_xmax = self.bbox[0], self.bbox[2]
-			self.tm_ymin, self.tm_ymax = self.bbox[1], self.bbox[3]
+			self.xmin, self.xmax = self.bbox[0], self.bbox[2]
+			self.ymin, self.ymax = self.bbox[1], self.bbox[3]
 
 		#Get initial resolution
 		if getattr(self, 'resolutions', None) is not None:
@@ -208,19 +358,32 @@ class TileMatrix():
 				pass
 			else:
 				# at zoom level zero, 1 tile covers whole bounding box
-				dx = abs(self.tm_xmax - self.tm_xmin)
-				dy = abs(self.tm_ymax - self.tm_ymin)
+				dx = abs(self.xmax - self.xmin)
+				dy = abs(self.ymax - self.ymin)
 				dst = max(dx, dy)
 				self.initRes = dst / self.tileSize
+
+		#
+		if getattr(self, 'resolutions', None) is not None:
+			self.nbLevels = len(self.resolutions)
+		elif getattr(self, 'nbLevels', None) is not None:
+			pass
+		else:
+			self.nbLevels = self.defaultNbLevels
+
 		
 		# Define tile matrix origin
 		if self.originLoc == "NW":
-			self.tm_ox, self.tm_oy = self.tm_xmin, self.tm_ymax
+			self.originx, self.originy = self.xmin, self.ymax
 		elif self.originLoc == "SW":
-			self.tm_ox, self.tm_oy = self.tm_xmin, self.tm_ymin
+			self.originx, self.originy = self.xmin, self.ymin
 		else:
 			raise NotImplementedError
 	
+	@property
+	def globalbbox(self):
+		return self.xmin, self.ymin, self.xmax, self.ymax
+
 
 	def geoToProj(self, long, lat):
 		"""convert longitude latitude un decimal degrees to grid crs"""
@@ -237,6 +400,12 @@ class TileMatrix():
 			return reproj(self.CRS, 4326, x, y)
 
 
+	def getResList(self):
+		if getattr(self, 'resolutions', None) is not None:
+			return self.resolutions
+		else:
+			return [self.initRes / self.resFactor**zoom for zoom in range(self.nbLevels)]
+
 	def getRes(self, zoom):
 		"""Resolution (meters/pixel) for given zoom level (measured at Equator)"""
 		if getattr(self, 'resolutions', None) is not None:
@@ -251,11 +420,11 @@ class TileMatrix():
 		"""Convert projeted coords to tiles number"""
 		res = self.getRes(zoom)
 		geoTileSize = self.tileSize * res
-		dx = x - self.tm_ox
+		dx = x - self.originx
 		if self.originLoc == "NW":
-			dy = self.tm_oy - y
+			dy = self.originy - y
 		else:
-			dy = y - self.tm_oy
+			dy = y - self.originy
 		col = dx / geoTileSize
 		row = dy / geoTileSize
 		col = int(math.floor(col))
@@ -263,46 +432,79 @@ class TileMatrix():
 		return col, row
 
 	def getTileCoords(self, col, row, zoom):
-		"""Convert tiles number to projeted coords (top left pixel)"""
+		"""
+		Convert tiles number to projeted coords
+		(top left pixel if matrix origin is NW)
+		"""
 		res = self.getRes(zoom)
 		geoTileSize = self.tileSize * res
-		x = self.tm_ox + (col * geoTileSize)
+		x = self.originx + (col * geoTileSize)
 		if self.originLoc == "NW":
-			y = self.tm_oy - (row * geoTileSize)
+			y = self.originy - (row * geoTileSize)
 		else:
-			y = self.tm_oy + (row * geoTileSize)
-			y += geoTileSize
+			y = self.originy + (row * geoTileSize) #bottom left
+			y += geoTileSize #top left
 		return x, y
+	
 
-####################################
+###################"
 
-
-class MapService(TileMatrix):
+class MapService():
 	"""
 	Represent a tile service from source
-	"""	
+	""" 
 	
-	def __init__(self, source):
+	def __init__(self, srcKey, cacheFolder):
 		
+
 		#create class attributes from source dictionnary
+		self.srcKey = srcKey
+		source = sources[self.srcKey]
 		for k, v in source.items():
 			setattr(self, k, v)
 
 		#Build objects from layers definitions
 		class Layer(): pass
 		layersObj = {}
-		for layKey, layDict in self.layers.items():	
+		for layKey, layDict in self.layers.items(): 
 			lay = Layer()
 			for k, v in layDict.items():
 				setattr(lay, k, v)
 			layersObj[layKey] = lay
 		self.layers = layersObj
 	
-		#init parent grid class
-		super().__init__(grids[self.grid])
+		#Build source tile matrix
+		self.tm1 = TileMatrix(grids[self.grid])
+		
+		#Build destination tile matrix (NOT YET IMPLEMENTED)
+		if getattr(self, 'dstGrid', None) is not None:
+			self.tm2 = TileMatrix(grids[self.tm2])
+		else:
+			self.tm2 = self.tm1
+
+		#Init cache dict
+		self.cacheFolder = cacheFolder
+		self.caches = {}
+
+
+	def getCache(self, layKey):
+		'''Return existing cache for requested layer or built it if not exists'''
+		cache = self.caches.get(layKey)
+		if cache is None:			
+			mapKey = self.srcKey + '_' + layKey
+			dbPath = self.cacheFolder + mapKey+ ".gpkg"
+			self.caches[layKey] = GeoPackage(dbPath, self.tm2)
+			return self.caches[layKey]
+		else:
+			return cache
+
 
 
 	def buildUrl(self, layKey, col, row, zoom):
+		"""
+		Receive tiles coords coords in destination tile matrix space
+		convert to source tile matrix space and build request url
+		"""
 		url = self.urlTemplate
 		lay = self.layers[layKey]
 		
@@ -314,7 +516,7 @@ class MapService(TileMatrix):
 				url = url.replace("{Z}", str(zoom))
 			else:
 				quadkey = self.getQuadKey(col, row, zoom)
-				url = url.replace("{QUADKEY}", quadkey)				
+				url = url.replace("{QUADKEY}", quadkey) 
 			
 		if self.service == 'WMTS':
 			url = self.urlTemplate['BASE_URL']
@@ -325,7 +527,7 @@ class MapService(TileMatrix):
 			url = url.replace("{LAY}", lay.urlKey)
 			url = url.replace("{FORMAT}", lay.format)
 			url = url.replace("{STYLE}", lay.style)
-			url = url.replace("{MATRIX}", self.matrix)			
+			url = url.replace("{MATRIX}", self.matrix)  
 			url = url.replace("{X}", str(col))
 			url = url.replace("{Y}", str(row))
 			url = url.replace("{Z}", str(zoom))
@@ -333,20 +535,20 @@ class MapService(TileMatrix):
 		if self.service == 'WMS':
 			url = self.urlTemplate['BASE_URL']
 			if url[-1] != '?' :
-				url += '?'			
+				url += '?'  
 			params = ['='.join([k,v]) for k, v in self.urlTemplate.items() if k != 'BASE_URL']
 			url += '&'.join(params)
 			url = url.replace("{LAY}", lay.urlKey)
 			url = url.replace("{FORMAT}", lay.format)
 			url = url.replace("{STYLE}", lay.style)
-			url = url.replace("{CRS}", str(self.CRS))
+			url = url.replace("{CRS}", str(self.tm1.CRS))
 			url = url.replace("{WIDTH}", str(self.tileSize))
 			url = url.replace("{HEIGHT}", str(self.tileSize))
 			
-			xmin, ymax = self.getTileCoords(col, row, zoom)
-			xmax = xmin + self.tileSize * self.getRes(zoom)
-			ymin = ymax - self.tileSize * self.getRes(zoom)
-			if self.urlTemplate['VERSION'] == '1.3.0' and self.CRS == 4326:
+			xmin, ymax = self.tm1.getTileCoords(col, row, zoom)
+			xmax = xmin + self.tm1.tileSize * self.tm1.getRes(zoom)
+			ymin = ymax - self.tm1.tileSize * self.tm1.getRes(zoom)
+			if self.urlTemplate['VERSION'] == '1.3.0' and self.tm1.CRS == 4326:
 				bbox = ','.join(map(str,[ymin,xmin,ymax,xmax]))
 			else:
 				bbox = ','.join(map(str,[xmin,ymin,xmax,ymax]))
@@ -369,14 +571,95 @@ class MapService(TileMatrix):
 		return quadKey
 
 
+	def getTile(self, layKey, col, row, zoom):
+		"""
+		Return bytes data of requested tile
+		Tile is downloaded from map service or directly pick up from cache database.
+		"""
 
+		cache = self.getCache(layKey)
+	
+		#don't try to get tiles out of map bounds
+		x,y = self.tm2.getTileCoords(col, row, zoom) #top left
+		if row < 0 or col < 0:
+			return None
+		elif not self.tm2.xmin <= x < self.tm2.xmax or not self.tm2.ymin < y <= self.tm2.ymax:
+			return None
+				
+		#check if tile already exists in cache
+		data = cache.getTile(col, row, zoom)
+		
+		#if so check if its a valid image
+		if data is not None:
+			format = imghdr.what(None, data)
+			if format is None:#corrupted
+				data = None
+			
+		#if not or corrupted try to download it from map service			
+		if data is None:
+		
+			url = self.buildUrl(layKey, col, row, zoom)
+			#print(url)
+			
+			try:
+				#make request
+				req = urllib.request.Request(url, None, self.headers)
+				handle = urllib.request.urlopen(req, timeout=3)
+				#open image stream
+				data = handle.read()
+				handle.close()
+			except:
+				print("Can't download tile x"+str(col)+" y"+str(row))
+				print(url)
+				data = None
+		
+			#Make sure the stream is correct and put in db
+			if data is not None:
+				format = imghdr.what(None, data)
+				if format is None:
+					data = None
+				else:
+					cache.putTile(col, row, self.zoom, data)
+		
+		return data
+
+
+	def listTiles(self, bbox, zoom):
+		
+		xmin, ymin, xmax, ymax = bbox
+				
+		#Get first tile indices (tiles matrix origin is top left)
+		firstCol, firstRow = self.tm1.getTileNumber(xmin, ymax, zoom)
+		
+		#Total number of tiles required
+		nbTilesX = math.ceil( (xmax - xmin) / (self.tm1.tileSize * self.tm1.getRes(zoom)) )
+		nbTilesY = math.ceil( (ymax - ymin) / (self.tm1.tileSize * self.tm1.getRes(zoom)) )
+			
+		#Add more tiles because background image will be offseted 
+		# and could be to small to cover all area
+		nbTilesX += 1
+		nbTilesY += 1
+
+		#Build list of required column and row numbers
+		cols = [firstCol+i for i in range(nbTilesX)]
+		if self.tm1.originLoc == "NW":
+			rows = [firstRow+i for i in range(nbTilesY)]
+		else:
+			rows = [firstRow-i for i in range(nbTilesY)]
+
+		return cols, rows
+
+
+	def getTiles(self, layKey, tiles, z): #test
+		cache = self.getCache(layKey)
+		cache.getTiles(tiles, z)
 
 
 ####################
 
-class Map(MapService):
-	"""Handle a map as background image in Blender"""
+class MapImage(MapService):
 	
+	"""Handle a map as background image in Blender"""
 	
 	def __init__(self, context):
 
@@ -392,21 +675,18 @@ class Map(MapService):
 		mapKey = self.scn.mapSource
 		self.srcKey, self.layKey = mapKey.split(':')
 
+		#Paths
+		# Tiles mosaic used as background image in Blender
+		self.imgPath = folder + self.srcKey + '_' + self.layKey + ".png"
+		
 		#Init parent MapService class
-		super().__init__(sources[self.srcKey])
+		super().__init__(self.srcKey, folder)
 	
 		#Get layer def obj
 		self.layer = self.layers[self.layKey]
-			
-		#Paths
-		mapKey = mapKey.replace(':', '_')
-		# MBtiles database path
-		self.dbPath = folder + mapKey+ ".mbtiles"
-		# Tiles mosaic used as background image in Blender
-		self.imgPath = folder + mapKey + ".png"
-		
-		#Init cache
-		self.cache = MBTiles(self.dbPath)
+
+		#Alias for destination tile matrix
+		self.tm = self.tm2
 
 		#Init scene props if not exists
 		scn = self.scn
@@ -446,13 +726,21 @@ class Map(MapService):
 		self.img_w, self.img_h = None, None #width, height
 		self.img_ox, self.img_oy = None, None #image origin
 		#Store list of previous tile number requested
-		self.previousNumColLst, self.previousNumRowLst = None, None
+		self.previousCols, self.previousRows = None, None
 
 
+	#fast access to some properties of destination grid
 	@property
 	def res(self):
 		'''Resolution in meters per pixel for current zoom level'''
-		return self.getRes(self.zoom)
+		return self.tm.getRes(self.zoom)
+	@property
+	def CRS(self):
+		return self.tm.CRS
+	@property
+	def tileSize(self):
+		return self.tm.tileSize
+
 
 
 	def update(self):
@@ -463,11 +751,7 @@ class Map(MapService):
 		self.lat, self.long = self.scn['lat'], self.scn['long']
 
 		#scene origin coords in projeted system
-		self.origin_x, self.origin_y = self.geoToProj(self.long, self.lat)
-
-		#reinit thread progress cpt
-		self.cptTiles = 0
-		self.nbTiles = 0
+		self.origin_x, self.origin_y = self.tm.geoToProj(self.long, self.lat)
 
 
 
@@ -475,8 +759,9 @@ class Map(MapService):
 		'''Launch run() function in a new thread'''
 		self.stop()
 		self.running = True
-		self.thread = threading.Thread(target=self.run)
+		self.thread = threading.Thread(target=self.run_multi)
 		self.thread.start()
+
 
 	def stop(self):
 		'''Stop actual thread'''
@@ -484,50 +769,93 @@ class Map(MapService):
 			self.running = False
 			self.thread.join()
 
-	def run(self):
-		'''Main process'''
+
+
+	def run_multi(self):
+		'''Main process, launch multiple thread to retreive tiles and build mosaic'''
+
+		self.update()
+		
+		self.request()
+		
+		#List all tiles	
+		tiles = [ (c, r) for c in self.cols for r in self.rows]
+		
+		#test
+		#self.getTiles(self.layKey, tiles, self.zoom)
+		
+		#Create PIL image in memory
+		self.mosaic = Image.new("RGBA", (self.img_w , self.img_h), None)
+
+		#reinit cpt progress
+		self.nbTiles = len(self.cols) * len(self.rows)
+		self.cptTiles = 0	
+			
+		#Launch threads
+		nbThread = 4
+		n = len(tiles)
+		q = math.ceil(n/nbThread)
+		parts = [tiles[i:i+q] for i in range(0, n, q)]
+		threads = []
+		for part in parts:
+			t = threading.Thread(target=self.load, args=(part,))
+			threads.append(t)
+			t.start()
+
+		# Wait for all threads to complete
+		for t in threads:
+			t.join()
+	
 		if self.running:
-			self.update()
-		if self.running:
-			self.request()
-		if self.running:
-			self.load()
-		if self.running:
+			#save image
+			self.mosaic.save(self.imgPath)			
+			#Place background image
 			self.place()
+
+		#reinit cpt progress
+		self.nbTiles, self.cptTiles = 0, 0
+
+
 
 	def progress(self):
 		'''Report thread download progress'''
-		return self.cptTiles, self.nbTiles	
+		return self.cptTiles, self.nbTiles  
 
 
 
 	def view3dToProj(self, dx, dy):
 		'''Convert view3d coords to crs coords'''
 		x = self.origin_x + dx
-		y = self.origin_y + dy	
+		y = self.origin_y + dy  
 		return x, y
 
 	def moveOrigin(self, dx, dy):
 		'''Move scene origin and update props'''
 		self.origin_x += dx
 		self.origin_y += dy
-		lon, lat = self.projToGeo(self.origin_x, self.origin_y)
+		lon, lat = self.tm.projToGeo(self.origin_x, self.origin_y)
 		self.scn["lat"], self.scn["long"] = lat, lon
+
+
 
 
 		
 	def request(self):
 		'''Compute list of required tiles to cover view3d area'''
 		#Get area dimension
-		#w, h = self.area.width, self.area.height		
+		#w, h = self.area.width, self.area.height   
 		w, h = self.area3d.width, self.area3d.height
 		
-		#Get area top left coords ((map origin is bottom lelf)
-		x_shift = self.origin_x - w/2 * self.res
-		y_shift = self.origin_y + h/2 * self.res
-		
+		#Get area bbox coords (map origin is bottom lelf)
+		xmin = self.origin_x - w/2 * self.res
+		ymax = self.origin_y + h/2 * self.res
+		xmax = self.origin_x + w/2 * self.res
+		ymin = self.origin_y - h/2 * self.res
+		bbox = (xmin, ymin, xmax, ymax)
+
+		"""
 		#Get first tile indices (tiles matrix origin is top left)
-		firstCol, firstRow = self.getTileNumber(x_shift, y_shift, self.zoom)
+		firstCol, firstRow = self.getTileNumber(xmin, ymax, self.zoom)
 		
 		#Total number of tiles required
 		nbTilesX, nbTilesY = math.ceil(w/self.tileSize), math.ceil(h/self.tileSize)
@@ -536,122 +864,70 @@ class Map(MapService):
 		# and could be to small to cover all area
 		nbTilesX += 1
 		nbTilesY += 1
+
+		#Build list of required column and row numbers
+		self.cols = [firstCol+i for i in range(nbTilesX)]
+		if self.originLoc == "NW":
+			self.rows = [firstRow+i for i in range(nbTilesY)]
+		else:
+			self.rows = [firstRow-i for i in range(nbTilesY)]
+		"""
+
+		#Get list of required tiles to cover area
+		self.cols, self.rows = self.listTiles(bbox, self.zoom)
 		
+		#Keep first tile (top left) indices
+		self.col1, self.row1 = self.cols[0], self.rows[0]
+
 		#Final image size
-		self.img_w, self.img_h = nbTilesX * self.tileSize, nbTilesY * self.tileSize
+		self.img_w, self.img_h = len(self.cols) * self.tileSize, len(self.rows) * self.tileSize
 		
 		#Compute image origin
 		#Image origin will not match scene origin, it's why we should offset the image
-		xmin, ymax = self.getTileCoords(firstCol, firstRow, self.zoom) #top left (px center ?)
-		self.img_ox = xmin + self.img_w/2 * self.res
-		self.img_oy = ymax - self.img_h/2 * self.res
+		img_xmin, img_ymax = self.tm.getTileCoords(self.col1, self.row1, self.zoom) #top left (px center ?)
+		self.img_ox = img_xmin + self.img_w/2 * self.res
+		self.img_oy = img_ymax - self.img_h/2 * self.res
 
-		#Build list of required column and row numbers
-		self.numColLst = [firstCol+i for i in range(nbTilesX)]
-		if self.originLoc == "NW":
-			self.numRowLst = [firstRow+i for i in range(nbTilesY)]
-		else:
-			self.numRowLst = [firstRow-i for i in range(nbTilesY)]
-		
+			
 		#Stop thread if the request is same as previous
-		if self.previousNumColLst == self.numColLst and self.previousNumRowLst == self.numRowLst:
+		if self.previousCols == self.cols and self.previousRows == self.rows:
 			self.running = False
 		else:
-			self.previousNumColLst = self.numColLst
-			self.previousNumRowLst = self.numRowLst
+			self.previousCols = self.cols
+			self.previousRows = self.rows
 
 
-	def load(self):
-		'''
-		Build requested background image (mosaic of tiles)
-		Tiles are downloaded from map service or directly taken in cache database.
-		'''
-		#Create PIL image in memory
-		mosaic = Image.new("RGBA", (self.img_w , self.img_h), None)
 
-		nbTilesX = len(self.numColLst)
-		nbTilesY = len(self.numRowLst)
-		self.nbTiles = nbTilesX * nbTilesY
-		self.cptTiles = 0
+
+	def load(self, tiles):
+		'''Get tiles and paste them in mosaic'''
 		
-		posy = 0
-		for row in self.numRowLst:
+		for tile in tiles:
 			
-			posx = 0
+			#cancel thread if requested
+			if not self.running:
+				return			
 			
-			for col in self.numColLst:
-
-				#cancel thread if requested
-				if not self.running:
-					return
+			#unpack col and row indices
+			col, row = tile
 				
-				#don't try to get tiles out of map bounds
-				x,y = self.getTileCoords(col, row, self.zoom) #top left
-				if row < 0 or col < 0:
-					data = None
-				elif not self.tm_xmin <= x < self.tm_xmax or not self.tm_ymin < y <= self.tm_ymax:
-					data = None
-				
-				else:
-					
-					#check if tile already exists in cache
-					data = self.cache.getTile(col, row, self.zoom)
-					
-					#if so try to open it with PIL
-					if data is not None:
-						try:
-							img = Image.open(io.BytesIO(data))
-						except: #corrupted
-							data = None
-						
-					#if not or corrupted try to download it from map service			
-					if data is None:
-					
-						url = self.buildUrl(self.layKey, col, row, self.zoom)
-						#print(url)
-						
-						try:
-							#make request
-							req = urllib.request.Request(url, None, self.headers)
-							handle = urllib.request.urlopen(req, timeout=3)
-							#open image stream
-							data = handle.read()
-							handle.close()
-						except:
-							print("Can't download tile x"+str(col)+" y"+str(row))
-							#print(url)
-							data = None
-					
-						#Make sure the stream is correct and put in db
-						if data is not None:
-							try:
-								#open with PIL
-								img = Image.open(io.BytesIO(data))
-							except:
-								data = None
-							else:
-								#put in mbtiles database
-								self.cache.putTile(col, row, self.zoom, data)
-						
-				#finally, if we are unable to get a valid stream
-				#then create an empty tile
-				if data is None:
-					img = Image.new("RGBA", (self.tileSize , self.tileSize), "white")
-				
-				#Paste tile into mosaic image
-				mosaic.paste(img, (posx, posy))
-				self.cptTiles += 1
-				posx += self.tileSize
-			#
-			posy += self.tileSize
-			
-		#save image
-		mosaic.save(self.imgPath)
-
-		#reinit cpt progress
-		self.cptTiles = 0
-		self.nbTiles = 0
+			#Get image bytes data
+			data = self.getTile(self.layKey, col, row, self.zoom)
+			try:
+				#open with PIL
+				img = Image.open(io.BytesIO(data))
+			except:
+				#create an empty tile if we are unable to get a valid stream
+				img = Image.new("RGBA", (self.tileSize , self.tileSize), "white")
 		
+			#Paste tile into mosaic image
+			posx = (col - self.col1) * self.tileSize
+			posy = abs((row - self.row1)) * self.tileSize		
+			self.mosaic.paste(img, (posx, posy))
+			
+			self.cptTiles += 1
+
+
 		
 
 	def place(self):
@@ -701,7 +977,7 @@ class Map(MapService):
 		dst /= 2
 		self.reg3d.view_distance = dst
 		
-		#Update image drawing	
+		#Update image drawing   
 		self.bkg.image.reload()
 
 
@@ -764,6 +1040,7 @@ class MAP_VIEW(bpy.types.Operator):
 	bl_description = 'Toggle 2d map navigation'
 	bl_label = "Map viewer"
 
+	fontColor = FloatVectorProperty(name="Font color", subtype='COLOR', min=0, max=1, size=4, default=(0, 0, 0, 1))
 
 	def invoke(self, context, event):
 		
@@ -794,12 +1071,14 @@ class MAP_VIEW(bpy.types.Operator):
 			self.nb, self.nbTotal = 0, 0
 	
 			#Get map
+			self.map = MapImage(context)
+			"""
 			try:
-				self.map = Map(context)
+				self.map = MapImage(context)
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
 				return {'CANCELLED'}
-			
+			"""
 			self.map.get()
 			
 			return {'RUNNING_MODAL'}
@@ -845,6 +1124,7 @@ class MAP_VIEW(bpy.types.Operator):
 					context.region_data.view_distance -= 100
 				
 				else:
+					context.region_data.view_distance /= 2 #tile matrix res factor
 					# map zoom up
 					if scn["z"] < self.map.layer.zmax:
 						scn["z"] += 1
@@ -867,7 +1147,8 @@ class MAP_VIEW(bpy.types.Operator):
 					context.region_data.view_distance += 100
 					
 				else:
-					#map zoom down			
+					context.region_data.view_distance *= 2
+					#map zoom down  
 					if scn["z"] > self.map.layer.zmin:
 						scn["z"] -= 1
 						self.map.get()
@@ -912,6 +1193,10 @@ class MAP_VIEW(bpy.types.Operator):
 				self.map.moveOrigin(dx,dy)
 				self.map.get()
 
+		if event.type == 'SPACE':
+			wm = context.window_manager
+			#wm.invoke_popup(self)
+			#return wm.invoke_props_dialog(self)
 
 		if event.type in {'ESC'}:
 			self.map.stop()

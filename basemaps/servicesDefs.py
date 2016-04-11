@@ -98,7 +98,8 @@ grids = {
 ####################################
 
 #With TMS or WMTS, grid must match the one used by the service
-#With WMS you can use any grid you want
+#With WMS you can use any grid you want but the grid CRS must 
+#match one of those provided by the WMS service
 
 #The grid associated to the source define the CRS
 #A source can have multiple layers but have only one grid
