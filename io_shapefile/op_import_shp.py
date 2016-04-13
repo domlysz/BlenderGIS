@@ -84,7 +84,6 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis
 		if shpType[-1] == 'Z' and not zValues:
 			zGeom=True
 		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues, polygon=True)
-		print(len(geoms))
 		shiftGeom(geoms, dx, dy, angCoords)
 		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis)
 
@@ -165,12 +164,17 @@ def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 	w.cursor_set('WAIT') 
 	#wm = bpy.context.window_manager
 	#wm.progress_begin(0, 100)
+
 	#Create an empty BMesh
-	bm = bmesh.new()
+	#bm = bmesh.new()
+
 	#Build bmesh
 	nbGeoms = len(geoms)
 	progress = -1
+	all_v = []
+	all_f = []
 	for i, geom in enumerate(geoms):
+		bm = bmesh.new()
 		#progress bar
 		pourcent = round(((i+1)*100)/nbGeoms)
 		if pourcent in list(range(0, 110, 10)) and pourcent != progress:
@@ -184,7 +188,7 @@ def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 			#Extrusion
 			if extrudeValues:
 				offset = extrudeValues[i]
-				vect=(0,0,offset)#normal = Z
+				vect = (0,0,offset)#normal = Z
 				result = bmesh.ops.extrude_vert_indiv(bm, verts=[vert])
 				#verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 				verts = result['verts']
@@ -223,11 +227,26 @@ def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 					if not extrudeValue:
 						extrudeValue = 0
 					extrudeFacesBm(bm, f, extrudeValue, extrudeAxis)
+
+		
+		offset = len(all_v)
+
+		all_v.extend(v.co[:] for v in bm.verts)
+		bm.verts.index_update()
+		all_f.extend([[v.index + offset for v in f.verts] for f in bm.faces])
+		bm.free()
+
+	"""
 	#Finish up, write the bmesh to a new mesh
 	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 	mesh = bpy.data.meshes.new(name)
 	bm.to_mesh(mesh)
 	bm.free()
+	"""	
+	#using from_pydata is the fatest way to produce a large mesh (appending to bmesh is terribly slow)
+	mesh = bpy.data.meshes.new(name)
+	mesh.from_pydata(all_v, [], all_f)
+
 	#wm.progress_end()
 	return mesh
 
