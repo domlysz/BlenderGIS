@@ -541,9 +541,9 @@ class IMPORT_SHP(Operator, ImportHelper):
 				return {'FINISHED'}
 			try:
 				elevValues = [float(record[fieldIdx]) for record in records]
-			except ValueError:
-				self.report({'ERROR'}, "Elevation values aren't numeric")
-				print("Elevation values aren't numeric")
+			except (TypeError, ValueError):
+				self.report({'ERROR'}, "Elevation field contains null or not numeric values")
+				print("Elevation field contains null or not numeric values")
 				return {'FINISHED'}
 
 
@@ -555,24 +555,20 @@ class IMPORT_SHP(Operator, ImportHelper):
 				self.report({'ERROR'}, "Unable to find extrusion field")
 				print("Unable to find extrusion field")
 				return {'FINISHED'}
-			except AttributeError:
-				self.report({'ERROR'}, "No attribute parts")
-				print("No attribute parts")
-				return {'FINISHED'}
 			#Get extrude values
 			if (shpType == 'PointZ' or shpType == 'Point'): #point layer has no attribute 'parts'
 				try:
 					extrudeValues = [float(record[fieldIdx]) for record in records]
-				except ValueError:
-					self.report({'ERROR'}, "Elevation values aren't numeric")
-					print("Elevation values aren't numeric")
+				except (TypeError, ValueError):
+					self.report({'ERROR'}, "Extrusion field contains null or not numeric values")
+					print("Extrusion field contains null or not numeric values")
 					return {'FINISHED'}
 			else:
 				try:
 					extrudeValues = [float(record[fieldIdx]) for i, record in enumerate(records) for part in range(len(shapes[i].parts))]
-				except ValueError:
-					self.report({'ERROR'}, "Elevation values aren't numeric")
-					print("Elevation values aren't numeric")
+				except (TypeError, ValueError):
+					self.report({'ERROR'}, "Extrusion field contains null or not numeric values")
+					print("Extrusion field contains null or not numeric values")
 					return {'FINISHED'}
 				except AttributeError:#no attribute 'parts'
 					self.report({'ERROR'}, "Shapefiles reading error")
