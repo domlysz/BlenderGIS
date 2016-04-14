@@ -77,7 +77,6 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis
 			zGeom=True
 		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues)
 		shiftGeom(geoms, dx, dy, angCoords)
-		#edges, initialGeoFeatureIdx = polylinesToLines(geoms)
 		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis, reportProgress=verbose)
 
 	elif (shpType == 'Polygon' or shpType == 'PolygonZ'):
@@ -146,20 +145,20 @@ def shiftGeom(geoms, dx, dy, angCoords=False):
 			pts = [(dd2meters(pt[0])-dx, dd2meters(pt[1])-dy, pt[2]) for pt in geom]#shift coords & convert dd to meters
 		else:
 			pts = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in geom]
-		geoms[i]=pts
+		geoms[i] = pts
 
 
 def polylinesToLines(geom):
-	edges=[]
-	nbPts=len(geom)
+	edges = []
+	nbPts = len(geom)
 	for i in range(nbPts):
 		if i < nbPts-1:
-			edges.append([geom[i],geom[i+1]])
+			edges.append([geom[i], geom[i+1]])
 	return edges
 
 
 def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z', reportProgress=True):
-	'''Use extracted geometry and fields values to build a new mesh'''
+	'''Use extracted geometry to build a new mesh. Extrude if needed'''
 
 	#For each geom create a new bmesh and use bmesh.ops to perform extrusion if needed
 	#extract the resulting bmesh data to python list formated as required by from_pydata function
@@ -305,45 +304,30 @@ def placeObj(shpMesh, objName, setOrigin=True):
 	if setOrigin:
 		#bpy operators can be very cumbersome when scene contains lot of objects
 		#because it cause implicit scene updates calls
-		#so we must avoid using operators when created many objects with the 'sepapate objects' option)
-		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #Need to fin a work around here
+		#so we must avoid using operators when created many objects with the 'separate objects' option)
+		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #Need to find a work around here
 	return obj
 
 
 
-def bmeshOrigin(bm):
-	bbox={}
-	xmin = min([pt.co.x for pt in bm.verts])
-	xmax = max([pt.co.x for pt in bm.verts])
-	ymin = min([pt.co.y for pt in bm.verts])
-	ymax = max([pt.co.y for pt in bm.verts])
-	zmin = min([pt.co.z for pt in bm.verts])
-	zmax = max([pt.co.z for pt in bm.verts])
-	ox = (xmax - xmin) / 2
-	oy = (ymax - ymin) / 2
-	oz = (zmax - zmin) / 2
-	return (ox, oy, oz)
-
-def update3dViews(nbLines, scaleSize):
-	targetDst=nbLines*scaleSize
-	wms=bpy.data.window_managers
-	for wm in wms:
-		for window in wm.windows:
-			for area in window.screen.areas:
-				if area.type == 'VIEW_3D':
-					for space in area.spaces:
-						if space.type == 'VIEW_3D':
-							if space.grid_lines*space.grid_scale < targetDst:
-								space.grid_lines = nbLines
-								space.grid_scale = scaleSize
-								space.clip_end = targetDst*10#10x more than necessary
-	#bpy.ops.view3d.view_all()#wrong context
 
 #------------------------------------------------------------------------
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
+
+class RESET_GEOREF(Operator):
+	"""Reset georefs infos stored in scene"""
+	bl_idname = "importgis.reset_georef"
+	bl_label = "Reset georef"
+
+	def execute(self, context):
+		scn = bpy.context.scene
+		if "Georef X" in scn and "Georef Y" in scn:
+			del scn["Georef X"]
+			del scn["Georef Y"]
+		return{'FINISHED'}
 
 
 class IMPORT_SHP(Operator, ImportHelper):
@@ -385,23 +369,11 @@ class IMPORT_SHP(Operator, ImportHelper):
 			items=[ ('Z', 'z axis', "Extrude along Z axis"),
 			('NORMAL', 'Normal', "Extrude along normal")]
 			)
-	#Use previous object translation
-	useGeoref = BoolProperty(
-			name="Consider georeferencing",
-			description="Adjust position next to previous import",
-			default=True
-			)
 	#Decimal degrees to meters
 	angCoords = BoolProperty(
 			name="Angular coords",
 			description="Will convert decimal degrees coordinates to meters",
 			default=False
-			)
-	#Adjust grid size
-	adjust3dView = BoolProperty(
-			name="Adjust 3D view",
-			description="Adjust grid floor and clip distances",
-			default=True
 			)
 	#Create separate objects
 	separateObjects = BoolProperty(
@@ -438,22 +410,20 @@ class IMPORT_SHP(Operator, ImportHelper):
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
 		#
+		layout.prop(self, 'angCoords')
+		#
 		if "Georef X" in scn and "Georef Y" in scn:
 			isGeoref = True
 		else:
 			isGeoref = False
 		if isGeoref:
-			layout.prop(self, 'useGeoref')
-		else:
-			self.useGeoref = False
-		#
-		layout.prop(self, 'angCoords')
-		#
-		layout.prop(self, 'adjust3dView')
+			layout.operator("importgis.reset_georef")
+
 
 
 	def execute(self, context):
 
+		#Set cursor representation to 'loading' icon
 		w = bpy.context.window
 		w.cursor_set('WAIT') 
 
@@ -611,10 +581,12 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 		#Get georef dx, dy
 		scn = bpy.context.scene
-		if self.useGeoref:
+		if "Georef X" in scn and "Georef Y" in scn:
 			dx, dy = scn["Georef X"], scn["Georef Y"]
 		else:
 			dx, dy = center[0], center[1]
+			#Add custom properties define x & y translation to retrieve georeferenced model
+			scn["Georef X"], scn["Georef Y"] = dx, dy	
 
 		#Launch geometry builder
 		if not self.separateObjects:#create one object
@@ -651,37 +623,43 @@ class IMPORT_SHP(Operator, ImportHelper):
 					extrudeValue = [extrudeValues[i]] * nbParts
 				else:
 					extrudeValue = False
-				#build geom &place obj
+				#build geom & place obj
 				mesh = buildGeoms(objName, [shape], shpType, elevValue, dx, dy, extrudeValue, self.extrusionAxis, self.angCoords, verbose=False)
 				if not mesh:
 					print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 					return {'FINISHED'}
-
-				#bbox = shapes.bbox
-				#xmin, ymin, xmax, ymax = bbox
 				obj = placeObj(mesh, objName, setOrigin=False)
+				#Set object origin (do not use bpy.ops for maintain good running time)
+				#bbox = shape.bbox
+				#xmin, ymin, xmax, ymax = bbox
 
-		#Add custom properties define x & y translation to retrieve georeferenced model
-		scn["Georef X"], scn["Georef Y"] = dx, dy
 
 		#Adjust grid size
-		if self.adjust3dView:
-			#bbox = obj.bound_box
-			#xmin = min([pt[0] for pt in bbox])
-			#xmax = max([pt[0] for pt in bbox])
-			#ymin = min([pt[1] for pt in bbox])
-			#ymax = max([pt[1] for pt in bbox])
-			xmin -= dx
-			xmax -= dx
-			ymin -= dy
-			ymax -= dy
-			#la coordonnée x ou y la + éloignée de l'origin = la distance d'un demi coté du carré --> fois 2 pr avoir la longueur d'un coté
-			dstMax = round(max(abs(xmax), abs(xmin), abs(ymax), abs(ymin)))*2
-			nbDigit = len(str(dstMax))
-			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
-			nbLines = round(dstMax/scale)
-			update3dViews(nbLines, scale)
+		# get object(s) bbox in 3dview from previously computed shapefile bbox
+		xmin -= dx
+		xmax -= dx
+		ymin -= dy
+		ymax -= dy
+		# grid size and clip distance
+		dstMax = round(max(abs(xmax), abs(xmin), abs(ymax), abs(ymin)))*2
+		nbDigit = len(str(dstMax))
+		scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
+		nbLines = round(dstMax/scale)
+		targetDst = nbLines*scale
+		# set each 3d view
+		areas = bpy.context.screen.areas
+		for area in areas:
+			if area.type == 'VIEW_3D':
+				space = area.spaces.active
+				#Adjust floor grid and clip distance if the new obj is largest than actual settings
+				if space.grid_lines*space.grid_scale < targetDst:
+					space.grid_lines = nbLines
+					space.grid_scale = scale
+					space.clip_end = targetDst*10 #10x more than necessary
+				#Zoom to selected
+				overrideContext = {'area': area, 'region':area.regions[-1]}
+				bpy.ops.view3d.view_selected(overrideContext)
 
-		print("Finish")
+
 		return {'FINISHED'}
 

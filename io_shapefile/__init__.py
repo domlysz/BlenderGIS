@@ -46,15 +46,17 @@ def menu_func_export(self, context):
 	self.layout.operator(EXPORT_SHP.bl_idname, text="Shapefile (.shp)")
 
 def register():
-	bpy.utils.register_class(IMPORT_SHP)
+	bpy.utils.register_module(__name__)
+	#bpy.utils.register_class(IMPORT_SHP)
 	bpy.types.INFO_MT_file_import.append(menu_func_import)
-	bpy.utils.register_class(EXPORT_SHP)
+	#bpy.utils.register_class(EXPORT_SHP)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 def unregister():
-	bpy.utils.unregister_class(IMPORT_SHP)
+	bpy.utils.unregister_module(__name__)
+	#bpy.utils.unregister_class(IMPORT_SHP)
 	bpy.types.INFO_MT_file_import.remove(menu_func_import)
-	bpy.utils.unregister_class(EXPORT_SHP)
+	#bpy.utils.unregister_class(EXPORT_SHP)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 if __name__ == "__main__":
