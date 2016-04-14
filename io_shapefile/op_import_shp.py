@@ -70,7 +70,7 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis
 			pts = [(dd2meters(pt[0])-dx, dd2meters(pt[1])-dy, pt[2]) for pt in pts]#shift coords & convert dd to meters
 		else:
 			pts = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in pts]#shift coords
-		mesh = addMesh(meshName, pts, shpType, zExtrude)
+		mesh = addMesh(meshName, pts, shpType, zExtrude, reportProgress=verbose)
 
 	elif (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
 		if shpType[-1] == 'Z' and not zValues:
@@ -78,14 +78,14 @@ def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis
 		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues)
 		shiftGeom(geoms, dx, dy, angCoords)
 		#edges, initialGeoFeatureIdx = polylinesToLines(geoms)
-		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis)
+		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis, reportProgress=verbose)
 
 	elif (shpType == 'Polygon' or shpType == 'PolygonZ'):
 		if shpType[-1] == 'Z' and not zValues:
 			zGeom=True
 		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues, polygon=True)
 		shiftGeom(geoms, dx, dy, angCoords)
-		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis)
+		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis, reportProgress=verbose)
 
 	if verbose:
 		print("Mesh created")
@@ -158,31 +158,36 @@ def polylinesToLines(geom):
 	return edges
 
 
-def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
+def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z', reportProgress=True):
 	'''Use extracted geometry and fields values to build a new mesh'''
-	w = bpy.context.window
-	w.cursor_set('WAIT') 
-	#wm = bpy.context.window_manager
-	#wm.progress_begin(0, 100)
 
-	#Create an empty BMesh
-	#bm = bmesh.new()
+	#For each geom create a new bmesh and use bmesh.ops to perform extrusion if needed
+	#extract the resulting bmesh data to python list formated as required by from_pydata function
+	#then use from_pydata to build the final mesh
+	#using from_pydata is the fatest way to produce a large mesh (appending all geom to the same bmesh is exponentially slow)
 
-	#Build bmesh
+	#Progress infos init
 	nbGeoms = len(geoms)
 	progress = -1
-	all_v = []
-	all_f = []
+
+	#Python list expected by from_pydata
+	meshVerts = []
+	meshEdges = []
+	meshFaces = []
+
 	for i, geom in enumerate(geoms):
-		bm = bmesh.new()
-		#progress bar
+		
+		#Progress infos
 		pourcent = round(((i+1)*100)/nbGeoms)
 		if pourcent in list(range(0, 110, 10)) and pourcent != progress:
 			progress = pourcent
-			#wm.progress_update(pourcent)
-			print(str(pourcent)+'%')
-		#build geom
-		#POINT
+			if reportProgress:
+				print(str(pourcent)+'%')
+
+		#Create an empty BMesh
+		bm = bmesh.new()
+
+		# POINT
 		if (shpType == 'PointZ' or shpType == 'Point'):
 			vert = bm.verts.new(geom)
 			#Extrusion
@@ -190,32 +195,27 @@ def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 				offset = extrudeValues[i]
 				vect = (0,0,offset)#normal = Z
 				result = bmesh.ops.extrude_vert_indiv(bm, verts=[vert])
-				#verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 				verts = result['verts']
 				#translate
 				bmesh.ops.translate(bm, verts=verts, vec=vect)
-		#LINES
+
+		# LINES
 		if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
 			#Split polyline to lines
 			lines = polylinesToLines(geom)
 			#build edges
 			edges = []
-			##edgesVerts = []
 			for line in lines:
 				verts = [bm.verts.new(pt) for pt in line]
 				edge = bm.edges.new(verts)
 				edges.append(edge)
-				##edgesVerts.extend(verts)
 			#Extrusion
 			if extrudeValues:
 				extrudeValue = extrudeValues[i]
-				if not extrudeValue:
-					extrudeValue = 0
-				verts = extrudeEdgesBm(bm, edges, extrudeValue, extrudeAxis)
-				##edgesVerts.extend(verts)
-			#Merge edges to retrieve polyline
-			##bmesh.ops.remove_doubles(bm, verts=edgesVerts, dist=0.0001)
-		#NGONS
+				extrudeEdgesBm(bm, edges, extrudeValue, extrudeAxis)
+
+
+		# NGONS
 		if (shpType == 'Polygon' or shpType == 'PolygonZ'):
 			if len(geom) >= 3:#needs 3 points to get face
 				pts = [bm.verts.new(pt) for pt in geom]
@@ -224,30 +224,29 @@ def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z'):
 				#Extrusion
 				if extrudeValues:
 					extrudeValue = extrudeValues[i]
-					if not extrudeValue:
-						extrudeValue = 0
 					extrudeFacesBm(bm, f, extrudeValue, extrudeAxis)
 
-		
-		offset = len(all_v)
-
-		all_v.extend(v.co[:] for v in bm.verts)
+		#Update and clean up the bmesh
+		bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 		bm.verts.index_update()
-		all_f.extend([[v.index + offset for v in f.verts] for f in bm.faces])
+		bm.edges.index_update()
+		bm.faces.index_update()
+		offset = len(meshVerts)
+
+		#Extent lists with bmesh data
+		meshVerts.extend(v.co[:] for v in bm.verts)
+		meshEdges.extend([[v.index + offset for v in e.verts] for e in bm.edges])
+		meshFaces.extend([[v.index + offset for v in f.verts] for f in bm.faces])
 		bm.free()
 
-	"""
-	#Finish up, write the bmesh to a new mesh
-	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+	#using from_pydata to create the final mesh
 	mesh = bpy.data.meshes.new(name)
-	bm.to_mesh(mesh)
-	bm.free()
-	"""	
-	#using from_pydata is the fatest way to produce a large mesh (appending to bmesh is terribly slow)
-	mesh = bpy.data.meshes.new(name)
-	mesh.from_pydata(all_v, [], all_f)
+	mesh.from_pydata(meshVerts, meshEdges, meshFaces)
 
-	#wm.progress_end()
+	#remove double for final mesh ?
+	#need to toogle edit mode and run bpy.ops.mesh.remove_doubles(threshold=0.0001)
+	#depends on what's expected by the user (add an option) or always remove double on final mesh ?
+
 	return mesh
 
 
@@ -260,7 +259,6 @@ def extrudeEdgesBm(bm, edges, offset, axis):#Blender >= 2.65
 	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 	#translate
 	bmesh.ops.translate(bm, verts=verts, vec=vect)
-	return verts
 
 
 def extrudeFacesBm(bm, face, offset, axis):#Blender >= 2.65
@@ -305,7 +303,10 @@ def placeObj(shpMesh, objName, setOrigin=True):
 	bpy.context.scene.objects.active = obj
 	obj.select = True
 	if setOrigin:
-		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #
+		#bpy operators can be very cumbersome when scene contains lot of objects
+		#because it cause implicit scene updates calls
+		#so we must avoid using operators when created many objects with the 'sepapate objects' option)
+		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #Need to fin a work around here
 	return obj
 
 
@@ -452,6 +453,9 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 
 	def execute(self, context):
+
+		w = bpy.context.window
+		w.cursor_set('WAIT') 
 
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -623,7 +627,14 @@ class IMPORT_SHP(Operator, ImportHelper):
 			obj = placeObj(mesh, name)
 		else:#create multiple objects
 			bpy.ops.object.select_all(action='DESELECT')
+			nbFeatures = len(shapes)
+			progress = -1
 			for i, shape in enumerate(shapes):
+				#Progress infos
+				pourcent = round(((i+1)*100)/nbFeatures)
+				if pourcent in list(range(0, 110, 10)) and pourcent != progress:
+					progress = pourcent
+					print(str(pourcent)+'%')
 				#get obj name
 				if self.useFieldName:
 					objName = nameValues[i]
