@@ -22,7 +22,7 @@
 import os
 import math
 import bpy
-import bmesh
+#import bmesh
 import numpy as np
 from . import Tyf #geotags reader
 from .utils import xy, GRS80, bbox, overlap, OverlapError
@@ -546,18 +546,24 @@ class GeoRaster():
 		x0 -= dx
 		y0 -= dy
 		
-		bm = bmesh.new()
+		#Avoid using bmesh because it's very slow with large mesh
+		#use from-pydata instead
+		#bm = bmesh.new()
+		verts = []
 		for px in range(0, self.size.x, step):
 			for py in range(0, self.size.y, step):
 				x = x0 + (self.pxSize.x * px)
 				y = y0 +(self.pxSize.y * py)
 				z = data[py, px]
 				if z != self.noData:
-					bm.verts.new((x, y, z))
+					#bm.verts.new((x, y, z))
+					verts.append((x, y, z))
 		
 		mesh = bpy.data.meshes.new("DEM")
-		bm.to_mesh(mesh)
-		bm.free()
+		#bm.to_mesh(mesh)
+		#bm.free()
+		mesh.from_pydata(verts, [], [])
+		mesh.update() 
 		
 		return mesh
 
