@@ -72,7 +72,7 @@ class RESET_GEOREF(Operator):
 	bl_label = "Reset georef"
 
 	def execute(self, context):
-		scn = bpy.context.scene
+		scn = context.scene
 		if "Georef X" in scn and "Georef Y" in scn:
 			del scn["Georef X"]
 			del scn["Georef Y"]
@@ -141,7 +141,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
-		scn = bpy.context.scene
+		scn = context.scene
 		layout = self.layout
 		#
 		layout.prop(self, 'useFieldElev')
@@ -175,7 +175,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 	def execute(self, context):
 
 		#Set cursor representation to 'loading' icon
-		w = bpy.context.window
+		w = context.window
 		w.cursor_set('WAIT') 
 
 		#Toogle object mode and deselect all
@@ -260,7 +260,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		center = (xmin+bbox_dx/2, ymin+bbox_dy/2)
 
 		#Get georef dx, dy
-		scn = bpy.context.scene
+		scn = context.scene
 		if "Georef X" in scn and "Georef Y" in scn:
 			dx, dy = scn["Georef X"], scn["Georef Y"]
 		else:
@@ -454,18 +454,38 @@ class IMPORT_SHP(Operator, ImportHelper):
 				else:
 					name = shpName
 
+				#Calc bmesh bbox
+				_xmin = min([pt.co.x for pt in bm.verts])
+				_xmax = max([pt.co.x for pt in bm.verts])
+				_ymin = min([pt.co.y for pt in bm.verts])
+				_ymax = max([pt.co.y for pt in bm.verts])
+				_zmin = min([pt.co.z for pt in bm.verts])
+				_zmax = max([pt.co.z for pt in bm.verts])
+
+				#Calc bmesh geometry origin and translate coords according to it
+				#then object location will be set to initial bmesh origin
+				#its a work around to bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+				ox = (_xmin + ((_xmax - _xmin) / 2))
+				oy = (_ymin + ((_ymax - _ymin) / 2))
+				oz = _zmin
+				bmesh.ops.translate(bm, verts=bm.verts, vec=(-ox, -oy, -oz))
+
+				#Create new mesh from bmesh
 				mesh = bpy.data.meshes.new(name)
 				bm.to_mesh(mesh)
 
+				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
-				bpy.context.scene.objects.link(obj)
-				bpy.context.scene.objects.active = obj
+				context.scene.objects.link(obj)
+				context.scene.objects.active = obj
 				obj.select = True
+				obj.location = (ox, oy, oz)
 
 				# bpy operators can be very cumbersome when scene contains lot of objects
 				# because it cause implicit scene updates calls
 				# so we must avoid using operators when created many objects with the 'separate objects' option)
-				##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #TODO Need to find a work around here
+				##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+				
 
 			else:
 				#Extent lists with bmesh data
@@ -484,8 +504,8 @@ class IMPORT_SHP(Operator, ImportHelper):
 			mesh.from_pydata(meshVerts, meshEdges, meshFaces)
 
 			obj = bpy.data.objects.new(shpName, mesh)
-			bpy.context.scene.objects.link(obj)
-			bpy.context.scene.objects.active = obj
+			context.scene.objects.link(obj)
+			context.scene.objects.active = obj
 			obj.select = True
 
 			bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
@@ -505,7 +525,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 		nbLines = round(dstMax/scale)
 		targetDst = nbLines*scale
 		# set each 3d view
-		areas = bpy.context.screen.areas
+		areas = context.screen.areas
 		for area in areas:
 			if area.type == 'VIEW_3D':
 				space = area.spaces.active
