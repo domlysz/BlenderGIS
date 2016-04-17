@@ -24,6 +24,17 @@ featureType={
 31:'MultiPatch'
 }
 
+
+"""
+dbf fields type:
+	C is ASCII characters
+	N is a double precision integer limited to around 18 characters in length
+	D is for dates in the YYYYMMDD format, with no spaces or hyphens between the sections
+	F is for floating point numbers with the same length limits as N
+	L is for logical data which is stored in the shapefile's attribute table as a short integer as a 1 (true) or a 0 (false).
+	The values it can receive are 1, 0, y, n, Y, N, T, F or the python builtins True and False
+"""
+
 class ellps():
 	"""ellipsoid"""
 	def __init__(self, a, b):
@@ -45,268 +56,6 @@ def dd2meters(val):
 	return val*(ellpsGRS80.perimeter/360)
 
 
-def getFeaturesType(shapes):
-	shpType = shapes[0].shapeType#Shapetype of first feature, if this feature is null then shapefile will not be process...
-	#nt: Point features layer cannot be multipart
-	return featureType[shpType]
-
-
-def buildGeoms(meshName, shapes, shpType, zValues, dx, dy, zExtrude, extrudeAxis, angCoords=False, verbose=True):
-	'''Return a new mesh from shapefile geometry'''
-	if verbose:
-		print("Process geometry...")
-	zGeom = False
-	mesh = False
-
-	if (shpType == 'PointZ' or shpType == 'Point'):
-		if zValues:#Z attributes data are user-defined priority
-			pts = ([(pt[0], pt[1], zValues[i]) for i, shape in enumerate(shapes) for pt in shape.points])
-		elif shpType[-1] == 'Z':
-			pts = ([(pt[0], pt[1], shape.z[0]) for shape in shapes for pt in shape.points])
-		else:
-			z = 0
-			pts = ([(pt[0], pt[1], z) for shape in shapes for pt in shape.points])
-		if angCoords:
-			pts = [(dd2meters(pt[0])-dx, dd2meters(pt[1])-dy, pt[2]) for pt in pts]#shift coords & convert dd to meters
-		else:
-			pts = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in pts]#shift coords
-		mesh = addMesh(meshName, pts, shpType, zExtrude, reportProgress=verbose)
-
-	elif (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
-		if shpType[-1] == 'Z' and not zValues:
-			zGeom=True
-		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues)
-		shiftGeom(geoms, dx, dy, angCoords)
-		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis, reportProgress=verbose)
-
-	elif (shpType == 'Polygon' or shpType == 'PolygonZ'):
-		if shpType[-1] == 'Z' and not zValues:
-			zGeom=True
-		geoms = extractGeoms(shapes, zGeom, zFieldValues=zValues, polygon=True)
-		shiftGeom(geoms, dx, dy, angCoords)
-		mesh = addMesh(meshName, geoms, shpType, zExtrude, extrudeAxis, reportProgress=verbose)
-
-	if verbose:
-		print("Mesh created")
-	return mesh
-
-
-def extractGeoms(shapes, zGeom=False, zFieldValues=False, polygon=False):
-	'''Extract geometry of a shapefile'''
-	geoms = []
-	for i, geom in enumerate(shapes):
-		#Deal with multipart features
-		try:
-			partsIdx = geom.parts
-			#If the shape record has multiple parts this attribute contains the index of the first point of each part.
-			#If there is only one part then a list containing 0 is returned
-		except:#prevent "_shape object has no attribute parts" error
-			partsIdx = [0]
-		nbParts = len(partsIdx)
-		geomPts = geom.points
-		nbPts = len(geomPts)
-		#Get Z values --> attributes data are user-defined priority
-		if zFieldValues:
-			z = zFieldValues[i]
-		elif zGeom:
-			zValues = geom.z
-		for j in range(nbParts):
-			pts=[]
-			#find first and last part index
-			firstIdx=partsIdx[j]
-			if j+1 == nbParts:
-				lastIdx = nbPts
-			else:
-				lastIdx = partsIdx[j+1]
-			#
-			if zGeom and not zFieldValues:
-				z = zValues[firstIdx:lastIdx]
-			for k, pt in enumerate(geomPts[firstIdx:lastIdx]):
-				if zFieldValues:#attributes data are user-defined priority
-					thisZ = z
-				elif zGeom:
-					thisZ = z[k]
-				else:
-					thisZ = 0
-				pts.append((pt[0], pt[1], thisZ))
-			if polygon:
-				#According to the shapefile spec, polygons points are clockwise and polygon holes are counterclockwise
-				#in Blender face is up if points are in anticlockwise order
-				pts.reverse()#face up
-				geoms.append(pts[:-1])#exlude last point because it's the same of first pt
-			else:
-				geoms.append(pts)
-	return geoms
-
-
-def shiftGeom(geoms, dx, dy, angCoords=False):
-	for i, geom in enumerate(geoms):
-		if angCoords:
-			pts = [(dd2meters(pt[0])-dx, dd2meters(pt[1])-dy, pt[2]) for pt in geom]#shift coords & convert dd to meters
-		else:
-			pts = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in geom]
-		geoms[i] = pts
-
-
-def polylinesToLines(geom):
-	edges = []
-	nbPts = len(geom)
-	for i in range(nbPts):
-		if i < nbPts-1:
-			edges.append([geom[i], geom[i+1]])
-	return edges
-
-
-def addMesh(name, geoms, shpType, extrudeValues, extrudeAxis='Z', reportProgress=True):
-	'''Use extracted geometry to build a new mesh. Extrude if needed'''
-
-	#For each geom create a new bmesh and use bmesh.ops to perform extrusion if needed
-	#extract the resulting bmesh data to python list formated as required by from_pydata function
-	#then use from_pydata to build the final mesh
-	#using from_pydata is the fatest way to produce a large mesh (appending all geom to the same bmesh is exponentially slow)
-
-	#Progress infos init
-	nbGeoms = len(geoms)
-	progress = -1
-
-	#Python list expected by from_pydata
-	meshVerts = []
-	meshEdges = []
-	meshFaces = []
-
-	for i, geom in enumerate(geoms):
-		
-		#Progress infos
-		pourcent = round(((i+1)*100)/nbGeoms)
-		if pourcent in list(range(0, 110, 10)) and pourcent != progress:
-			progress = pourcent
-			if reportProgress:
-				print(str(pourcent)+'%')
-
-		#Create an empty BMesh
-		bm = bmesh.new()
-
-		# POINT
-		if (shpType == 'PointZ' or shpType == 'Point'):
-			vert = bm.verts.new(geom)
-			#Extrusion
-			if extrudeValues:
-				offset = extrudeValues[i]
-				vect = (0,0,offset)#normal = Z
-				result = bmesh.ops.extrude_vert_indiv(bm, verts=[vert])
-				verts = result['verts']
-				#translate
-				bmesh.ops.translate(bm, verts=verts, vec=vect)
-
-		# LINES
-		if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
-			#Split polyline to lines
-			lines = polylinesToLines(geom)
-			#build edges
-			edges = []
-			for line in lines:
-				verts = [bm.verts.new(pt) for pt in line]
-				edge = bm.edges.new(verts)
-				edges.append(edge)
-			#Extrusion
-			if extrudeValues:
-				extrudeValue = extrudeValues[i]
-				extrudeEdgesBm(bm, edges, extrudeValue, extrudeAxis)
-
-
-		# NGONS
-		if (shpType == 'Polygon' or shpType == 'PolygonZ'):
-			if len(geom) >= 3:#needs 3 points to get face
-				pts = [bm.verts.new(pt) for pt in geom]
-				f = bm.faces.new(pts)
-				#if f.normal < 0: #this is a polygon hole, bmesh cannot handle polygon hole
-				#Extrusion
-				if extrudeValues:
-					extrudeValue = extrudeValues[i]
-					extrudeFacesBm(bm, f, extrudeValue, extrudeAxis)
-
-		#Update and clean up the bmesh
-		bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-		bm.verts.index_update()
-		bm.edges.index_update()
-		bm.faces.index_update()
-		offset = len(meshVerts)
-
-		#Extent lists with bmesh data
-		meshVerts.extend(v.co[:] for v in bm.verts)
-		meshEdges.extend([[v.index + offset for v in e.verts] for e in bm.edges])
-		meshFaces.extend([[v.index + offset for v in f.verts] for f in bm.faces])
-		bm.free()
-
-	#using from_pydata to create the final mesh
-	mesh = bpy.data.meshes.new(name)
-	mesh.from_pydata(meshVerts, meshEdges, meshFaces)
-
-	#remove double for final mesh ?
-	#need to toogle edit mode and run bpy.ops.mesh.remove_doubles(threshold=0.0001)
-	#depends on what's expected by the user (add an option) or always remove double on final mesh ?
-
-	return mesh
-
-
-def extrudeEdgesBm(bm, edges, offset, axis):#Blender >= 2.65
-	#if axis == 'NORMAL'
-	#elif axis == 'Z':
-	vect = (0,0,offset)#normal = Z
-	result = bmesh.ops.extrude_edge_only(bm, edges=edges)
-	#geom type filter
-	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
-	#translate
-	bmesh.ops.translate(bm, verts=verts, vec=vect)
-
-
-def extrudeFacesBm(bm, face, offset, axis):#Blender >= 2.65
-	#update normal to avoid null vector
-	#bm.normal_update()
-	#build translate vector
-	if axis == 'NORMAL':
-		normal = face.normal
-		vect = normal*offset
-	elif axis == 'Z':
-		vect=(0,0,offset)
-
-
-	#what's the difference between extrude_discrete_faces and extrude_face_region ?
-	#results are similar, but extrude_discrete_faces is a little more speed
-
-	faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face], use_select_history=False) #{'faces': [BMFace]}
-	faces = faces['faces']
-	verts = faces[0].verts
-
-	"""
-	#make geom list for bmesh ops input --> [BMVert, BMEdge, BMFace]
-	geom = list(face.verts)+list(face.edges)+[face]
-	#extrude
-	result = bmesh.ops.extrude_face_region(bm, geom=geom)#return dict {"geom":[BMVert, BMEdge, BMFace]}
-	#geom type filter
-	verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
-	##edges = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMEdge)]
-	##faces = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMFace)]
-	"""
-
-	#translate
-	bmesh.ops.translate(bm, verts=verts, vec=vect)
-	
-
-
-def placeObj(shpMesh, objName, setOrigin=True):
-	#create an object with that mesh
-	obj = bpy.data.objects.new(objName, shpMesh)
-	# Link object to scene
-	bpy.context.scene.objects.link(obj)
-	bpy.context.scene.objects.active = obj
-	obj.select = True
-	if setOrigin:
-		#bpy operators can be very cumbersome when scene contains lot of objects
-		#because it cause implicit scene updates calls
-		#so we must avoid using operators when created many objects with the 'separate objects' option)
-		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #Need to find a work around here
-	return obj
 
 
 
@@ -407,6 +156,8 @@ class IMPORT_SHP(Operator, ImportHelper):
 		layout.prop(self, 'separateObjects')
 		if self.separateObjects:
 			layout.prop(self, 'useFieldName')
+		else:
+			self.useFieldName = False
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
 		#
@@ -427,153 +178,86 @@ class IMPORT_SHP(Operator, ImportHelper):
 		w = bpy.context.window
 		w.cursor_set('WAIT') 
 
+		#Toogle object mode and deselect all
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
 		except:
 			pass
 
-		#Default values
-		elevValues = False
-		extrudeValues = False
+		bpy.ops.object.select_all(action='DESELECT')
 
 		#Path
 		filePath = self.filepath
-		name = os.path.basename(filePath)[:-4]
+		shpName = os.path.basename(filePath)[:-4]
 
-		#Read shp
+		#Get shp reader
 		print("Read shapefile...")
 		try:
 			shp = shpReader(filePath)
-			#Get fields names
-			fields = shp.fields #3 values tuple (nom, type, longueur, précision)
-			fieldsNames = [field[0].lower() for field in fields if field[0] != 'DeletionFlag']#lower() allows case-insensitive
-			print("DBF fields : "+str(fieldsNames))
 		except:
 			self.report({'ERROR'}, "Unable to read shapefile")
 			print("Unable to read shapefile")
 			return {'FINISHED'}
 
-		#Extract geoms
-		try:
-			shapes = shp.shapes()
-			shpType = getFeaturesType(shapes)
-		except:
-			self.report({'ERROR'}, "Unable to extract geometry")
-			print("Unable to extract geometry")
-			return {'FINISHED'}
-
-		#Extract data
-		if self.useFieldElev or self.useFieldExtrude or self.useFieldName:
-			try:
-				records = shp.records()
-			except:
-				self.report({'ERROR'}, "Unable to read DBF table")
-				print("Unable to read DBF table")
-				return {'FINISHED'}
-
-		#Asset number of features match number of records
-		nbFeatures = len(shapes)
-		print(str(nbFeatures) + ' features')
-		if self.useFieldElev or self.useFieldExtrude or self.useFieldName:
-			if nbFeatures != len(records):
-				self.report({'ERROR'}, "Shapefiles reading error: number of shapes does not match number of table records.")
-				print("Shapefiles reading error: number of shapes does not match number of table records")
-				return {'FINISHED'}
-
-		#Purge null geom
-		if self.useFieldElev or self.useFieldExtrude or self.useFieldName:
-			shapes, records = zip(*[(shape, records[i]) for i, shape in enumerate(shapes) if len(shape.points) > 0])	
-		else:
-			shapes = [shape for shape in shapes if len(shape.points) > 0]
-		print(str(nbFeatures - len(shapes)) + ' null features ignored')
-
 		#Check shape type
+		shpType = featureType[shp.shapeType]
 		print('Feature type : '+shpType)
 		if shpType not in ['Point','PolyLine','Polygon','PointZ','PolyLineZ','PolygonZ']:
 			self.report({'ERROR'}, "Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 			print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 			return {'FINISHED'}
 
-		#Calculate XY bbox
-		if (shpType == 'PointZ' or shpType == 'Point'):
-			pts=([pt for shape in shapes for pt in shape.points])
-			xmin, xmax, ymin, ymax = min([pt[0] for pt in pts]), max([pt[0] for pt in pts]), min([pt[1] for pt in pts]), max([pt[1] for pt in pts])
+		#Get fields
+		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
+		fieldsNames = [field[0].lower() for field in fields]#lower() allows case-insensitive
+		print("DBF fields : "+str(fieldsNames))
+
+		if self.useFieldName or self.useFieldElev or self.useFieldExtrude:
+			self.useDbf = True
 		else:
-			bbox = [shape.bbox for shape in shapes] #xmin, ymin, xmax, ymax
-			xmin = min([box[0] for box in bbox])
-			xmax = max([box[2] for box in bbox])
-			ymin = min([box[1] for box in bbox])
-			ymax = max([box[3] for box in bbox])
+			self.useDbf = False
+
+		if self.useFieldName and self.separateObjects:
+			try:
+				nameFieldIdx = fieldsNames.index(self.fieldObjName.lower())
+			except:
+				self.report({'ERROR'}, "Unable to find name field")
+				print("Unable to find name field")
+				return {'FINISHED'}
+
+		if self.useFieldElev:
+			try:
+				zFieldIdx = fieldsNames.index(self.fieldElevName.lower())
+			except:
+				self.report({'ERROR'}, "Unable to find elevation field")
+				print("Unable to find elevation field")
+				return {'FINISHED'}
+
+			if fields[zFieldIdx][1] not in ['N', 'F', 'L'] :
+				self.report({'ERROR'}, "Elevation field do not contains numeric values")
+				print("Elevation field do not contains numeric values")
+				return {'FINISHED'}
+
+		if self.useFieldExtrude:
+			try:
+				extrudeFieldIdx = fieldsNames.index(self.fieldExtrudeName.lower())
+			except ValueError:
+				self.report({'ERROR'}, "Unable to find extrusion field")
+				print("Unable to find extrusion field")
+				return {'FINISHED'}
+
+			if fields[extrudeFieldIdx][1] not in ['N', 'F', 'L'] :
+				self.report({'ERROR'}, "Extrusion field do not contains numeric values")
+				print("Extrusion field do not contains numeric values")
+				return {'FINISHED'}
+
+		#Get bbox
+		xmin, ymin, xmax, ymax = shp.bbox
 		if self.angCoords:
 			xmin, xmax, ymin, ymax = dd2meters(xmin), dd2meters(xmax), dd2meters(ymin), dd2meters(ymax)
 		bbox_dx = xmax-xmin
 		bbox_dy = ymax-ymin
 		center = (xmin+bbox_dx/2, ymin+bbox_dy/2)
-
-		#Get Names Values from field
-		if self.useFieldName:
-			try:
-				fieldIdx = fieldsNames.index(self.fieldObjName.lower())
-			except:
-				self.report({'ERROR'}, "Unable to find name field")
-				print("Unable to find name field")
-				return {'FINISHED'}
-			##nameValues = [str(record[fieldIdx]) for record in records]
-			# null values will return a bytes object containing a blank string of length equal to fields length definition
-			nameValues = []
-			for record in records:
-				v = record[fieldIdx]
-				if isinstance(v, bytes):
-					#v = str(v, encoding='UTF-8').strip()
-					v= '' #directly set empty string
-				else:
-					v = str(v)
-				nameValues.append(v)
-
-
-		#Get Elevation Values (will raise an error if the field contain null values)
-		if self.useFieldElev:
-			try:
-				fieldIdx = fieldsNames.index(self.fieldElevName.lower())
-			except:
-				self.report({'ERROR'}, "Unable to find elevation field")
-				print("Unable to find elevation field")
-				return {'FINISHED'}
-			try:
-				elevValues = [float(record[fieldIdx]) for record in records]
-			except (TypeError, ValueError):
-				self.report({'ERROR'}, "Elevation field contains null or not numeric values")
-				print("Elevation field contains null or not numeric values")
-				return {'FINISHED'}
-
-
-		#Get Extrusion Values (will raise an error if the field contain null values)
-		if self.useFieldExtrude:
-			try:
-				fieldIdx = fieldsNames.index(self.fieldExtrudeName.lower())
-			except ValueError:
-				self.report({'ERROR'}, "Unable to find extrusion field")
-				print("Unable to find extrusion field")
-				return {'FINISHED'}
-			#Get extrude values
-			if (shpType == 'PointZ' or shpType == 'Point'): #point layer has no attribute 'parts'
-				try:
-					extrudeValues = [float(record[fieldIdx]) for record in records]
-				except (TypeError, ValueError):
-					self.report({'ERROR'}, "Extrusion field contains null or not numeric values")
-					print("Extrusion field contains null or not numeric values")
-					return {'FINISHED'}
-			else:
-				try:
-					extrudeValues = [float(record[fieldIdx]) for i, record in enumerate(records) for part in range(len(shapes[i].parts))]
-				except (TypeError, ValueError):
-					self.report({'ERROR'}, "Extrusion field contains null or not numeric values")
-					print("Extrusion field contains null or not numeric values")
-					return {'FINISHED'}
-				except AttributeError:#no attribute 'parts'
-					self.report({'ERROR'}, "Shapefiles reading error")
-					print("Shapefiles reading error")
-					return {'FINISHED'}
 
 		#Get georef dx, dy
 		scn = bpy.context.scene
@@ -584,50 +268,228 @@ class IMPORT_SHP(Operator, ImportHelper):
 			#Add custom properties define x & y translation to retrieve georeferenced model
 			scn["Georef X"], scn["Georef Y"] = dx, dy	
 
-		#Launch geometry builder
-		if not self.separateObjects:#create one object
-			mesh = buildGeoms(name, shapes, shpType, elevValues, dx, dy, extrudeValues, self.extrusionAxis, self.angCoords)
-			if not mesh:
-				print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
-				return {'FINISHED'}
-			#Place the mesh
-			bpy.ops.object.select_all(action='DESELECT')
-			obj = placeObj(mesh, name)
-		else:#create multiple objects
-			bpy.ops.object.select_all(action='DESELECT')
-			nbFeatures = len(shapes)
-			progress = -1
-			for i, shape in enumerate(shapes):
-				#Progress infos
-				pourcent = round(((i+1)*100)/nbFeatures)
-				if pourcent in list(range(0, 110, 10)) and pourcent != progress:
-					progress = pourcent
-					print(str(pourcent)+'%')
-				#get obj name
+		#Tag if z will be extracted from shp geoms
+		if shpType[-1] == 'Z' and not self.useFieldElev:
+			self.useZGeom = True
+		else:
+			self.useZGeom = False
+
+		#Get reader iterator (using iterator avoids loading all data in memory)
+		#warn, shp with zero field will return an empty shapeRecords() iterator
+		#to prevent this issue, iter only on shapes if there is no field required
+		if self.useDbf:
+			#Note: using shapeRecord solve the issue where number of shapes does not match number of table records
+			#because it iter only on features with geom and record
+			shpIter = shp.iterShapeRecords()
+		else:
+			shpIter = shp.iterShapes()
+		nbFeats = shp.numRecords
+
+		#Init Python lists expected by from_pydata() function
+		if not self.separateObjects:
+			meshVerts = []
+			meshEdges = []
+			meshFaces = []
+
+		progress = -1
+
+		#For each feature create a new bmesh
+		#using an intermediate bmesh object allows some extra operation like extrusion
+		#then extract bmesh data to python list formated as required by from_pydata function
+		#using from_pydata is the fatest way to produce a large mesh (appending all geom to the same bmesh is exponentially slow)
+		for i, feat in enumerate(shpIter):
+
+			if self.useDbf:
+				shape = feat.shape
+				record = feat.record
+			else:
+				shape = feat
+
+			#Progress infos
+			pourcent = round(((i+1)*100)/nbFeats)
+			if pourcent in list(range(0, 110, 10)) and pourcent != progress:
+				progress = pourcent
+				print(str(pourcent)+'%')
+
+			#Deal with multipart features
+			#If the shape record has multiple parts, the 'parts' attribute will contains the index of 
+			#the first point of each part. If there is only one part then a list containing 0 is returned
+			if (shpType == 'PointZ' or shpType == 'Point'): #point layer has no attribute 'parts'
+				partsIdx = [0]
+			else:
+				try: #prevent "_shape object has no attribute parts" error
+					partsIdx = shape.parts
+				except:
+					partsIdx = [0]
+			nbParts = len(partsIdx)
+
+			#Get list of shape's points
+			pts = shape.points
+			nbPts = len(pts)
+
+			#Skip null geom
+			if nbPts == 0:
+				continue #go to next iteration of the loop
+
+			#Get extrusion offset
+			if self.useFieldExtrude:
+				try:
+					offset = float(record[extrudeFieldIdx])
+
+				except:
+					offset = 0 #null values will be set to zero
+
+			#Create an empty BMesh
+			bm = bmesh.new()
+
+			#Iter over parts
+			for j in range(nbParts):
+
+				# EXTRACT 3D GEOM
+
+				geom = [] #will contains a list of 3d points
+
+				#Find first and last part index
+				idx1 = partsIdx[j]
+				if j+1 == nbParts:
+					idx2 = nbPts
+				else:
+					idx2 = partsIdx[j+1]
+			
+				#Build 3d geom
+				for k, pt in enumerate(pts[idx1:idx2]):
+					if self.useFieldElev:
+						try:
+							z = float(record[zFieldIdx])
+						except:
+							z = 0 #null values will be set to zero
+					elif self.useZGeom:
+						z = shape.z[idx1:idx2][k]
+					else:
+						z = 0
+					geom.append((pt[0], pt[1], z))
+
+
+				#Shift coords and convert degrees to meters if needed
+				if self.angCoords:
+					geom = [(dd2meters(pt[0])-dx, dd2meters(pt[1])-dy, pt[2]) for pt in geom]
+				else:
+					geom = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in geom]
+
+	
+				# BUILD BMESH 
+
+				# POINTS
+				if (shpType == 'PointZ' or shpType == 'Point'):
+					vert = [bm.verts.new(pt) for pt in geom]
+					#Extrusion
+					if self.useFieldExtrude and offset > 0:
+						vect = (0, 0, offset) #along Z
+						result = bmesh.ops.extrude_vert_indiv(bm, verts=vert)
+						verts = result['verts']
+						bmesh.ops.translate(bm, verts=verts, vec=vect)
+
+				# LINES
+				if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
+					#Split polyline to lines
+					n = len(geom)
+					lines = [ (geom[i], geom[i+1]) for i in range(n) if i < n-1 ]
+					#Build edges
+					edges = []
+					for line in lines:
+						verts = [bm.verts.new(pt) for pt in line]
+						edge = bm.edges.new(verts)
+						edges.append(edge)
+					#Extrusion
+					if self.useFieldExtrude and offset > 0:
+						vect = (0, 0, offset) # along Z
+						result = bmesh.ops.extrude_edge_only(bm, edges=edges)
+						verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
+						bmesh.ops.translate(bm, verts=verts, vec=vect)
+
+				# NGONS
+				if (shpType == 'Polygon' or shpType == 'PolygonZ'):
+					#According to the shapefile spec, polygons points are clockwise and polygon holes are counterclockwise
+					#in Blender face is up if points are in anticlockwise order
+					geom.reverse() #face up
+					geom.pop() #exlude last point because it's the same as first pt
+					if len(geom) >= 3: #needs 3 points to get a valid face
+						verts = [bm.verts.new(pt) for pt in geom]
+						face = bm.faces.new(verts)
+						if face.normal < 0: #this is a polygon hole, bmesh cannot handle polygon hole
+							pass #TODO
+						#Extrusion
+						if self.useFieldExtrude and offset > 0:
+							#update normal to avoid null vector
+							bm.normal_update()
+							#build translate vector
+							if self.extrusionAxis == 'NORMAL':
+								normal = face.normal
+								vect = normal*offset
+							elif self.extrusionAxis == 'Z':
+								vect=(0, 0, offset)
+							faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face], use_select_history=False) #{'faces': [BMFace]}
+							verts = faces['faces'][0].verts
+							bmesh.ops.translate(bm, verts=verts, vec=vect)				
+
+
+			#Clean up and update the bmesh
+			bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+			bm.verts.index_update()
+			bm.edges.index_update()
+			bm.faces.index_update()
+		
+			if self.separateObjects:
+
 				if self.useFieldName:
-					objName = nameValues[i]
+					try:
+						name = record[nameFieldIdx]
+					except:
+						name = ''
+					# null values will return a bytes object containing a blank string of length equal to fields length definition
+					if isinstance(name, bytes):
+						name = ''
+					else:
+						name = str(name)
 				else:
-					objName = name
-				#get elevation value
-				if self.useFieldElev:
-					elevValue = [elevValues[i]]
-				else:
-					elevValue = False
-				#get extrusion value
-				if self.useFieldExtrude:
-					nbParts = len(shape.parts)
-					extrudeValue = [extrudeValues[i]] * nbParts
-				else:
-					extrudeValue = False
-				#build geom & place obj
-				mesh = buildGeoms(objName, [shape], shpType, elevValue, dx, dy, extrudeValue, self.extrusionAxis, self.angCoords, verbose=False)
-				if not mesh:
-					print("Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
-					return {'FINISHED'}
-				obj = placeObj(mesh, objName, setOrigin=False)
-				#Set object origin (do not use bpy.ops for maintain good running time)
-				#bbox = shape.bbox
-				#xmin, ymin, xmax, ymax = bbox
+					name = shpName
+
+				mesh = bpy.data.meshes.new(name)
+				bm.to_mesh(mesh)
+
+				obj = bpy.data.objects.new(name, mesh)
+				bpy.context.scene.objects.link(obj)
+				bpy.context.scene.objects.active = obj
+				obj.select = True
+
+				# bpy operators can be very cumbersome when scene contains lot of objects
+				# because it cause implicit scene updates calls
+				# so we must avoid using operators when created many objects with the 'separate objects' option)
+				##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY') #TODO Need to find a work around here
+
+			else:
+				#Extent lists with bmesh data
+				offset = len(meshVerts)
+				meshVerts.extend(v.co[:] for v in bm.verts)
+				meshEdges.extend([[v.index + offset for v in e.verts] for e in bm.edges])
+				meshFaces.extend([[v.index + offset for v in f.verts] for f in bm.faces])
+
+			bm.free()
+		
+
+		#using from_pydata to create the final mesh
+		if not self.separateObjects:
+			
+			mesh = bpy.data.meshes.new(shpName)
+			mesh.from_pydata(meshVerts, meshEdges, meshFaces)
+
+			obj = bpy.data.objects.new(shpName, mesh)
+			bpy.context.scene.objects.link(obj)
+			bpy.context.scene.objects.active = obj
+			obj.select = True
+
+			bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+
 
 
 		#Adjust grid size
