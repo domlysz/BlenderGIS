@@ -438,7 +438,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 			bm.verts.index_update()
 			bm.edges.index_update()
 			bm.faces.index_update()
-		
+
 			if self.separateObjects:
 
 				if self.useFieldName:
@@ -474,6 +474,10 @@ class IMPORT_SHP(Operator, ImportHelper):
 				mesh = bpy.data.meshes.new(name)
 				bm.to_mesh(mesh)
 
+				#Validate new mesh
+				if mesh.validate():
+					print('Imported mesh had some problem, check the result!')
+
 				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
 				context.scene.objects.link(obj)
@@ -502,6 +506,10 @@ class IMPORT_SHP(Operator, ImportHelper):
 			
 			mesh = bpy.data.meshes.new(shpName)
 			mesh.from_pydata(meshVerts, meshEdges, meshFaces)
+
+			#Validate new mesh
+			if mesh.validate():
+				print('Imported mesh had some problem, check the result!')
 
 			obj = bpy.data.objects.new(shpName, mesh)
 			context.scene.objects.link(obj)
