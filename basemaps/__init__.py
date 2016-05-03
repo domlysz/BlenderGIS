@@ -23,14 +23,14 @@ bl_info = {
 	'author': 'domLysz',
 	'license': 'GPL',
 	'deps': '',
-	'version': (0, 2),
+	'version': (0, 3),
 	'blender': (2, 7, 6),
 	'location': 'View3D > Tools > GIS',
 	'warning': '',
 	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
 	'tracker_url': '',
 	'link': '',
-	'support': 'TESTING',
+	'support': 'COMMUNITY',
 	'category': '3D View'
 	}
 
@@ -42,12 +42,12 @@ def register():
 	bpy.utils.register_module(__name__)
 	wm = bpy.context.window_manager
 	km = wm.keyconfigs.active.keymaps['3D View']
-	kmi = km.keymap_items.new(idname='view3d.map_view', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+	kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
 
 def unregister():
 	wm = bpy.context.window_manager
-	km = wm.keyconfigs.active.keymaps['3D View']
-	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_view'])
+	km = wm.keyconfigs.active.keymaps['3D Viewer']
+	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 	bpy.utils.unregister_module(__name__)
 
 
