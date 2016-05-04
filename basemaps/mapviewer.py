@@ -53,6 +53,17 @@ from .servicesDefs import GRIDS, SOURCES
 from .nominatim import Nominatim
 
 
+##
+
+#Alias to scene georef infos keys
+LAT = "lat"
+LON = "long"
+Z = "z"
+CRS = "CRS"
+SCALE = "scale"
+PROJX = "proj x"
+PROJY = "proj y"
+
 
 ####################################
 
@@ -66,21 +77,48 @@ class Ellps():
 
 GRS80 = Ellps(6378137, 6356752.314245)
 
+def dd2meters(dst):
+	"""
+	Basic function to approximaly convert a short distance in decimal degrees to meters
+	Only true at equator and along horizontal axis
+	"""
+	k = GRS80.perimeter/360
+	return dst * k
+
+def meters2dd(dst):
+	k = GRS80.perimeter/360
+	return dst / k	
+
+
+def isGeoCRS(crs):
+	if crs == 4326:
+		return True
+	else:
+		if GDAL:
+			prj = osr.SpatialReference()
+			prj.ImportFromEPSG(crs)
+			isGeo = prj.IsGeographic()
+			if isGeo == 1:
+				return True
+			else:
+				return False
+		else:
+			return None
 
 def reproj(crs1, crs2, x1, y1):
 	"""
-	Reproject x1,y1 coords from crs1 to crs2 
-	Actually support only lat long (decimel degrees) <--> web mercator
+	Reproject x1,y1 coords from crs1 to crs2
+	Without GDAL it only support lat long (decimel degrees) <--> web mercator
 	Warning, latitudes 90° or -90° are outside web mercator bounds
 	"""
-	if crs1 == 4326 and crs2 == 3857:
+	if crs1 == 4326 and crs2 == 3857 and not GDAL:
 		long, lat = x1, y1
 		k = GRS80.perimeter/360
 		x2 = long * k
 		lat = math.log( math.tan((90 + lat) * math.pi / 360.0 )) / (math.pi / 180.0)
 		y2 = lat * k
 		return x2, y2
-	elif crs1 == 3857 and crs2 == 4326:
+	elif crs1 == 3857 and crs2 == 4326 and not GDAL:
 		k = GRS80.perimeter/360
 		long = x1 / k
 		lat = y1 / k
@@ -103,7 +141,7 @@ def reproj(crs1, crs2, x1, y1):
 
 
 def reprojBbox(crs1, crs2, bbox):
-	xmin, ymin, xmax, ymax = bbox	
+	xmin, ymin, xmax, ymax = bbox
 	ul = reproj(crs1, crs2, xmin, ymax)
 	ur = reproj(crs1, crs2, xmax, ymax)
 	br = reproj(crs1, crs2, xmax, ymin)
@@ -135,7 +173,7 @@ class GeoPackage():
 	def __init__(self, path, tm):
 		self.dbPath = path
 		self.name = os.path.splitext(os.path.basename(path))[0]
-		
+
 		#Get props from TileMatrix object
 		self.crs = tm.CRS
 		self.tileSize = tm.tileSize
@@ -145,7 +183,7 @@ class GeoPackage():
 		if not self.isGPKG():
 			self.create()
 			self.insertMetadata()
-			
+
 			self.insertCRS(self.crs, str(self.crs), wkt='')
 			#self.insertCRS(3857, "Web Mercator", wkt='')
 			#self.insertCRS(4326, "WGS84", wkt='')
@@ -155,9 +193,9 @@ class GeoPackage():
 
 	def isGPKG(self):
 		if not os.path.exists(self.dbPath):
-			return False	
+			return False
 		db = sqlite3.connect(self.dbPath)
-		
+
 		#check application id
 		app_id = db.execute("PRAGMA application_id").fetchone()
 		if not app_id[0] == 1196437808:
@@ -175,9 +213,9 @@ class GeoPackage():
 			return False
 		else:
 			db.close()
-			return True  
-		
-		
+			return True
+
+
 	def create(self):
 		"""Create default geopackage schema on the database."""
 		db = sqlite3.connect(self.dbPath) #this attempt will create a new file if not exist
@@ -185,7 +223,7 @@ class GeoPackage():
 
 		# Add GeoPackage version 1.0 ("GP10" in ASCII) to the Sqlite header
 		cursor.execute("PRAGMA application_id = 1196437808;")
-		
+
 		cursor.execute("""
 			CREATE TABLE gpkg_contents (
 				table_name TEXT NOT NULL PRIMARY KEY,
@@ -202,7 +240,7 @@ class GeoPackage():
 				CONSTRAINT fk_gc_r_srs_id FOREIGN KEY (srs_id)
 					REFERENCES gpkg_spatial_ref_sys(srs_id));
 		""")
-		
+
 		cursor.execute("""
 			CREATE TABLE gpkg_spatial_ref_sys (
 				srs_name TEXT NOT NULL,
@@ -240,8 +278,8 @@ class GeoPackage():
 				CONSTRAINT pk_ttm PRIMARY KEY (table_name, zoom_level),
 				CONSTRAINT fk_ttm_table_name FOREIGN KEY (table_name)
 					REFERENCES gpkg_contents(table_name));
-		""")		
-		
+		""")
+
 		cursor.execute("""
 			CREATE TABLE gpkg_tiles (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -263,9 +301,9 @@ class GeoPackage():
 					min_x, min_y, max_x, max_y,
 					srs_id)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-		db.execute(query, ("gpkg_tiles", "tiles", self.name, "Created with BlenderGIS", self.xmin, self.ymin, self.xmax, self.ymax, self.crs))  
+		db.execute(query, ("gpkg_tiles", "tiles", self.name, "Created with BlenderGIS", self.xmin, self.ymin, self.xmax, self.ymax, self.crs))
 		db.commit()
-		db.close()	  
+		db.close()
 
 
 	def insertCRS(self, code, name, wkt=''):
@@ -284,33 +322,33 @@ class GeoPackage():
 
 	def insertTileMatrixSet(self):
 		db = sqlite3.connect(self.dbPath)
-		
+
 		#Tile matrix set
 		query = """INSERT OR REPLACE INTO gpkg_tile_matrix_set (
 					table_name, srs_id,
 					min_x, min_y, max_x, max_y)
 				VALUES (?, ?, ?, ?, ?, ?);"""
 		db.execute(query, ('gpkg_tiles', self.crs, self.xmin, self.ymin, self.xmax, self.ymax))
-		
-		
+
+
 		#Tile matrix of each levels
 		for level, res in enumerate(self.resolutions):
-			
+
 			w = math.ceil( (self.xmax - self.xmin) / (self.tileSize * res) )
-			h = math.ceil( (self.ymax - self.ymin) / (self.tileSize * res) )			
-			
+			h = math.ceil( (self.ymax - self.ymin) / (self.tileSize * res) )
+
 			query = """INSERT OR REPLACE INTO gpkg_tile_matrix (
 						table_name, zoom_level,
 						matrix_width, matrix_height,
 						tile_width, tile_height,
 						pixel_x_size, pixel_y_size)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""  
-			db.execute(query, ('gpkg_tiles', level, w, h, self.tileSize, self.tileSize, res, res))	 
-		
-		
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+			db.execute(query, ('gpkg_tiles', level, w, h, self.tileSize, self.tileSize, res, res))
+
+
 		db.commit()
-		db.close()  
-		
+		db.close()
+
 
 	def getTile(self, x, y, z):
 		#connect with detect_types parameter for automatically convert date to Python object
@@ -327,7 +365,7 @@ class GeoPackage():
 
 	def putTile(self, x, y, z, data):
 		db = sqlite3.connect(self.dbPath)
-		query = """INSERT OR REPLACE INTO gpkg_tiles 
+		query = """INSERT OR REPLACE INTO gpkg_tiles
 		(tile_column, tile_row, zoom_level, tile_data) VALUES (?,?,?,?)"""
 		db.execute(query, (x, y, z, data))
 		db.commit()
@@ -340,10 +378,10 @@ class GeoPackage():
 		n = len(tiles)
 		xs, ys, zs = zip(*tiles)
 		lst = list(xs) + list(ys) + list(zs)
-		
+
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
 		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles WHERE tile_column IN (" + ','.join('?'*n) + ") AND tile_row IN (" + ','.join('?'*n) + ") AND zoom_level IN (" + ','.join('?'*n) + ")"
-		
+
 		result = db.execute(query, lst).fetchall()
 		db.close()
 
@@ -353,7 +391,7 @@ class GeoPackage():
 	def putTiles(self, tiles):
 		"""tiles = list of (x,y,z,data) tuple"""
 		db = sqlite3.connect(self.dbPath)
-		query = """INSERT OR REPLACE INTO gpkg_tiles 
+		query = """INSERT OR REPLACE INTO gpkg_tiles
 		(tile_column, tile_row, zoom_level, tile_data) VALUES (?,?,?,?)"""
 		db.executemany(query, tiles)
 		db.commit()
@@ -365,38 +403,38 @@ class GeoPackage():
 ###############################"
 
 class TileMatrix():
-	"""	
+	"""
 	Will inherit attributes from grid source definition
 		"CRS" >> epsg code
 		"bbox" >> (xmin, ymin, xmax, ymax)
 		"bboxCRS" >> epsg code
 		"tileSize"
 		"originLoc" >> "NW" or SW
-		
+
 		"resFactor"
 		"initRes" >> optional
 		"nbLevels" >> optional
-		
+
 		or
-		
+
 		"resolutions"
-	
+
 	# Three ways to define a grid:
 	# - submit a list of "resolutions" (This parameters override the others)
 	# - submit "resFactor" and "initRes"
 	# - submit just "resFactor" (initRes will be computed)
-	"""	
-	
+	"""
+
 	defaultNbLevels = 24
-	
+
 	def __init__(self, gridDef):
 
 		#create class attributes from grid dictionnary
 		for k, v in gridDef.items():
 			setattr(self, k, v)
-		
+
 		#Convert bbox to grid crs is needed
-		if self.bboxCRS != self.CRS: #WARN here we assume crs is 4326
+		if self.bboxCRS != self.CRS: #WARN here we assume crs is 4326, TODO
 			lonMin, latMin, lonMax, latMax = self.bbox
 			self.xmin, self.ymax = self.geoToProj(lonMin, latMax)
 			self.xmax, self.ymin = self.geoToProj(lonMax, latMin)
@@ -404,7 +442,7 @@ class TileMatrix():
 			self.xmin, self.xmax = self.bbox[0], self.bbox[2]
 			self.ymin, self.ymax = self.bbox[1], self.bbox[3]
 
-		
+
 		if getattr(self, 'resolutions', None) is None:
 
 			#Set resFactor if not submited
@@ -418,16 +456,16 @@ class TileMatrix():
 				dy = abs(self.ymax - self.ymin)
 				dst = max(dx, dy)
 				self.initRes = dst / self.tileSize
-		
+
 			#Set number of levels if not submited
 			if getattr(self, 'nbLevels', None) is None:
 				self.nbLevels = self.defaultNbLevels
-		
+
 		else:
 			self.resolutions.sort(reverse=True)
 			self.nbLevels = len(self.resolutions)
 
-		
+
 		# Define tile matrix origin
 		if self.originLoc == "NW":
 			self.originx, self.originy = self.xmin, self.ymax
@@ -435,7 +473,14 @@ class TileMatrix():
 			self.originx, self.originy = self.xmin, self.ymin
 		else:
 			raise NotImplementedError
-	
+
+		#Determine unit of CRS (decimal degrees or meters)
+		if not isGeoCRS(self.CRS): #False or None (if units cannot be determined we assume its meters)
+			self.units = 'meters'
+		else:
+			self.units = 'degrees'
+
+
 	@property
 	def globalbbox(self):
 		return self.xmin, self.ymin, self.xmax, self.ymax
@@ -474,8 +519,8 @@ class TileMatrix():
 
 	def getNearestZoom(self, res):
 		"""Return the zoom level closest to the submited resolution"""
-		resLst = self.getResList() #ordered		
-		
+		resLst = self.getResList() #ordered
+
 		for z1, v1 in enumerate(resLst):
 			if v1 == res:
 				return z1
@@ -485,7 +530,7 @@ class TileMatrix():
 			v2 = resLst[z2]
 			if v2 == res:
 				return z2
-			
+
 			if v1 > res > v2:
 				d1 = v1 - res
 				d2 = res - v2
@@ -497,17 +542,17 @@ class TileMatrix():
 	def getResFactor(self, z):
 		"""return res factor to previous and next zoom level"""
 		res = self.getRes(z)
-	
+
 		if z == 0:
 			prevFact = 1
 		else:
 			prevFact = self.getRes(z-1) / res
-			
+
 		if z == self.nbLevels - 1:
 			nextFact = 1
 		else:
 			nextFact = res / self.getRes(z+1)
-			
+
 		return prevFact, nextFact
 
 
@@ -540,14 +585,14 @@ class TileMatrix():
 			y = self.originy + (row * geoTileSize) #bottom left
 			y += geoTileSize #top left
 		return x, y
-	
+
 
 	def getTileBbox(self, col, row, zoom):
 		xmin, ymax = self.getTileCoords(col, row, zoom)
 		xmax = xmin + (self.tileSize * self.getRes(zoom))
 		ymin = ymax - (self.tileSize * self.getRes(zoom))
 		return xmin, ymin, xmax, ymax
-		
+
 
 
 
@@ -560,11 +605,11 @@ class GeoImage():
 	Georef infos
 		-ul = upper left coord (true corner of the pixel)
 		-res = pixel resolution in map unit (no distinction between resx and resy)
-		-no rotation parameters 
+		-no rotation parameters
 	'''
 
 	def __init__(self, img, ul, res):
-			
+
 		self.img = img #PIL Image
 		self.ul = ul #upper left geo coords (exact pixel ul corner)
 		self.res = res #map unit / pixel
@@ -572,11 +617,11 @@ class GeoImage():
 	#delegate all undefined attribute requests on GeoImage to the contained PIL image object
 	def __getattr__(self, attr):
 		return getattr(self.img, attr)
-	
+
 	@property
 	def nbBands(self):
 		return len(self.img.getbands())
-	
+
 	@property
 	def dtype(self):
 		m = self.img.mode
@@ -640,11 +685,11 @@ class GeoImage():
 		xPx = (x - xmin) / self.res
 		yPx = (ymax - y) / self.res
 		return (math.floor(xPx), math.floor(yPx))
-	
+
 
 ###################
 
-	
+
 class MapService():
 	"""
 	Represent a tile service from source
@@ -665,10 +710,10 @@ class MapService():
 			zmin & zmax
 		urlTemplate
 		referer
-	""" 
-	
+	"""
+
 	def __init__(self, srckey, cacheFolder, dstGridKey=None):
-		
+
 
 		#create class attributes from source dictionnary
 		self.srckey = srckey
@@ -679,17 +724,17 @@ class MapService():
 		#Build objects from layers definitions
 		class Layer(): pass
 		layersObj = {}
-		for layKey, layDict in self.layers.items(): 
+		for layKey, layDict in self.layers.items():
 			lay = Layer()
 			for k, v in layDict.items():
 				setattr(lay, k, v)
 			layersObj[layKey] = lay
 		self.layers = layersObj
-	
+
 		#Build source tile matrix set
 		self.srcGridKey = self.grid
 		self.srcTms = TileMatrix(GRIDS[self.srcGridKey])
-		
+
 		#Build destination tile matrix set
 		self.setDstGrid(dstGridKey)
 
@@ -711,7 +756,7 @@ class MapService():
 		#Downloading progress
 		self.running = False
 		self.nbTiles = 0
-		self.cptTiles = 0 
+		self.cptTiles = 0
 
 
 	def setDstGrid(self, grdkey):
@@ -735,10 +780,10 @@ class MapService():
 		else:
 			grdkey = self.srcGridKey
 			tm = self.srcTms
-			
+
 		mapKey = self.srckey + '_' + laykey + '_' + grdkey
 		cache = self.caches.get(mapKey)
-		if cache is None:		   
+		if cache is None:
 			dbPath = self.cacheFolder + mapKey + ".gpkg"
 			self.caches[mapKey] = GeoPackage(dbPath, tm)
 			return self.caches[mapKey]
@@ -753,7 +798,7 @@ class MapService():
 		url = self.urlTemplate
 		lay = self.layers[laykey]
 		tm = self.srcTms
-		
+
 		if self.service == 'TMS':
 			url = url.replace("{LAY}", lay.urlKey)
 			if not self.quadTree:
@@ -762,8 +807,8 @@ class MapService():
 				url = url.replace("{Z}", str(zoom))
 			else:
 				quadkey = self.getQuadKey(col, row, zoom)
-				url = url.replace("{QUADKEY}", quadkey) 
-			
+				url = url.replace("{QUADKEY}", quadkey)
+
 		if self.service == 'WMTS':
 			url = self.urlTemplate['BASE_URL']
 			if url[-1] != '?' :
@@ -773,15 +818,15 @@ class MapService():
 			url = url.replace("{LAY}", lay.urlKey)
 			url = url.replace("{FORMAT}", lay.format)
 			url = url.replace("{STYLE}", lay.style)
-			url = url.replace("{MATRIX}", self.matrix)  
+			url = url.replace("{MATRIX}", self.matrix)
 			url = url.replace("{X}", str(col))
 			url = url.replace("{Y}", str(row))
 			url = url.replace("{Z}", str(zoom))
-			
+
 		if self.service == 'WMS':
 			url = self.urlTemplate['BASE_URL']
 			if url[-1] != '?' :
-				url += '?'  
+				url += '?'
 			params = ['='.join([k,v]) for k, v in self.urlTemplate.items() if k != 'BASE_URL']
 			url += '&'.join(params)
 			url = url.replace("{LAY}", lay.urlKey)
@@ -790,7 +835,7 @@ class MapService():
 			url = url.replace("{CRS}", str(tm.CRS))
 			url = url.replace("{WIDTH}", str(tm.tileSize))
 			url = url.replace("{HEIGHT}", str(tm.tileSize))
-			
+
 			xmin, ymax = tm.getTileCoords(col, row, zoom)
 			xmax = xmin + tm.tileSize * tm.getRes(zoom)
 			ymin = ymax - tm.tileSize * tm.getRes(zoom)
@@ -799,7 +844,7 @@ class MapService():
 			else:
 				bbox = ','.join(map(str,[xmin,ymin,xmax,ymax]))
 			url = url.replace("{BBOX}", bbox)
-													
+
 		return url
 
 
@@ -821,17 +866,17 @@ class MapService():
 		"""
 		Download bytes data of requested tile in source tile matrix space
 		Return None if unable to download a valid stream
-		
+
 		Notes:
 		bytes object can be converted to bytesio (stream buffer) and opened with PIL
 			img = Image.open(io.BytesIO(data))
 		PIL image can be converted to numpy array [y,x,b]
 			a = np.asarray(img)
-		"""		
+		"""
 
 		url = self.buildUrl(laykey, col, row, zoom)
 		#print(url)
-		
+
 		try:
 			#make request
 			req = urllib.request.Request(url, None, self.headers)
@@ -843,13 +888,13 @@ class MapService():
 			print("Can't download tile x"+str(col)+" y"+str(row))
 			print(url)
 			data = None
-	
+
 		#Make sure the stream is correct
 		if data is not None:
 			format = imghdr.what(None, data)
 			if format is None:
 				data = None
-		
+
 		return data
 
 
@@ -860,7 +905,7 @@ class MapService():
 		Return None if unable to get valid data
 		Tile is downloaded from map service or directly pick up from cache database if useCache option is True
 		"""
-		
+
 		#Select tile matrix set
 		if toDstGrid:
 			if self.dstGridKey is not None:
@@ -869,87 +914,93 @@ class MapService():
 				raise ValueError('No destination grid defined')
 		else:
 			tm = self.srcTms
-	
+
 		#don't try to get tiles out of map bounds
 		x,y = tm.getTileCoords(col, row, zoom) #top left
 		if row < 0 or col < 0:
 			return None
 		elif not tm.xmin <= x < tm.xmax or not tm.ymin < y <= tm.ymax:
 			return None
-	
+
 		if useCache:
 			#check if tile already exists in cache
 			cache = self.getCache(laykey, toDstGrid)
 			data = cache.getTile(col, row, zoom)
-				
+
 			#if so check if its a valid image
 			if data is not None:
 				format = imghdr.what(None, data)
 				if format is not None:
 					return data
-			
-		#if tile does not exists in cache or is corrupted, try to download it from map service			
+
+		#if tile does not exists in cache or is corrupted, try to download it from map service
 		if not toDstGrid:
-			
+
 			data = self.downloadTile(laykey, col, row, zoom)
-			
+
 		else: # build a reprojected tile
 
 			#get tile bbox
 			bbox = self.dstTms.getTileBbox(col, row, zoom)
 			xmin, ymin, xmax, ymax = bbox
-			
+
 			#get closest zoom level
 			res = self.dstTms.getRes(zoom)
-			_zoom = self.srcTms.getNearestZoom(res)
+			if self.dstTms.units == 'degrees' and self.srcTms.units == 'meters':
+				res2 = dd2meters(res)
+			elif self.srcTms.units == 'degrees' and self.dstTms.units == 'meters':
+				res2 = meters2dd(res)
+			else:
+				res2 = res
+			_zoom = self.srcTms.getNearestZoom(res2)
 			_res = self.srcTms.getRes(_zoom)
-			
+
 			#reproj bbox
 			crs1, crs2 = self.srcTms.CRS, self.dstTms.CRS
 			_bbox = reprojBbox(crs2, crs1, bbox)
-			
+
 			#list, download and merge the tiles required to build this one (recursive call)
-			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=False, nbThread=1, cpt=False) 
+			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=False, nbThread=4, cpt=False)
 
 			if mosaic is None:
 				return None
-			
+
 			tileSize = self.dstTms.tileSize
-			
+
 			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res)
 
 			#Get BLOB
 			b = io.BytesIO()
 			img.save(b, format='PNG')
 			data = b.getvalue() #convert bytesio to bytes
-				
+
 		#put the tile in cache database
 		if useCache and data is not None:
 			cache.putTile(col, row, self.zoom, data)
-	
+
 		return data
-		
 
 
-	def getTiles(self, laykey, tiles, tilesData = [], toDstGrid=True, useCache=True, nbThread=5, cpt=True):
+
+	def getTiles(self, laykey, tiles, tilesData = [], toDstGrid=True, useCache=True, nbThread=10, cpt=True):
 		"""
-		Return bytes data of requested tiles 
+		Return bytes data of requested tiles
 		input: [(x,y,z)] >> output: [(x,y,z,data)]
 		Tiles are downloaded from map service or directly pick up from cache database.
 		Downloads are performed through thread to speed up
 		Possibility to pass a list 'tilesData' as argument to seed it
-		"""	
-		
+		"""
+
 		def downloading(laykey, tilesQueue, tilesData, toDstGrid):
-			'''Seed tilesData array [(x,y,z,data)]'''
+			'''Worker that process the queue and seed tilesData array [(x,y,z,data)]'''
 			#infinite loop that processes items into the queue
-			while not tilesQueue.empty():		
+			while not tilesQueue.empty():
 				#cancel thread if requested
 				if not self.running:
-					break	  
+					break
 				#Get a job into the queue
 				col, row, zoom = tilesQueue.get()
-				#do the job	
+				#do the job
 				data = self.getTile(laykey, col, row, zoom, toDstGrid, useCache=False)
 				tilesData.append( (col, row, zoom, data) )
 				if cpt:
@@ -960,7 +1011,7 @@ class MapService():
 		if cpt:
 			#init cpt progress
 			self.nbTiles = len(tiles)
-			self.cptTiles = 0		
+			self.cptTiles = 0
 
 		if useCache:
 			cache = self.getCache(laykey, toDstGrid)
@@ -971,7 +1022,7 @@ class MapService():
 				self.cptTiles += len(result)
 		else:
 			missing = tiles
-		
+
 		if len(missing) > 0:
 
 			#Seed the queue
@@ -986,11 +1037,9 @@ class MapService():
 				t.setDaemon(True)
 				threads.append(t)
 				t.start()
-		
 
-				
 			#Wait for all threads to complete (queue empty)
-			#jobs.join()			
+			#jobs.join()
 			for t in threads:
 				t.join()
 
@@ -1010,7 +1059,7 @@ class MapService():
 
 
 
-	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=5, cpt=True, outCRS=None):
+	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=10, cpt=True, outCRS=None):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
 		return GeoImage object (PIL image + georef infos)
@@ -1024,18 +1073,18 @@ class MapService():
 				raise ValueError('No destination grid defined')
 		else:
 			tm = self.srcTms
-			
+
 		tileSize = tm.tileSize
 		res = tm.getRes(zoom)
-		
+
 		xmin, ymin, xmax, ymax = bbox
-				
+
 		#Get first tile indices (top left of requested bbox)
 		firstCol, firstRow = tm.getTileNumber(xmin, ymax, zoom)
-		
+
 		#correction of top left coord
 		xmin, ymax = tm.getTileCoords(firstCol, firstRow, zoom)
-		
+
 		#Total number of tiles required
 		nbTilesX = math.ceil( (xmax - xmin) / (tileSize * res) )
 		nbTilesY = math.ceil( (ymax - ymin) / (tileSize * res) )
@@ -1050,17 +1099,17 @@ class MapService():
 		#Create PIL image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
 		mosaic = Image.new("RGBA", (img_w , img_h), None)
-	
+
 		#Get tiles from www or cache
 		tiles = [ (c, r, zoom) for c in cols for r in rows]
-		
+
 		tiles = self.getTiles(laykey, tiles, [], toDstGrid, useCache, nbThread, cpt)
 
 		for tile in tiles:
-			
+
 			if not self.running:
-				return None		
-			
+				return None
+
 			col, row, z, data = tile
 			if data is None:
 				#create an empty tile
@@ -1072,39 +1121,43 @@ class MapService():
 					#create an empty tile if we are unable to get a valid stream
 					img = Image.new("RGBA", (tileSize , tileSize), "pink")
 			posx = (col - firstCol) * tileSize
-			posy = abs((row - firstRow)) * tileSize	   
+			posy = abs((row - firstRow)) * tileSize
 			mosaic.paste(img, (posx, posy))
-	
+
 		geoimg = GeoImage(mosaic, (xmin, ymax), res)
 
 		if outCRS is not None and outCRS != tm.CRS:
 			geoimg = reprojImg(tm.CRS, outCRS, geoimg)
-		
-		if self.running:	
+
+		if self.running:
 			return geoimg
 		else:
 			return None
-			
+
 
 
 
 def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	'''
+	Use GDAL Python binding to reproject an image
 	crs1, crs2 >> epsg code
 	geoimg >> input GeoImage object (PIL image + georef infos)
 	out_ul >> output raster top left coords (same as input if None)
 	out_size >> output raster size (same as input is None)
 	out_res >> output raster resolution (same as input if None)
 	'''
-	
+
+	if not GDAL:
+		raise NotImplementedError
+
 	#Create an in memory gdal raster and write data to it (PIL > Numpy > GDAL)
 	data = np.asarray(geoimg.img)
 	img_h, img_w, nbBands = data.shape
 	ds1 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
 	for bandIdx in range(nbBands):
-		bandArray = data[:,:,bandIdx]			
+		bandArray = data[:,:,bandIdx]
 		ds1.GetRasterBand(bandIdx+1).WriteArray(bandArray)
-	"""	
+	"""
 	# Alternative : Use a virtual memory file to create gdal dataset from buffer
 	buff = io.BytesIO()
 	geoimg.img.save(buff, format='PNG')
@@ -1114,7 +1167,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	img_h, img_w = ds1.RasterXSize, ds1.RasterYSize
 	nbBands = ds1.RasterCount
 	"""
-	
+
 	#Assign georef infos
 	xmin, ymax = geoimg.ul
 	res = geoimg.res
@@ -1139,7 +1192,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	if out_res is not None and out_size is not None:
 		res = out_res
 		img_w, img_h = out_size
-	
+
 	#submit resolution and auto compute the best image size
 	if out_res is not None and out_size is None:
 		res = out_res
@@ -1148,7 +1201,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 		img_w = int( (xmax - xmin) / res )
 		img_h = int( (ymax - ymin) / res )
 
-	#submit image size and ... 
+	#submit image size and ...
 	if out_res is None and out_size is not None:
 		img_w, img_h = out_size
 		#...let's res as source value ? (image will be croped)
@@ -1168,7 +1221,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	prj2.ImportFromEPSG(crs2)
 	wkt2 = prj2.ExportToWkt()
 	ds2.SetProjection(wkt2)
-	
+
 	#Perform the projection/resampling
 	# Resample algo
 	## GRA_NearestNeighbour, GRA_Bilinear, GRA_Cubic, GRA_CubicSpline, GRA_Lanczos
@@ -1180,7 +1233,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	# Warp options (http://www.gdal.org/structGDALWarpOptions.html)
 	opt = ['NUM_THREADS=ALL_CPUS'] #starting gdal 2.1
 	gdal.ReprojectImage( ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt)
-	
+
 	#Convert to PIL image
 	data = ds2.ReadAsArray()
 	data = np.rollaxis(data, 0, 3) # because first axis is band index
@@ -1193,16 +1246,16 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	return GeoImage(img, (xmin, ymax), res)
 
 
-		
-		
+
+
 
 
 ####################
 
 class BaseMap():
-	
+
 	"""Handle a map as background image in Blender"""
-	
+
 	def __init__(self, context, srckey, laykey, grdkey=None):
 
 		#Get context
@@ -1211,7 +1264,7 @@ class BaseMap():
 		self.area3d = [r for r in self.area.regions if r.type == 'WINDOW'][0]
 		self.view3d = self.area.spaces.active
 		self.reg3d = self.view3d.region_3d
-		
+
 		#Get cache destination folder in addon preferences
 		prefs = context.user_preferences.addons[__package__].preferences
 		folder = prefs.cacheFolder
@@ -1234,7 +1287,7 @@ class BaseMap():
 
 		#Set path to tiles mosaic used as background image in Blender
 		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".png"
-		
+
 		#Get layer def obj
 		self.layer = self.srv.layers[laykey]
 
@@ -1296,7 +1349,7 @@ class BaseMap():
 
 	def run(self):
 		"""thread method"""
-		self.update()	
+		self.update()
 		self.mosaic = self.request()
 		if self.srv.running and self.mosaic is not None:
 			#save image
@@ -1307,13 +1360,13 @@ class BaseMap():
 
 	def progress(self):
 		'''Report thread download progress'''
-		return self.srv.cptTiles, self.srv.nbTiles  
+		return self.srv.cptTiles, self.srv.nbTiles
 
 
 	def view3dToProj(self, dx, dy):
 		'''Convert view3d coords to crs coords'''
 		x = self.origin_x + dx
-		y = self.origin_y + dy  
+		y = self.origin_y + dy
 		return x, y
 
 	def moveOrigin(self, dx, dy):
@@ -1322,13 +1375,13 @@ class BaseMap():
 		self.origin_y += dy
 		lon, lat = reproj(self.crs, 4326, self.origin_x, self.origin_y)
 		self.scn["lat"], self.scn["long"] = lat, lon
-		
+
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
 		#Get area dimension
-		#w, h = self.area.width, self.area.height   
+		#w, h = self.area.width, self.area.height
 		w, h = self.area3d.width, self.area3d.height
-		
+
 		#Get area bbox coords (map origin is bottom lelf)
 		res = self.tm.getRes(self.zoom)
 		xmin = self.origin_x - w/2 * res
@@ -1350,13 +1403,13 @@ class BaseMap():
 			toDstGrid = True
 
 		mosaic = self.srv.getImage(self.laykey, bbox, self.zoom, toDstGrid, outCRS=self.crs)
-		
+
 		return mosaic
 
 
 	def place(self):
 		'''Set map as background image'''
-				
+
 		#Get or load bpy image
 		try:
 			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath][0]
@@ -1365,11 +1418,11 @@ class BaseMap():
 
 		#Activate view3d background
 		self.view3d.show_background_images = True
-		
+
 		#Hide all existing background
 		for bkg in self.view3d.background_images:
 			bkg.show_background_image = False
-		
+
 		#Get or load background image
 		bkgs = [bkg for bkg in self.view3d.background_images if bkg.image is not None]
 		try:
@@ -1388,26 +1441,26 @@ class BaseMap():
 		img_w, img_h = self.mosaic.size
 		res = self.mosaic.res
 		#res = self.tm.getRes(self.zoom)
-			
+
 		#Set background size
 		sizex = img_w * res / self.scale
 		self.bkg.size = sizex #since blender > 2.74 else = sizex/2
-		
+
 		#Set background offset (image origin does not match scene origin)
 		dx = (self.origin_x - img_ox) / self.scale
 		dy = (self.origin_y - img_oy) / self.scale
 		self.bkg.offset_x = -dx
 		ratio = img_w / img_h
 		self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
-	
+
 		#Compute view3d z distance
 		#in ortho view, view_distance = max(view3d dst x, view3d dist y) / 2
 		dst =  max( [self.area3d.width, self.area3d.height] )
 		dst = dst * res / self.scale
 		dst /= 2
 		self.reg3d.view_distance = dst
-		
-		#Update image drawing   
+
+		#Update image drawing
 		self.bkg.image.reload()
 
 
@@ -1418,14 +1471,14 @@ class BaseMap():
 
 def draw_callback(self, context):
 	"""Draw map infos on 3dview"""
-	
+
 	#Get contexts
 	scn = context.scene
 	area = context.area
 	area3d = [reg for reg in area.regions if reg.type == 'WINDOW'][0]
 	view3d = area.spaces.active
 	reg3d = view3d.region_3d
-	
+
 	#Get area3d dimensions
 	w, h = area3d.width, area3d.height
 	cx = w/2 #center x
@@ -1437,14 +1490,13 @@ def draw_callback(self, context):
 
 	#Set text police and color
 	font_id = 0  # ???
-	#bgl.glColor4f(*scn.fontColor) #rgba
-	bgl.glColor4f(*self.fontColor) #rgba	
-	
+	bgl.glColor4f(*self.fontColor) #rgba
+
 	#Draw title
 	blf.position(font_id, cx-25, 70, 0) #id, x, y, z
 	blf.size(font_id, 15, 72) #id, point size, dpi
 	blf.draw(font_id, "Map view")
-	
+
 	#Draw other texts
 	blf.size(font_id, 12, 72)
 	# thread progress
@@ -1469,12 +1521,12 @@ def draw_callback(self, context):
 ###############
 
 class MAP_START(bpy.types.Operator):
-	
+
 	bl_idname = "view3d.map_start"
 	bl_description = 'Toggle 2d map navigation'
 	bl_label = "Map viewer"
 	bl_options = {'REGISTER'}
-	
+
 	#special function to auto redraw an operator popup called through invoke_props_dialog
 	def check(self, context):
 		return True
@@ -1536,7 +1588,7 @@ class MAP_START(bpy.types.Operator):
 	goto = BoolProperty()
 
 	query = StringProperty(name="Go to")
-	
+
 
 	def draw(self, context):
 		scn = context.scene
@@ -1546,29 +1598,32 @@ class MAP_START(bpy.types.Operator):
 		else:
 			layout.prop(self, 'src', text='Source')
 			layout.prop(self, 'lay', text='Layer')
-		
+
 			col = layout.column()
-		
+
 			if not GDAL:
 				col.enabled = False
 				col.label('Install GDAL to enable raster reprojection support')
-				
+
 			col.prop(self, 'grd', text='Tile matrix set')
 			col.prop(self, 'crs', text='CRS')
 			if self.crs == 'custom':
 				#display the scene prop
-				col.prop(scn, '["CRS"]', text='Scene CRS')			
-				
+				col.prop(scn, '["CRS"]', text='Scene CRS')
+
 			row = layout.row()
 			row.prop(self, 'fontColor')
-		
+
 
 	def invoke(self, context, event):
+		if not context.area.type == 'VIEW_3D':
+			self.report({'WARNING'}, "View3D not found, cannot run operator")
+			return {'CANCELLED'}
 		scn = context.scene
 		if "CRS" not in scn:
 			scn["CRS"] = ""
 		return context.window_manager.invoke_props_dialog(self)
-	
+
 	def execute(self, context):
 		scn = context.scene
 
@@ -1588,9 +1643,9 @@ class MAP_START(bpy.types.Operator):
 		if self.goto:
 			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
 			self.goto = False
-		
+
 		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd, fontColor=self.fontColor)
-		
+
 		return {'FINISHED'}
 
 
@@ -1614,11 +1669,11 @@ class MAP_VIEWER(bpy.types.Operator):
 
 	fontColor = FloatVectorProperty(name="Font color", subtype='COLOR', min=0, max=1, size=4, default=(0, 0, 0, 1))
 
-	"""
-	@clasmethod
+
+	@classmethod
 	def poll(cls, context):
 		return context.area.type == 'VIEW_3D'
-	"""
+
 
 	def __del__(self):
 		if self.restart:
@@ -1627,49 +1682,43 @@ class MAP_VIEWER(bpy.types.Operator):
 			else:
 				crs = 'custom'
 			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, fontColor=self.fontColor, goto=self.goto, crs=crs)
-	
-			
-	def invoke(self, context, event):
-		
-		if context.area.type == 'VIEW_3D':
-			
-			self.restart = False
-			self.goto = False
-		
-			#Add draw callback to view space
-			args = (self, context)
-			self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback, args, 'WINDOW', 'POST_PIXEL')
 
-			#Add modal handler and init a timer
-			context.window_manager.modal_handler_add(self)
-			self.timer = context.window_manager.event_timer_add(0.05, context.window)
-	
-			#Switch to top view ortho (center to origin)
-			view3d = context.area.spaces.active
-			bpy.ops.view3d.viewnumpad(type='TOP')
-			view3d.region_3d.view_perspective = 'ORTHO'
-			view3d.cursor_location = (0, 0, 0)
-			bpy.ops.view3d.view_center_cursor()
-			##view3d.region_3d.view_location = (0, 0, 0)
-		
-			#Init some properties
-			# tag if map is currently drag
-			self.inMove = False
-			# mouse crs coordinates reported in draw callback
-			self.posx, self.posy = 0, 0
-			# thread progress infos reported in draw callback
-			self.nb, self.nbTotal = 0, 0
-	
-			#Get map
-			self.map = BaseMap(context, self.srckey, self.laykey, self.grdkey)
-			self.map.get()
-			
-			return {'RUNNING_MODAL'}
-		
-		else:
-			
-			self.report({'WARNING'}, "View3D not found, cannot run operator")
-			return {'CANCELLED'}
+
+	def invoke(self, context, event):
+
+		self.restart = False
+		self.goto = False
+
+		#Add draw callback to view space
+		args = (self, context)
+		self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback, args, 'WINDOW', 'POST_PIXEL')
+
+		#Add modal handler and init a timer
+		context.window_manager.modal_handler_add(self)
+		self.timer = context.window_manager.event_timer_add(0.05, context.window)
+
+		#Switch to top view ortho (center to origin)
+		view3d = context.area.spaces.active
+		bpy.ops.view3d.viewnumpad(type='TOP')
+		view3d.region_3d.view_perspective = 'ORTHO'
+		view3d.cursor_location = (0, 0, 0)
+		bpy.ops.view3d.view_center_cursor()
+		##view3d.region_3d.view_location = (0, 0, 0)
+
+		#Init some properties
+		# tag if map is currently drag
+		self.inMove = False
+		# mouse crs coordinates reported in draw callback
+		self.posx, self.posy = 0, 0
+		# thread progress infos reported in draw callback
+		self.nb, self.nbTotal = 0, 0
+
+		#Get map
+		self.map = BaseMap(context, self.srckey, self.laykey, self.grdkey)
+		self.map.get()
+
+		return {'RUNNING_MODAL'}
+
 
 
 	def mouseTo3d(self, context, x, y):
@@ -1683,29 +1732,29 @@ class MAP_VIEWER(bpy.types.Operator):
 
 
 	def modal(self, context, event):
-		
+
 		context.area.tag_redraw()
 		scn = bpy.context.scene
-		
+
 		if event.type == 'TIMER':
 			#report thread progression
 			self.nb, self.nbTotal = self.map.progress()
 			return {'PASS_THROUGH'}
-						
+
 		if event.type in ['WHEELUPMOUSE', 'NUMPAD_PLUS']:
-			
+
 			if event.value == 'PRESS':
-				
+
 				if event.alt:
 					# map scale up
 					scn['scale'] *= 10
 					self.map.scale = scn['scale']
 					self.map.place()
-				
+
 				elif event.ctrl:
 					# view3d zoom up
 					context.region_data.view_distance -= 100
-				
+
 				else:
 					resFactors = self.map.tm.getResFactor(scn["z"])
 					context.region_data.view_distance /= resFactors[1] #tile matrix res factor
@@ -1713,11 +1762,11 @@ class MAP_VIEWER(bpy.types.Operator):
 					if scn["z"] < self.map.layer.zmax and scn["z"] < self.map.tm.nbLevels-1:
 						scn["z"] += 1
 						self.map.get()
-	
+
 		if event.type in ['WHEELDOWNMOUSE', 'NUMPAD_MINUS']:
-			
+
 			if event.value == 'PRESS':
-				
+
 				if event.alt:
 					#map scale down
 					s = scn['scale'] / 10
@@ -1725,25 +1774,25 @@ class MAP_VIEWER(bpy.types.Operator):
 					scn['scale'] = s
 					self.map.scale = s
 					self.map.place()
-					
+
 				elif event.ctrl:
 					#view3d zoom down
 					context.region_data.view_distance += 100
-					
+
 				else:
 					resFactors = self.map.tm.getResFactor(scn["z"])
 					context.region_data.view_distance *= resFactors[0]
-					#map zoom down  
+					#map zoom down
 					if scn["z"] > self.map.layer.zmin and scn["z"] > 0:
 						scn["z"] -= 1
 						self.map.get()
 
 		if event.type == 'MOUSEMOVE':
-			
+
 			#Report mouse location coords in projeted crs
 			loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 			self.posx, self.posy = self.map.view3dToProj(loc.x, loc.y)
-			
+
 			#Drag background image (edit its offset values)
 			if self.inMove and self.map.bkg is not None:
 				loc1 = self.mouseTo3d(context, self.x1, self.y1)
@@ -1753,9 +1802,9 @@ class MAP_VIEWER(bpy.types.Operator):
 				ratio = self.map.img.size[0] / self.map.img.size[1]
 				self.map.bkg.offset_x = -dx + self.offset_x
 				self.map.bkg.offset_y = (-dy * ratio) + self.offset_y
-					
+
 		if event.type in {'LEFTMOUSE', 'MIDDLEMOUSE'}:
-			
+
 			if event.value == 'PRESS':
 				#Stop thread now, because we don't know when the mouse click will be released
 				self.map.stop()
@@ -1766,7 +1815,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					self.offset_y = self.map.bkg.offset_y
 				#Tag that map is currently draging
 				self.inMove = True
-				
+
 			if event.value == 'RELEASE':
 				self.inMove = False
 				#Compute final shift
@@ -1797,14 +1846,14 @@ class MAP_VIEWER(bpy.types.Operator):
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 			return {'CANCELLED'}
-		
+
 		"""
 		if event.type in {'RET'}:
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 			return {'FINISHED'}
 		"""
-		
+
 		return {'RUNNING_MODAL'}
 
 
@@ -1818,10 +1867,10 @@ class MAP_SEARCH(bpy.types.Operator):
 	bl_label = "Map search"
 
 	query = StringProperty(name="Go to")
-	
+
 	def invoke(self, context, event):
 		return context.window_manager.invoke_props_dialog(self)
-	
+
 	def execute(self, context):
 		scn = context.scene
 		geocoder = Nominatim(base_url="http://nominatim.openstreetmap.org", referer="bgis")
@@ -1831,7 +1880,7 @@ class MAP_SEARCH(bpy.types.Operator):
 			lat, long = float(result['lat']), float(result['lon'])
 			scn["lat"], scn["long"] = lat, long
 
-		return {'FINISHED'}	
+		return {'FINISHED'}
 
 
 ####################################
@@ -1862,7 +1911,7 @@ class MAP_PANEL(Panel):
 	bl_space_type = "VIEW_3D"
 	bl_context = "objectmode"
 	bl_region_type = "TOOLS"#"UI"
-	
+
 
 	def draw(self, context):
 		layout = self.layout
@@ -1870,7 +1919,3 @@ class MAP_PANEL(Panel):
 		prefs = context.user_preferences.addons[__package__].preferences
 		layout.prop(prefs, "cacheFolder")
 		layout.operator("view3d.map_start")
-
-
-
-
