@@ -1850,7 +1850,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				dy = loc1.y - loc2.y
 				if event.ctrl:
 					x, y, z = self.viewLoc
-					context.region_data.view_location = (dx-x, dy-y, z)
+					context.region_data.view_location = (dx+x, dy+y, z)
 				else:
 					ratio = self.map.img.size[0] / self.map.img.size[1]
 					self.map.bkg.offset_x = self.offset_x - dx
