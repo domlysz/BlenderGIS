@@ -55,14 +55,22 @@ from .nominatim import Nominatim
 
 ##
 
-#Alias to scene georef infos keys
-LAT = "lat"
-LON = "long"
-Z = "z"
-CRS = "CRS"
-SCALE = "scale"
-PROJX = "proj x"
-PROJY = "proj y"
+#Alias to Scene Keys used to store georef infos
+# latitude and longitude of scene origin in decimal degrees
+SK_LAT = "latitude"
+SK_LON = "longitude"
+# proj4 string definition of Coordinate Reference System (CRS)
+# https://github.com/OSGeo/proj.4/wiki/GenParms
+# http://www.remotesensing.org/geotiff/proj_list/
+# Initialization from EPSG code : "+init=EPSG:3857"
+SK_CRS = "CRS"
+# Coordinates of scene origin in CRS space
+SK_CRSX = "CRS_X"
+SK_CRSY = "CRS_Y"
+# Generale scale of the map (1:x)
+SK_SCALE = "scale"
+# Current zoom level in the Tile Matrix Set
+SK_Z = "zoom"
 
 
 ####################################
@@ -87,7 +95,7 @@ def dd2meters(dst):
 
 def meters2dd(dst):
 	k = GRS80.perimeter/360
-	return dst / k	
+	return dst / k
 
 
 def isGeoCRS(crs):
@@ -291,6 +299,7 @@ class GeoPackage():
 				UNIQUE (zoom_level, tile_column, tile_row));
 		""")
 
+		db.close()
 
 
 	def insertMetadata(self):
@@ -443,14 +452,14 @@ class TileMatrix():
 			self.ymin, self.ymax = self.bbox[1], self.bbox[3]
 
 
-		if getattr(self, 'resolutions', None) is None:
+		if not hasattr(self, 'resolutions'):
 
 			#Set resFactor if not submited
-			if getattr(self, 'resFactor', None) is None:
+			if not hasattr(self, 'resFactor'):
 				self.resFactor = 2
 
 			#Set initial resolution if not submited
-			if getattr(self, 'initRes', None) is None:
+			if not hasattr(self, 'initRes'):
 				# at zoom level zero, 1 tile covers whole bounding box
 				dx = abs(self.xmax - self.xmin)
 				dy = abs(self.ymax - self.ymin)
@@ -458,7 +467,7 @@ class TileMatrix():
 				self.initRes = dst / self.tileSize
 
 			#Set number of levels if not submited
-			if getattr(self, 'nbLevels', None) is None:
+			if not hasattr(self, 'nbLevels'):
 				self.nbLevels = self.defaultNbLevels
 
 		else:
@@ -502,14 +511,14 @@ class TileMatrix():
 
 
 	def getResList(self):
-		if getattr(self, 'resolutions', None) is not None:
+		if hasattr(self, 'resolutions'):
 			return self.resolutions
 		else:
 			return [self.initRes / self.resFactor**zoom for zoom in range(self.nbLevels)]
 
 	def getRes(self, zoom):
 		"""Resolution (meters/pixel) for given zoom level (measured at Equator)"""
-		if getattr(self, 'resolutions', None) is not None:
+		if hasattr(self, 'resolutions'):
 			if zoom > len(self.resolutions):
 				zoom = len(self.resolutions)
 			return self.resolutions[zoom]
@@ -960,7 +969,7 @@ class MapService():
 			_bbox = reprojBbox(crs2, crs1, bbox)
 
 			#list, download and merge the tiles required to build this one (recursive call)
-			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=False, nbThread=4, cpt=False)
+			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=False, nbThread=4, cpt=False, allowEmptyTile=False)
 
 			if mosaic is None:
 				return None
@@ -1059,7 +1068,7 @@ class MapService():
 
 
 
-	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=10, cpt=True, outCRS=None):
+	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
 		return GeoImage object (PIL image + georef infos)
@@ -1113,13 +1122,19 @@ class MapService():
 			col, row, z, data = tile
 			if data is None:
 				#create an empty tile
-				img = Image.new("RGBA", (tileSize , tileSize), "lightgrey")
+				if allowEmptyTile:
+					img = Image.new("RGBA", (tileSize , tileSize), "lightgrey")
+				else:
+					return None
 			else:
 				try:
 					img = Image.open(io.BytesIO(data))
 				except:
-					#create an empty tile if we are unable to get a valid stream
-					img = Image.new("RGBA", (tileSize , tileSize), "pink")
+					if allowEmptyTile:
+						#create an empty tile if we are unable to get a valid stream
+						img = Image.new("RGBA", (tileSize , tileSize), "pink")
+					else:
+						return None
 			posx = (col - firstCol) * tileSize
 			posy = abs((row - firstRow)) * tileSize
 			mosaic.paste(img, (posx, posy))
@@ -1296,22 +1311,7 @@ class BaseMap():
 		self.laykey = laykey
 		self.grdkey = grdkey
 
-		#Init scene props if not exists
-		scn = self.scn
-		# scene origin lat long
-		if "lat" not in scn and "long" not in scn:
-			scn["lat"], scn["long"] = 0.0, 0.0 #explicit float for id props
-		# zoom level
-		if 'z' not in scn:
-			scn["z"] = 0
-		# EPSG code or proj4 string
-		if 'CRS' not in scn:
-			scn["CRS"] = str(self.tm.CRS) #epsg code web mercator (string id props)
-		# scale
-		if 'scale' not in scn:
-			scn["scale"] = 1 #1:1
-
-		#Read scene props
+		#Read scene props (we assume these props have already been created, cf. MAP_START)
 		self.update()
 
 		#Thread attributes
@@ -1326,11 +1326,15 @@ class BaseMap():
 
 	def update(self):
 		'''Read scene properties and update attributes'''
-		#get scene props
-		self.zoom = self.scn['z']
-		self.scale = self.scn['scale']
-		self.lat, self.long = self.scn['lat'], self.scn['long']
-		self.crs = int(self.scn["CRS"]) #TODO add ability to read proj4 def
+		scn = self.scn
+		self.zoom = scn[SK_Z]
+		self.scale = scn[SK_SCALE]
+		self.lat, self.long = scn[SK_LAT], scn[SK_LON]
+
+		#TODO add ability to read proj4 def
+		if scn[SK_CRS] == "":
+			scn[SK_CRS] = str(self.tm.CRS)
+		self.crs = int(scn[SK_CRS])
 
 		#get scene origin coords in proj system
 		self.origin_x, self.origin_y = reproj(4326, self.crs, self.long, self.lat)
@@ -1375,7 +1379,7 @@ class BaseMap():
 		self.origin_x += dx
 		self.origin_y += dy
 		lon, lat = reproj(self.crs, 4326, self.origin_x, self.origin_y)
-		self.scn["lat"], self.scn["long"] = lat, lon
+		self.scn[SK_LAT], self.scn[SK_LON] = lat, lon
 
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
@@ -1486,13 +1490,15 @@ def draw_callback(self, context):
 	cx = w/2 #center x
 
 	#Get map props stored in scene
-	zoom = scn['z']
-	lat, long = scn['lat'], scn['long']
-	scale = scn['scale']
+	zoom = scn[SK_Z]
+	lat, long = scn[SK_LAT], scn[SK_LON]
+	scale = scn[SK_SCALE]
 
 	#Set text police and color
 	font_id = 0  # ???
-	bgl.glColor4f(*self.fontColor) #rgba
+	prefs = context.user_preferences.addons[__package__].preferences
+	fontColor = prefs.fontColor
+	bgl.glColor4f(*fontColor) #rgba
 
 	#Draw title
 	blf.position(font_id, cx-25, 70, 0) #id, x, y, z
@@ -1585,9 +1591,7 @@ class MAP_START(bpy.types.Operator):
 				items = [ ("grid", "Same as tile matrix", ""), ("custom", "Custom", "") ]
 				)
 
-	fontColor = FloatVectorProperty(name="Font color", subtype='COLOR', min=0, max=1, size=4, default=(0, 0, 0, 1))
-
-	goto = BoolProperty()
+	dialog = StringProperty(default='MAP') # 'MAP', 'SEARCH', 'OPTIONS'
 
 	query = StringProperty(name="Go to")
 
@@ -1595,9 +1599,18 @@ class MAP_START(bpy.types.Operator):
 	def draw(self, context):
 		scn = context.scene
 		layout = self.layout
-		if self.goto:
+
+		if self.dialog == 'SEARCH':
 				layout.prop(self, 'query')
-		else:
+
+		elif self.dialog == 'OPTIONS':
+			addonPrefs = context.user_preferences.addons[__package__].preferences
+			#layout.prop(addonPrefs, "cacheFolder")
+			layout.prop(addonPrefs, "fontColor")
+			viewPrefs = context.user_preferences.view
+			layout.prop(viewPrefs, "use_zoom_to_mouse")
+
+		elif self.dialog == 'MAP':
 			layout.prop(self, 'src', text='Source')
 			layout.prop(self, 'lay', text='Layer')
 
@@ -1611,19 +1624,41 @@ class MAP_START(bpy.types.Operator):
 			col.prop(self, 'crs', text='CRS')
 			if self.crs == 'custom':
 				#display the scene prop
-				col.prop(scn, '["CRS"]', text='Scene CRS')
+				#col.prop(scn, '["CRS"]', text='Scene CRS')
+				col.prop(scn, '["'+SK_CRS+'"]', text='Scene CRS')
 
 			row = layout.row()
-			row.prop(self, 'fontColor')
+			row.label('Map scale:')
+			row.prop(scn, '["'+SK_SCALE+'"]', text='')
 
 
 	def invoke(self, context, event):
+
 		if not context.area.type == 'VIEW_3D':
 			self.report({'WARNING'}, "View3D not found, cannot run operator")
 			return {'CANCELLED'}
+
+		#Init scene props if not exists
 		scn = context.scene
-		if "CRS" not in scn:
-			scn["CRS"] = ""
+		# get or init the dictionary containing IDprops settings
+		rna_ui = scn.get('_RNA_UI')
+		if rna_ui is None:
+			scn['_RNA_UI'] = {}
+			rna_ui = scn['_RNA_UI']
+		# scene origin lat long
+		if SK_LAT not in scn and SK_LON not in scn:
+			scn[SK_LAT], scn[SK_LON] = 0.0, 0.0 #explicit float for id props
+		# zoom level
+		if SK_Z not in scn:
+			scn[SK_Z] = 0
+		# EPSG code or proj4 string
+		if SK_CRS not in scn:
+			scn[SK_CRS] = "" #string id props
+		# scale
+		if SK_SCALE not in scn:
+			scn[SK_SCALE] = 1 #1:1
+			rna_ui[SK_SCALE] = {"description": "Map scale denominator", "default": 1, "min": 1}
+
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
@@ -1637,16 +1672,13 @@ class MAP_START(bpy.types.Operator):
 			return {'FINISHED'}
 
 		if self.crs == 'grid':
-			try:
-				del scn['CRS'] #will be recreated later
-			except:
-				pass
+			scn[SK_CRS] = "" #will be correctly assigned later
 
-		if self.goto:
+		if self.dialog == 'SEARCH':
 			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
-			self.goto = False
+			self.dialog == 'MAP' #reinit prop value to default
 
-		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd, fontColor=self.fontColor)
+		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd)
 
 		return {'FINISHED'}
 
@@ -1669,9 +1701,6 @@ class MAP_VIEWER(bpy.types.Operator):
 
 	laykey = StringProperty()
 
-	fontColor = FloatVectorProperty(name="Font color", subtype='COLOR', min=0, max=1, size=4, default=(0, 0, 0, 1))
-
-
 	@classmethod
 	def poll(cls, context):
 		return context.area.type == 'VIEW_3D'
@@ -1683,13 +1712,13 @@ class MAP_VIEWER(bpy.types.Operator):
 				crs = 'grid'
 			else:
 				crs = 'custom'
-			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, fontColor=self.fontColor, goto=self.goto, crs=crs)
+			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog, crs=crs)
 
 
 	def invoke(self, context, event):
 
 		self.restart = False
-		self.goto = False
+		self.dialog = 'MAP' # dialog name for MAP_START >> string in  ['MAP', 'SEARCH', 'OPTIONS']
 
 		self.moveFactor = 0.1
 
@@ -1751,8 +1780,8 @@ class MAP_VIEWER(bpy.types.Operator):
 
 				if event.alt:
 					# map scale up
-					scn['scale'] *= 10
-					self.map.scale = scn['scale']
+					scn[SK_SCALE] *= 10
+					self.map.scale = scn[SK_SCALE]
 					self.map.place()
 
 				elif event.ctrl:
@@ -1762,12 +1791,12 @@ class MAP_VIEWER(bpy.types.Operator):
 
 				else:
 					# map zoom up
-					if scn["z"] < self.map.layer.zmax and scn["z"] < self.map.tm.nbLevels-1:
-						scn["z"] += 1
-						
-						resFactors = self.map.tm.getResFactor(scn["z"])
+					if scn[SK_Z] < self.map.layer.zmax and scn[SK_Z] < self.map.tm.nbLevels-1:
+						scn[SK_Z] += 1
+
+						resFactors = self.map.tm.getResFactor(scn[SK_Z])
 						resFactor = resFactors[1]
-						
+
 						if not context.user_preferences.view.use_zoom_to_mouse:
 							context.region_data.view_distance /= resFactor
 						else:
@@ -1785,7 +1814,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								ratio = self.map.img.size[0] / self.map.img.size[1]
 								self.map.bkg.offset_x -= dx
 								self.map.bkg.offset_y -= dy * ratio
-						
+
 						self.map.get()
 
 
@@ -1796,9 +1825,9 @@ class MAP_VIEWER(bpy.types.Operator):
 
 				if event.alt:
 					#map scale down
-					s = scn['scale'] / 10
+					s = scn[SK_SCALE] / 10
 					if s < 1: s = 1
-					scn['scale'] = s
+					scn[SK_SCALE] = s
 					self.map.scale = s
 					self.map.place()
 
@@ -1809,12 +1838,12 @@ class MAP_VIEWER(bpy.types.Operator):
 
 				else:
 					#map zoom down
-					if scn["z"] > self.map.layer.zmin and scn["z"] > 0:
-						scn["z"] -= 1
-						
-						resFactors = self.map.tm.getResFactor(scn["z"])
+					if scn[SK_Z] > self.map.layer.zmin and scn[SK_Z] > 0:
+						scn[SK_Z] -= 1
+
+						resFactors = self.map.tm.getResFactor(scn[SK_Z])
 						resFactor = resFactors[0]
-						
+
 						if not context.user_preferences.view.use_zoom_to_mouse:
 							context.region_data.view_distance *= resFactor
 						else:
@@ -1895,12 +1924,12 @@ class MAP_VIEWER(bpy.types.Operator):
 
 
 		if event.value == 'PRESS':
-			if event.type == 'NUMPAD_4':	
+			if event.type == 'NUMPAD_4':
 				if event.ctrl:
 					x, y, z = context.region_data.view_location
 					dx = self.map.bkg.size * self.moveFactor
 					x -= dx
-					context.region_data.view_location = (x,y,z)		
+					context.region_data.view_location = (x,y,z)
 				else:
 					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
@@ -1908,12 +1937,12 @@ class MAP_VIEWER(bpy.types.Operator):
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x += dx
 					self.map.get()
-			if event.type == 'NUMPAD_6':	
+			if event.type == 'NUMPAD_6':
 				if event.ctrl:
 					x, y, z = context.region_data.view_location
 					dx = self.map.bkg.size * self.moveFactor
 					x += dx
-					context.region_data.view_location = (x,y,z)		
+					context.region_data.view_location = (x,y,z)
 				else:
 					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
@@ -1921,12 +1950,12 @@ class MAP_VIEWER(bpy.types.Operator):
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x -= dx
 					self.map.get()
-			if event.type == 'NUMPAD_2':	
+			if event.type == 'NUMPAD_2':
 				if event.ctrl:
 					x, y, z = context.region_data.view_location
 					dy = self.map.bkg.size * self.moveFactor
 					y -= dy
-					context.region_data.view_location = (x,y,z)		
+					context.region_data.view_location = (x,y,z)
 				else:
 					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
@@ -1934,13 +1963,13 @@ class MAP_VIEWER(bpy.types.Operator):
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y += dy * ratio
-					self.map.get()			
-			if event.type == 'NUMPAD_8':	
+					self.map.get()
+			if event.type == 'NUMPAD_8':
 				if event.ctrl:
 					x, y, z = context.region_data.view_location
 					dy = self.map.bkg.size * self.moveFactor
 					y += dy
-					context.region_data.view_location = (x,y,z)		
+					context.region_data.view_location = (x,y,z)
 				else:
 					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
@@ -1950,21 +1979,27 @@ class MAP_VIEWER(bpy.types.Operator):
 						self.map.bkg.offset_y -= dy * ratio
 					self.map.get()
 
-		
-		if event.type == 'SPACE':
+
+		if event.type == 'SPACE': #SWITCH LAYER
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 			self.restart = True
 			return {'FINISHED'}
 
 
-		if event.type == 'G':
+		if event.type == 'G': #GO TO
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 			self.restart = True
-			self.goto = True
+			self.dialog = 'SEARCH'
 			return {'FINISHED'}
 
+		if event.type == 'O': #OPTIONS
+			self.map.stop()
+			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+			self.restart = True
+			self.dialog = 'OPTIONS'
+			return {'FINISHED'}
 
 		if event.type in {'ESC'}:
 			self.map.stop()
@@ -2002,7 +2037,7 @@ class MAP_SEARCH(bpy.types.Operator):
 		if len(results) >= 1:
 			result = results[0]
 			lat, long = float(result['lat']), float(result['lon'])
-			scn["lat"], scn["long"] = lat, long
+			scn[SK_LAT], scn[SK_LON] = lat, long
 
 		return {'FINISHED'}
 
@@ -2015,17 +2050,31 @@ class MAP_PREFS(AddonPreferences):
 	bl_idname = __package__
 
 	cacheFolder = StringProperty(
-	  name = "Cache folder",
-	  default = "",
-	  description = "Define a folder where to store Geopackage SQlite db",
-	  subtype = 'DIR_PATH'
-	  )
+		name = "Cache folder",
+		default = "",
+		description = "Define a folder where to store Geopackage SQlite db",
+		subtype = 'DIR_PATH'
+		)
+
+	fontColor = FloatVectorProperty(
+		name="Font color",
+		subtype='COLOR',
+		min=0, max=1,
+		size=4,
+		default=(0, 0, 0, 1)
+		)
+
+	predefCRS = EnumProperty(
+		name = "CRS",
+		description = "Choose predefinite Coordinate Reference System",
+		items = []
+		)
 
 	def draw(self, context):
 		layout = self.layout
-		layout.label(text="Basemaps preferences")
 		layout.prop(self, "cacheFolder")
-
+		layout.prop(self, "fontColor")
+		layout.prop(self, "predefCRS")
 
 ####################################
 
@@ -2040,8 +2089,17 @@ class MAP_PANEL(Panel):
 	def draw(self, context):
 		layout = self.layout
 		scn = context.scene
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		layout.prop(addonPrefs, "cacheFolder")
-		viewPrefs = context.user_preferences.view
-		layout.prop(viewPrefs, "use_zoom_to_mouse")
+
 		layout.operator("view3d.map_start")
+
+		layout.label("Options :")
+		box = layout.box()
+		#box.label("Options :")
+		addonPrefs = context.user_preferences.addons[__package__].preferences
+		box.label("Cache folder:")
+		box.prop(addonPrefs, "cacheFolder", text='')
+		r = box.row()
+		r.label('Font color:')
+		r.prop(addonPrefs, "fontColor", text='')
+		viewPrefs = context.user_preferences.view
+		box.prop(viewPrefs, "use_zoom_to_mouse")
