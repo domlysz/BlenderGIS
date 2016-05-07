@@ -27,12 +27,14 @@ import datetime
 import sqlite3
 import urllib.request
 import imghdr
+import json
 
 #bpy imports
 import bpy
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
+import addon_utils
 import blf, bgl
 
 #deps imports
@@ -1585,10 +1587,10 @@ class MAP_START(bpy.types.Operator):
 				items = listLayers
 				)
 
-	crs = EnumProperty(
+	crsOpt = EnumProperty(
 				name = "CRS",
 				description = "Choose Coordinate Reference System",
-				items = [ ("grid", "Same as tile matrix", ""), ("custom", "Custom", "") ]
+				items = [ ("grid", "Same as tile matrix", ""), ("scene", "Custom (scene)", ""), ("predef", "Custom (predefinate)", "") ]
 				)
 
 	dialog = StringProperty(default='MAP') # 'MAP', 'SEARCH', 'OPTIONS'
@@ -1597,6 +1599,7 @@ class MAP_START(bpy.types.Operator):
 
 
 	def draw(self, context):
+		addonPrefs = context.user_preferences.addons[__package__].preferences
 		scn = context.scene
 		layout = self.layout
 
@@ -1604,29 +1607,25 @@ class MAP_START(bpy.types.Operator):
 				layout.prop(self, 'query')
 
 		elif self.dialog == 'OPTIONS':
-			addonPrefs = context.user_preferences.addons[__package__].preferences
-			#layout.prop(addonPrefs, "cacheFolder")
 			layout.prop(addonPrefs, "fontColor")
-			viewPrefs = context.user_preferences.view
-			layout.prop(viewPrefs, "use_zoom_to_mouse")
+			#viewPrefs = context.user_preferences.view
+			#layout.prop(viewPrefs, "use_zoom_to_mouse")
+			layout.prop(addonPrefs, "zoomToMouse")
 
 		elif self.dialog == 'MAP':
 			layout.prop(self, 'src', text='Source')
 			layout.prop(self, 'lay', text='Layer')
-
 			col = layout.column()
-
 			if not GDAL:
 				col.enabled = False
 				col.label('Install GDAL to enable raster reprojection support')
-
 			col.prop(self, 'grd', text='Tile matrix set')
-			col.prop(self, 'crs', text='CRS')
-			if self.crs == 'custom':
+			col.prop(self, 'crsOpt', text='CRS')
+			if self.crsOpt == 'scene':
 				#display the scene prop
-				#col.prop(scn, '["CRS"]', text='Scene CRS')
 				col.prop(scn, '["'+SK_CRS+'"]', text='Scene CRS')
-
+			elif self.crsOpt == "predef":
+				col.prop(addonPrefs, "predefCrs", text='Predefinate CRS')
 			row = layout.row()
 			row.label('Map scale:')
 			row.prop(scn, '["'+SK_SCALE+'"]', text='')
@@ -1659,25 +1658,39 @@ class MAP_START(bpy.types.Operator):
 			scn[SK_SCALE] = 1 #1:1
 			rna_ui[SK_SCALE] = {"description": "Map scale denominator", "default": 1, "min": 1}
 
+		#Display dialog
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
 		scn = context.scene
-
 		prefs = context.user_preferences.addons[__package__].preferences
+
+		#check cache folder
 		folder = prefs.cacheFolder
 		if folder == "" or not os.path.exists(folder):
 			self.report({'ERROR'}, "Please define a valid cache folder path")
-			print("Please define a valid cache folder path")
 			return {'FINISHED'}
 
-		if self.crs == 'grid':
+		#check crs option
+		if self.crsOpt == 'grid':
 			scn[SK_CRS] = "" #will be correctly assigned later
+		elif self.crsOpt == 'scene' and scn[SK_CRS] == "":
+			self.report({'ERROR'}, "Scene does not contains CRS definition")
+			return {'FINISHED'}
+		elif self.crsOpt == 'predef':
+			crskey = prefs.predefCrs
+			if crskey == '':
+				self.report({'ERROR'}, "No predefined CRS. Please add one in addon preferences")
+				return {'FINISHED'}
+			else:
+				data = json.loads(prefs.predefCrsJson)
+				scn[SK_CRS] = data[crskey]['projection']
 
+		#Move scene origin to the researched place
 		if self.dialog == 'SEARCH':
 			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
-			self.dialog == 'MAP' #reinit prop value to default
 
+		#Start map viewer operator
 		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd)
 
 		return {'FINISHED'}
@@ -1694,6 +1707,7 @@ class MAP_VIEWER(bpy.types.Operator):
 	bl_idname = "view3d.map_viewer"
 	bl_description = 'Toggle 2d map navigation'
 	bl_label = "Map viewer"
+	bl_options = {'INTERNAL'}
 
 	srckey = StringProperty()
 
@@ -1709,10 +1723,11 @@ class MAP_VIEWER(bpy.types.Operator):
 	def __del__(self):
 		if self.restart:
 			if self.map.crs == self.map.tm.CRS:
-				crs = 'grid'
+				crsOpt = 'grid'
 			else:
-				crs = 'custom'
-			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog, crs=crs)
+				crsOpt = 'scene'
+			#TODO identify preded crs
+			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog, crsOpt=crsOpt)
 
 
 	def invoke(self, context, event):
@@ -1797,7 +1812,8 @@ class MAP_VIEWER(bpy.types.Operator):
 						resFactors = self.map.tm.getResFactor(scn[SK_Z])
 						resFactor = resFactors[1]
 
-						if not context.user_preferences.view.use_zoom_to_mouse:
+						#if not context.user_preferences.view.use_zoom_to_mouse:
+						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
 							context.region_data.view_distance /= resFactor
 						else:
 							#Progressibly zoom to cursor (use intercept theorem)
@@ -1844,7 +1860,8 @@ class MAP_VIEWER(bpy.types.Operator):
 						resFactors = self.map.tm.getResFactor(scn[SK_Z])
 						resFactor = resFactors[0]
 
-						if not context.user_preferences.view.use_zoom_to_mouse:
+						#if not context.user_preferences.view.use_zoom_to_mouse:
+						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
 							context.region_data.view_distance *= resFactor
 						else:
 							#Progressibly zoom to cursor (use intercept theorem)
@@ -2024,6 +2041,7 @@ class MAP_SEARCH(bpy.types.Operator):
 	bl_idname = "view3d.map_search"
 	bl_description = 'Search for a place and move scene origin to it'
 	bl_label = "Map search"
+	bl_options = {'INTERNAL'}
 
 	query = StringProperty(name="Go to")
 
@@ -2045,9 +2063,16 @@ class MAP_SEARCH(bpy.types.Operator):
 ####################################
 
 class MAP_PREFS(AddonPreferences):
-	# this must match the addon name, use '__package__'
-	# when defining this in a submodule of a python package.
+
 	bl_idname = __package__
+
+	def listPredefCRS(self, context):
+		crsItems = []
+		data = json.loads(self.predefCrsJson)
+		for crskey, crs in data.items():
+			#put each item in a tuple (key, label, tooltip)
+			crsItems.append( (crskey, crs['description'], crs['description']) )
+		return crsItems
 
 	cacheFolder = StringProperty(
 		name = "Cache folder",
@@ -2064,17 +2089,122 @@ class MAP_PREFS(AddonPreferences):
 		default=(0, 0, 0, 1)
 		)
 
-	predefCRS = EnumProperty(
-		name = "CRS",
+	zoomToMouse = BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
+
+	#json string
+	predefCrsJson = StringProperty(default='{}')
+
+	predefCrs = EnumProperty(
+		name = "Predefinate CRS",
 		description = "Choose predefinite Coordinate Reference System",
-		items = []
+		items = listPredefCRS
 		)
 
 	def draw(self, context):
 		layout = self.layout
 		layout.prop(self, "cacheFolder")
-		layout.prop(self, "fontColor")
-		layout.prop(self, "predefCRS")
+		
+
+		row = layout.row()
+		row.prop(self, "zoomToMouse")
+		row.label('Font color:')
+		row.prop(self, "fontColor", text='')
+
+		row = layout.row()
+		row.label('Predefinate CRS:')
+		row.prop(self, "predefCrs", text='')
+		row.operator("view3d.map_add_predef_crs")
+		row.operator("view3d.map_edit_predef_crs")
+		row.operator("view3d.map_rmv_predef_crs")
+
+
+class MAP_PREFS_SHOW(bpy.types.Operator):
+
+	bl_idname = "view3d.map_pref_show"
+	bl_description = 'Display basemaps addon preferences'
+	bl_label = "Preferences"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		addon_utils.modules_refresh()
+		bpy.context.user_preferences.active_section = 'ADDONS'
+		bpy.data.window_managers["WinMan"].addon_search = __package__
+		#bpy.ops.wm.addon_expand(module=__package__)
+		mod = addon_utils.addons_fake_modules.get(__package__)
+		mod.bl_info['show_expanded'] = True
+		bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+		return {'FINISHED'}
+
+
+class PREDEF_CRS_ADD(bpy.types.Operator):
+
+	bl_idname = "view3d.map_add_predef_crs"
+	bl_description = 'Add predefinate CRS'
+	bl_label = "Add CRS"
+	bl_options = {'INTERNAL'}
+
+	key = StringProperty(name = "Short name (key)", description = "Choose an identifier for this CRS (like an acronym)")
+	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	prj = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		addonPrefs = context.user_preferences.addons[__package__].preferences
+		data = json.loads(addonPrefs.predefCrsJson)
+		data[self.key] = {"description":self.desc, "projection":self.prj}
+		addonPrefs.predefCrsJson = json.dumps(data)
+		context.area.tag_redraw()
+		#bpy.ops.wm.save_userpref()
+		return {'FINISHED'}
+
+class PREDEF_CRS_RMV(bpy.types.Operator):
+
+	bl_idname = "view3d.map_rmv_predef_crs"
+	bl_description = 'Remove predefinate CRS'
+	bl_label = "Remove CRS"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		addonPrefs = context.user_preferences.addons[__package__].preferences
+		key = addonPrefs.predefCrs
+		if key != '':
+			data = json.loads(addonPrefs.predefCrsJson)
+			del data[key]
+			addonPrefs.predefCrsJson = json.dumps(data)
+		return {'FINISHED'}
+
+class PREDEF_CRS_EDIT(bpy.types.Operator):
+
+	bl_idname = "view3d.map_edit_predef_crs"
+	bl_description = 'Edit predefinate CRS'
+	bl_label = "Edit CRS"
+	bl_options = {'INTERNAL'}
+
+	key = StringProperty(name = "Short name (key)", description = "Choose an identifier for this CRS (like an acronym)")
+	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	prj = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
+
+	def invoke(self, context, event):
+		addonPrefs = context.user_preferences.addons[__package__].preferences
+		key = addonPrefs.predefCrs
+		if key == '':
+			return {'FINISHED'}
+		data = json.loads(addonPrefs.predefCrsJson)
+		self.key = key
+		self.desc = data[key]["description"]
+		self.prj = data[key]["projection"]
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		addonPrefs = context.user_preferences.addons[__package__].preferences
+		data = json.loads(addonPrefs.predefCrsJson)
+		data[self.key] = {"description":self.desc, "projection":self.prj}
+		addonPrefs.predefCrsJson = json.dumps(data)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
 
 ####################################
 
@@ -2089,17 +2219,21 @@ class MAP_PANEL(Panel):
 	def draw(self, context):
 		layout = self.layout
 		scn = context.scene
+		addonPrefs = context.user_preferences.addons[__package__].preferences
 
 		layout.operator("view3d.map_start")
 
 		layout.label("Options :")
+
 		box = layout.box()
-		#box.label("Options :")
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		box.label("Cache folder:")
-		box.prop(addonPrefs, "cacheFolder", text='')
+		box.operator("view3d.map_pref_show")
+		#box.label("Cache folder:")
+		#box.prop(addonPrefs, "cacheFolder", text='')
+
 		r = box.row()
 		r.label('Font color:')
 		r.prop(addonPrefs, "fontColor", text='')
-		viewPrefs = context.user_preferences.view
-		box.prop(viewPrefs, "use_zoom_to_mouse")
+
+		#viewPrefs = context.user_preferences.view
+		#box.prop(viewPrefs, "use_zoom_to_mouse")
+		box.prop(addonPrefs, "zoomToMouse")
