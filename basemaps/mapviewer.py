@@ -104,7 +104,7 @@ def meters2dd(dst):
 
 
 def isGeoCRS(crs):
-	if crs == '4326':
+	if crs == 4326:
 		return True
 	else:
 		if GDAL:
