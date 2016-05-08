@@ -104,12 +104,11 @@ def meters2dd(dst):
 
 
 def isGeoCRS(crs):
-	if crs == 4326:
+	if crs == '4326':
 		return True
 	else:
 		if GDAL:
-			prj = osr.SpatialReference()
-			prj.ImportFromEPSG(crs)
+			prj = getSpatialRef(crs)
 			isGeo = prj.IsGeographic()
 			if isGeo == 1:
 				return True
@@ -117,6 +116,34 @@ def isGeoCRS(crs):
 				return False
 		else:
 			return None
+
+def getSpatialRef(crs):
+	"""
+	Build gdal osr spatial ref from requested crs
+	crs can be an epsg code or a proj4 string
+	"""
+	prj = osr.SpatialReference()
+
+	try:
+		crs = int(crs)
+	except:
+		pass
+
+	if isinstance(crs, int):
+		r = prj.ImportFromEPSG(crs)
+		#r = prj.ImportFromProj4("+init=epsg:"+str(crs)) #WARN 'epsg' must be in lower case
+	elif isinstance(crs, str):
+		r = prj.ImportFromProj4(crs)
+	else:
+		raise ValueError("Incorrect CRS")
+
+	#ImportFromEPSG and ImportFromProj4 do not raise any exception
+	#but return zero if the projection is valid
+	if r > 0:
+		raise ValueError("Incorrect CRS")
+
+	return prj
+
 
 def reproj(crs1, crs2, x1, y1):
 	"""
@@ -142,11 +169,8 @@ def reproj(crs1, crs2, x1, y1):
 		if not GDAL:
 			raise NotImplementedError
 		else: #gdal osr
-			prj1 = osr.SpatialReference()
-			prj1.ImportFromEPSG(crs1)
-
-			prj2 = osr.SpatialReference()
-			prj2.ImportFromEPSG(crs2)
+			prj1 = getSpatialRef(crs1)
+			prj2 = getSpatialRef(crs2)
 
 			transfo = osr.CoordinateTransformation(prj1, prj2)
 			x2, y2, z2 = transfo.TransformPoint(x1, y1)
@@ -1193,8 +1217,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	res = geoimg.res
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds1.SetGeoTransform(geoTrans)
-	prj1 = osr.SpatialReference()
-	prj1.ImportFromEPSG(crs1)
+	prj1 = getSpatialRef(crs1)
 	wkt1 = prj1.ExportToWkt()
 	ds1.SetProjection(wkt1)
 
@@ -1237,8 +1260,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds2.SetGeoTransform(geoTrans)
-	prj2 = osr.SpatialReference()
-	prj2.ImportFromEPSG(crs2)
+	prj2 = getSpatialRef(crs2)
 	wkt2 = prj2.ExportToWkt()
 	ds2.SetProjection(wkt2)
 
@@ -1254,8 +1276,8 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	# Error in pixels (0 will use the exact transformer)
 	threshold = 0.25
 	# Warp options (http://www.gdal.org/structGDALWarpOptions.html)
-	opt = ['NUM_THREADS=ALL_CPUS'] #starting gdal 2.1
-	gdal.ReprojectImage( ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt)
+	opt = ['NUM_THREADS=ALL_CPUS, SAMPLE_GRID=YES']
+	gdal.ReprojectImage( ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt) #option parameter start with gdal 2.1
 
 	#Convert to PIL image
 	data = ds2.ReadAsArray()
@@ -1327,7 +1349,6 @@ class BaseMap():
 		self.update()
 
 		#Thread attributes
-		self.running = False
 		self.thread = None
 		#Background image attributes
 		self.img = None #bpy image
@@ -1346,7 +1367,10 @@ class BaseMap():
 		#TODO add ability to read proj4 def
 		if scn[SK_CRS] == "":
 			scn[SK_CRS] = str(self.tm.CRS)
-		self.crs = int(scn[SK_CRS])
+		try:
+			self.crs = int(scn[SK_CRS])
+		except:
+			self.crs = scn[SK_CRS]
 
 		#get scene origin coords in proj system
 		self.origin_x, self.origin_y = reproj(4326, self.crs, self.long, self.lat)
