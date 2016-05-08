@@ -1725,6 +1725,7 @@ class MAP_START(bpy.types.Operator):
 			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
 
 		#Start map viewer operator
+		self.dialog = 'MAP' #reinit dialog type
 		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd)
 
 		return {'FINISHED'}
