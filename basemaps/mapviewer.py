@@ -69,11 +69,14 @@ SK_CRS = "CRS"
 # Coordinates of scene origin in CRS space
 SK_CRSX = "CRS_X"
 SK_CRSY = "CRS_Y"
-# Generale scale of the map (1:x)
+# General scale denominator of the map (1:x)
 SK_SCALE = "scale"
 # Current zoom level in the Tile Matrix Set
 SK_Z = "zoom"
 
+#Constants
+# reproj resampling algo
+RESAMP_ALG = 'BL' #NN:Nearest Neighboor, BL:Bilinear, CB:Cubic, CBS:Cubic Spline, LCZ:Lanczos
 
 ####################################
 
@@ -1227,7 +1230,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	if out_res is None and out_size is None:
 		#find the res that match source diagolal size
 		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, geoimg.bbox)
-		dst_diag = math.sqrt( (xmax - xmin)**2 + (xmax - xmin)**2)
+		dst_diag = math.sqrt( (xmax - xmin)**2 + (ymax - ymin)**2)
 		px_diag = math.sqrt(img_w**2 + img_h**2)
 		res = dst_diag / px_diag
 
@@ -1241,8 +1244,11 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 
 	#Perform the projection/resampling
 	# Resample algo
-	## GRA_NearestNeighbour, GRA_Bilinear, GRA_Cubic, GRA_CubicSpline, GRA_Lanczos
-	alg = gdal.GRA_Bilinear
+	if RESAMP_ALG == 'NN' : alg = gdal.GRA_NearestNeighbour
+	elif RESAMP_ALG == 'BL' : alg = gdal.GRA_Bilinear
+	elif RESAMP_ALG == 'CB' : alg = gdal.GRA_Cubic
+	elif RESAMP_ALG == 'CBS' : alg = gdal.GRA_CubicSpline
+	elif RESAMP_ALG == 'LCZ' : alg = gdal.GRA_Lanczos
 	# Memory limit (0 = no limit)
 	memLimit = 0
 	# Error in pixels (0 will use the exact transformer)
@@ -1285,6 +1291,10 @@ class BaseMap():
 		#Get cache destination folder in addon preferences
 		prefs = context.user_preferences.addons[__package__].preferences
 		folder = prefs.cacheFolder
+
+		#Get resampling algo preference and set the constant
+		global RESAMP_ALG
+		RESAMP_ALG = prefs.resamplAlg
 
 		#Init MapService class
 		self.srv = MapService(srckey, folder)
@@ -2091,6 +2101,12 @@ class MAP_PREFS(AddonPreferences):
 
 	zoomToMouse = BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
+	resamplAlg = EnumProperty(
+		name = "Resampling method",
+		description = "Choose GDAL's resampling method used for reprojection",
+		items = [ ('NN', 'Nearest Neighboor', ''), ('BL', 'Bilinear', ''), ('CB', 'Cubic', ''), ('CBS', 'Cubic Spline', ''), ('LCZ', 'Lanczos', '') ]
+		)
+
 	#json string
 	predefCrsJson = StringProperty(default='{}')
 
@@ -2103,7 +2119,7 @@ class MAP_PREFS(AddonPreferences):
 	def draw(self, context):
 		layout = self.layout
 		layout.prop(self, "cacheFolder")
-		
+
 
 		row = layout.row()
 		row.prop(self, "zoomToMouse")
@@ -2116,6 +2132,10 @@ class MAP_PREFS(AddonPreferences):
 		row.operator("view3d.map_add_predef_crs")
 		row.operator("view3d.map_edit_predef_crs")
 		row.operator("view3d.map_rmv_predef_crs")
+
+		row = layout.row()
+		row.prop(self, "resamplAlg")
+
 
 
 class MAP_PREFS_SHOW(bpy.types.Operator):
