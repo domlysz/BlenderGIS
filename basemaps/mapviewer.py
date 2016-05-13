@@ -555,8 +555,12 @@ class TileMatrix():
 			return self.initRes / self.resFactor**zoom
 
 
-	def getNearestZoom(self, res):
-		"""Return the zoom level closest to the submited resolution"""
+	def getNearestZoom(self, res, rule='closer'):
+		"""
+		Return the zoom level closest to the submited resolution
+		rule in ['closer', 'lower', 'higher']
+		lower return the previous zoom level, higher return the next
+		"""
 		resLst = self.getResList() #ordered
 
 		for z1, v1 in enumerate(resLst):
@@ -570,28 +574,31 @@ class TileMatrix():
 				return z2
 
 			if v1 > res > v2:
-				d1 = v1 - res
-				d2 = res - v2
-				if d1 < d2:
+				if rule == 'lower':
 					return z1
-				else:
+				elif rule == 'higher':
 					return z2
+				else: #closer
+					d1 = v1 - res
+					d2 = res - v2
+					if d1 < d2:
+						return z1
+					else:
+						return z2
 
-	def getResFactor(self, z):
-		"""return res factor to previous and next zoom level"""
-		res = self.getRes(z)
-
+	def getPrevResFac(self, z):
+		"""return res factor to previous zoom level"""
 		if z == 0:
-			prevFact = 1
+			return 1
 		else:
-			prevFact = self.getRes(z-1) / res
+			return self.getRes(z-1) / self.getRes(z)
 
+	def getNextResFac(self, z):
+		"""return res factor to next zoom level"""
 		if z == self.nbLevels - 1:
-			nextFact = 1
+			return 1
 		else:
-			nextFact = res / self.getRes(z+1)
-
-		return prevFact, nextFact
+			return self.getRes(z) / self.getRes(z+1)
 
 
 	def getTileNumber(self, x, y, zoom):
@@ -1511,7 +1518,7 @@ class BaseMap():
 ####################################
 
 
-def draw_callback(self, context):
+def drawInfosText(self, context):
 	"""Draw map infos on 3dview"""
 
 	#Get contexts
@@ -1560,7 +1567,46 @@ def draw_callback(self, context):
 
 
 
+def drawZoomBox(self, context):
 
+	bgl.glEnable(bgl.GL_BLEND)
+	bgl.glColor4f(0, 0, 0, 0.5)
+	bgl.glLineWidth(2)
+
+	if self.zoomBoxMode and not self.zoomBoxDrag:
+		# before selection starts draw infinite cross
+		bgl.glBegin(bgl.GL_LINES)
+
+		px, py = self.zb_xmax, self.zb_ymax
+
+		bgl.glVertex2i(0, py)
+		bgl.glVertex2i(context.area.width, py)		
+
+		bgl.glVertex2i(px, 0)
+		bgl.glVertex2i(px, context.area.height)
+
+		bgl.glEnd()
+
+	elif self.zoomBoxMode and self.zoomBoxDrag:
+		# when selecting draw dashed line box
+		bgl.glEnable(bgl.GL_LINE_STIPPLE)
+		bgl.glLineStipple(2, 0x3333)
+		bgl.glBegin(bgl.GL_LINE_LOOP)
+
+		bgl.glVertex2i(self.zb_xmin, self.zb_ymin)
+		bgl.glVertex2i(self.zb_xmin, self.zb_ymax)
+		bgl.glVertex2i(self.zb_xmax, self.zb_ymax)
+		bgl.glVertex2i(self.zb_xmax, self.zb_ymin)
+
+		bgl.glEnd()
+
+		bgl.glDisable(bgl.GL_LINE_STIPPLE)
+
+
+	# restore opengl defaults
+	bgl.glLineWidth(1)
+	bgl.glDisable(bgl.GL_BLEND)
+	bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
 ###############
 
@@ -1761,7 +1807,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				crsOpt = 'grid'
 			else:
 				crsOpt = 'scene'
-			#TODO identify preded crs
+			#TODO identify predef crs
 			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog, crsOpt=crsOpt)
 
 
@@ -1774,7 +1820,8 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		#Add draw callback to view space
 		args = (self, context)
-		self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback, args, 'WINDOW', 'POST_PIXEL')
+		self._drawTextHandler = bpy.types.SpaceView3D.draw_handler_add(drawInfosText, args, 'WINDOW', 'POST_PIXEL')
+		self._drawZoomBoxHandler = bpy.types.SpaceView3D.draw_handler_add(drawZoomBox, args, 'WINDOW', 'POST_PIXEL')
 
 		#Add modal handler and init a timer
 		context.window_manager.modal_handler_add(self)
@@ -1795,6 +1842,11 @@ class MAP_VIEWER(bpy.types.Operator):
 		self.posx, self.posy = 0, 0
 		# thread progress infos reported in draw callback
 		self.nb, self.nbTotal = 0, 0
+		# Zoom box 
+		self.zoomBoxMode = False
+		self.zoomBoxDrag = False
+		self.zb_xmin, self.zb_xmax = 0, 0
+		self.zb_ymin, self.zb_ymax = 0, 0
 
 		#Get map
 		self.map = BaseMap(context, self.srckey, self.laykey, self.grdkey)
@@ -1824,6 +1876,7 @@ class MAP_VIEWER(bpy.types.Operator):
 			self.nb, self.nbTotal = self.map.progress()
 			return {'PASS_THROUGH'}
 
+
 		if event.type in ['WHEELUPMOUSE', 'NUMPAD_PLUS']:
 
 			if event.value == 'PRESS':
@@ -1838,14 +1891,17 @@ class MAP_VIEWER(bpy.types.Operator):
 					# view3d zoom up
 					dst = context.region_data.view_distance
 					context.region_data.view_distance -= dst * self.moveFactor
-
+					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
+						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						viewLoc = context.region_data.view_location
+						k = (viewLoc - mouseLoc) * self.moveFactor
+						viewLoc -= k
 				else:
 					# map zoom up
 					if scn[SK_Z] < self.map.layer.zmax and scn[SK_Z] < self.map.tm.nbLevels-1:
 						scn[SK_Z] += 1
 
-						resFactors = self.map.tm.getResFactor(scn[SK_Z])
-						resFactor = resFactors[1]
+						resFactor = self.map.tm.getNextResFac(scn[SK_Z])
 
 						#if not context.user_preferences.view.use_zoom_to_mouse:
 						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
@@ -1865,9 +1921,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								ratio = self.map.img.size[0] / self.map.img.size[1]
 								self.map.bkg.offset_x -= dx
 								self.map.bkg.offset_y -= dy * ratio
-
 						self.map.get()
-
 
 
 		if event.type in ['WHEELDOWNMOUSE', 'NUMPAD_MINUS']:
@@ -1886,14 +1940,17 @@ class MAP_VIEWER(bpy.types.Operator):
 					#view3d zoom down
 					dst = context.region_data.view_distance
 					context.region_data.view_distance += dst * self.moveFactor
-
+					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
+						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						viewLoc = context.region_data.view_location
+						k = (viewLoc - mouseLoc) * self.moveFactor
+						viewLoc += k
 				else:
 					#map zoom down
 					if scn[SK_Z] > self.map.layer.zmin and scn[SK_Z] > 0:
 						scn[SK_Z] -= 1
 
-						resFactors = self.map.tm.getResFactor(scn[SK_Z])
-						resFactor = resFactors[0]
+						resFactor = self.map.tm.getPrevResFac(scn[SK_Z])
 
 						#if not context.user_preferences.view.use_zoom_to_mouse:
 						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
@@ -1923,6 +1980,9 @@ class MAP_VIEWER(bpy.types.Operator):
 			loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 			self.posx, self.posy = self.map.view3dToProj(loc.x, loc.y)
 
+			if self.zoomBoxMode:
+				self.zb_xmax, self.zb_ymax = event.mouse_region_x, event.mouse_region_y
+
 			#Drag background image (edit its offset values)
 			if self.inMove and self.map.bkg is not None:
 				loc1 = self.mouseTo3d(context, self.x1, self.y1)
@@ -1937,9 +1997,14 @@ class MAP_VIEWER(bpy.types.Operator):
 					self.map.bkg.offset_x = self.offset_x - dx
 					self.map.bkg.offset_y = self.offset_y - (dy * ratio)
 
+
 		if event.type in {'LEFTMOUSE', 'MIDDLEMOUSE'}:
 
-			if event.value == 'PRESS':
+			if event.value == 'PRESS' and self.zoomBoxMode:
+				self.zoomBoxDrag = True
+				self.zb_xmin, self.zb_ymin = event.mouse_region_x, event.mouse_region_y
+
+			if event.value == 'PRESS' and not self.zoomBoxMode:
 				#Get click mouse position and background image offset (if exist)
 				self.x1, self.y1 = event.mouse_region_x, event.mouse_region_y
 				if event.ctrl:
@@ -1953,7 +2018,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				#Tag that map is currently draging
 				self.inMove = True
 
-			if event.value == 'RELEASE':
+			if event.value == 'RELEASE' and not self.zoomBoxMode:
 				self.inMove = False
 				if not event.ctrl:
 					#Compute final shift
@@ -1965,6 +2030,34 @@ class MAP_VIEWER(bpy.types.Operator):
 					self.map.moveOrigin(dx,dy)
 					self.map.get()
 
+			if event.value == 'RELEASE' and self.zoomBoxMode:
+				#Get final zoom box
+				xmax = max(event.mouse_region_x, self.zb_xmin)
+				ymax = max(event.mouse_region_y, self.zb_ymin)
+				xmin = min(event.mouse_region_x, self.zb_xmin)
+				ymin = min(event.mouse_region_y, self.zb_ymin)
+				#Exit zoom box mode
+				self.zoomBoxDrag = False
+				self.zoomBoxMode = False
+				#Move scene origin to box origin
+				w = xmax - xmin
+				h = ymax - ymin
+				cx = xmin + w/2
+				cy = ymin + h/2
+				loc = self.mouseTo3d(context, cx, cy)
+				dx = loc.x * self.map.scale
+				dy = loc.y * self.map.scale
+				self.map.moveOrigin(dx, dy)
+				#Compute target resolution
+				px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
+				mapRes = self.map.tm.getRes(self.map.zoom)
+				dst_diag = math.sqrt( (w*mapRes)**2 + (h*mapRes)**2)
+				targetRes = dst_diag / px_diag
+				z = self.map.tm.getNearestZoom(targetRes, rule='lower')
+				scn[SK_Z] = z
+				#Update map
+				self.map.get()				
+
 
 		if event.type in ['LEFT_CTRL', 'RIGHT_CTRL']:
 			if event.value == 'RELEASE':
@@ -1974,7 +2067,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				context.region_data.view_location = (0,0,0)
 
 
-
+		#NUMPAD MOVES (3D VIEW or MAP)
 		if event.value == 'PRESS':
 			if event.type == 'NUMPAD_4':
 				if event.ctrl:
@@ -2031,37 +2124,55 @@ class MAP_VIEWER(bpy.types.Operator):
 						self.map.bkg.offset_y -= dy * ratio
 					self.map.get()
 
-
-		if event.type == 'SPACE': #SWITCH LAYER
+		#SWITCH LAYER
+		if event.type == 'SPACE':
 			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 			self.restart = True
 			return {'FINISHED'}
 
-
-		if event.type == 'G': #GO TO
+		#GO TO
+		if event.type == 'G':
 			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 			self.restart = True
 			self.dialog = 'SEARCH'
 			return {'FINISHED'}
 
-		if event.type == 'O': #OPTIONS
+		#OPTIONS
+		if event.type == 'O': 
 			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 			self.restart = True
 			self.dialog = 'OPTIONS'
 			return {'FINISHED'}
 
-		if event.type in {'ESC'}:
+		#ZOOM BOX
+		if event.type == 'B' and event.value == 'PRESS':
 			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-			return {'CANCELLED'}
+			self.zoomBoxMode = True
+			self.zb_xmin, self.zb_ymin = event.mouse_region_x, event.mouse_region_y
+
+		#EXIT
+		if event.type == 'ESC' and event.value == 'PRESS': 
+			if self.zoomBoxMode:
+				self.zoomBoxDrag = False
+				self.zoomBoxMode = False
+			else:
+				self.map.stop()
+				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+				bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+				return {'CANCELLED'}
 
 		"""
+		#FINISH
 		if event.type in {'RET'}:
 			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 			return {'FINISHED'}
 		"""
 
