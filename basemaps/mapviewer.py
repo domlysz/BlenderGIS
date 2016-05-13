@@ -2039,6 +2039,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				#Exit zoom box mode
 				self.zoomBoxDrag = False
 				self.zoomBoxMode = False
+				context.window.cursor_set('DEFAULT')
 				#Move scene origin to box origin
 				w = xmax - xmin
 				h = ymax - ymin
@@ -2154,13 +2155,15 @@ class MAP_VIEWER(bpy.types.Operator):
 		if event.type == 'B' and event.value == 'PRESS':
 			self.map.stop()
 			self.zoomBoxMode = True
-			self.zb_xmin, self.zb_ymin = event.mouse_region_x, event.mouse_region_y
+			self.zb_xmax, self.zb_ymax = event.mouse_region_x, event.mouse_region_y
+			context.window.cursor_set('CROSSHAIR')
 
 		#EXIT
 		if event.type == 'ESC' and event.value == 'PRESS': 
 			if self.zoomBoxMode:
 				self.zoomBoxDrag = False
 				self.zoomBoxMode = False
+				context.window.cursor_set('DEFAULT')
 			else:
 				self.map.stop()
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
