@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
-import os
+import os, sys
 import bpy
+from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.types import Operator
 import bmesh
 import math
 import mathutils
@@ -62,9 +64,6 @@ def dd2meters(val):
 
 #------------------------------------------------------------------------
 
-from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
-from bpy.props import StringProperty, BoolProperty, EnumProperty
-from bpy.types import Operator
 
 class RESET_GEOREF(Operator):
 	"""Reset georefs infos stored in scene"""
@@ -78,8 +77,45 @@ class RESET_GEOREF(Operator):
 			del scn["Georef Y"]
 		return{'FINISHED'}
 
+class IMPORT_SHP_PRELOAD(Operator):
+	"""Select shp file, loads the fields and start importgis.shapefile operator"""
+	bl_idname = "importgis.shapefile_preload"
+	bl_label = "Import SHP"
+	bl_options = {'INTERNAL'}
 
-class IMPORT_SHP(Operator, ImportHelper):
+	# Import dialog properties
+	filepath = StringProperty(
+		name="File Path",
+		description="Filepath used for importing the file",
+		maxlen=1024,
+		subtype='FILE_PATH',
+		)
+
+	filename_ext = ".shp"
+
+	filter_glob = StringProperty(
+			default = "*.shp",
+			options = {'HIDDEN'},
+			)
+
+	def invoke(self, context, event):
+		context.window_manager.fileselect_add(self)
+		return {'RUNNING_MODAL'}
+
+	def draw(self, context):
+		layout = self.layout
+		layout.label("Options will be available")
+		layout.label("after selecting a file")
+
+	def execute(self, context):
+		if os.path.exists(self.filepath):
+			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath)
+		else:
+			self.report({'ERROR'}, "Invalid file")
+		return{'FINISHED'}
+
+
+class IMPORT_SHP(Operator):
 	"""Import from ESRI shapefile file format (.shp)"""
 	bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
 	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
@@ -87,12 +123,31 @@ class IMPORT_SHP(Operator, ImportHelper):
 	bl_label = "Import SHP"
 	bl_options = {"UNDO"}
 
-	# ImportHelper class properties
-	filename_ext = ".shp"
-	filter_glob = StringProperty(
-			default = "*.shp",
-			options = {'HIDDEN'},
-			)
+	filepath = StringProperty()
+
+	#special function to auto redraw an operator popup called through invoke_props_dialog
+	def check(self, context):
+		return True
+
+	def listFields(self, context):
+
+		fieldsItems = []
+
+		try:
+			shp = shpReader(self.filepath)
+		except:
+			self.report({'ERROR'}, "Unable to read shapefile")
+			print("Unable to read shapefile")
+			return fieldsItems
+
+		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
+
+		for i, field in enumerate(fields):
+			#put each item in a tuple (key, label, tooltip)
+			fieldsItems.append( (field[0], field[0], '') )
+		return fieldsItems
+
+
 
 	# List of operator properties, the attributes will be assigned
 	# to the class instance from the operator settings before calling.
@@ -103,14 +158,14 @@ class IMPORT_SHP(Operator, ImportHelper):
 			description="Extract z elevation value from an attribute field",
 			default=False
 			)
-	fieldElevName = StringProperty(name = "Field name")
+	fieldElevName = EnumProperty(name = "Field", description = "Choose field", items = listFields)
 	#Extrusion field
 	useFieldExtrude = BoolProperty(
 			name="Extrusion from field",
 			description="Extract z extrusion value from an attribute field",
 			default=False
 			)
-	fieldExtrudeName = StringProperty(name = "Field name")
+	fieldExtrudeName = EnumProperty(name = "Field", description = "Choose field", items = listFields)
 	#Extrusion axis
 	extrusionAxis = EnumProperty(
 			name="Extrude along",
@@ -136,13 +191,14 @@ class IMPORT_SHP(Operator, ImportHelper):
 			description="Extract name for created objects from an attribute field",
 			default=False
 			)
-	fieldObjName = StringProperty(name = "Field name")
+	fieldObjName = EnumProperty(name = "Field", description = "Choose field", items = listFields)
 
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
 		scn = context.scene
 		layout = self.layout
+
 		#
 		layout.prop(self, 'useFieldElev')
 		if self.useFieldElev:
@@ -171,6 +227,9 @@ class IMPORT_SHP(Operator, ImportHelper):
 			layout.operator("importgis.reset_georef")
 
 
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)
+
 
 	def execute(self, context):
 
@@ -187,13 +246,12 @@ class IMPORT_SHP(Operator, ImportHelper):
 		bpy.ops.object.select_all(action='DESELECT')
 
 		#Path
-		filePath = self.filepath
-		shpName = os.path.basename(filePath)[:-4]
+		shpName = os.path.basename(self.filepath)[:-4]
 
 		#Get shp reader
 		print("Read shapefile...")
 		try:
-			shp = shpReader(filePath)
+			shp = shpReader(self.filepath)
 		except:
 			self.report({'ERROR'}, "Unable to read shapefile")
 			print("Unable to read shapefile")
@@ -209,8 +267,8 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 		#Get fields
 		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
-		fieldsNames = [field[0].lower() for field in fields]#lower() allows case-insensitive
-		print("DBF fields : "+str(fieldsNames))
+		fieldsNames = [field[0] for field in fields]
+		#print("DBF fields : "+str(fieldsNames))
 
 		if self.useFieldName or self.useFieldElev or self.useFieldExtrude:
 			self.useDbf = True
@@ -219,7 +277,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 		if self.useFieldName and self.separateObjects:
 			try:
-				nameFieldIdx = fieldsNames.index(self.fieldObjName.lower())
+				nameFieldIdx = fieldsNames.index(self.fieldObjName)
 			except:
 				self.report({'ERROR'}, "Unable to find name field")
 				print("Unable to find name field")
@@ -227,7 +285,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 		if self.useFieldElev:
 			try:
-				zFieldIdx = fieldsNames.index(self.fieldElevName.lower())
+				zFieldIdx = fieldsNames.index(self.fieldElevName)
 			except:
 				self.report({'ERROR'}, "Unable to find elevation field")
 				print("Unable to find elevation field")
@@ -240,7 +298,7 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 		if self.useFieldExtrude:
 			try:
-				extrudeFieldIdx = fieldsNames.index(self.fieldExtrudeName.lower())
+				extrudeFieldIdx = fieldsNames.index(self.fieldExtrudeName)
 			except ValueError:
 				self.report({'ERROR'}, "Unable to find extrusion field")
 				print("Unable to find extrusion field")
@@ -309,7 +367,11 @@ class IMPORT_SHP(Operator, ImportHelper):
 			pourcent = round(((i+1)*100)/nbFeats)
 			if pourcent in list(range(0, 110, 10)) and pourcent != progress:
 				progress = pourcent
-				print(str(pourcent)+'%')
+				if pourcent == 100:
+					print(str(pourcent)+'%')
+				else:
+					print(str(pourcent), end="%, ")
+				sys.stdout.flush() #we need to flush or it won't print anything until after the loop has finished
 
 			#Deal with multipart features
 			#If the shape record has multiple parts, the 'parts' attribute will contains the index of 
@@ -500,7 +562,6 @@ class IMPORT_SHP(Operator, ImportHelper):
 
 			bm.free()
 		
-
 		#using from_pydata to create the final mesh
 		if not self.separateObjects:
 			
