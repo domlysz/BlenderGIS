@@ -1802,7 +1802,7 @@ class MAP_VIEWER(bpy.types.Operator):
 
 
 	def __del__(self):
-		if self.restart:
+		if getattr(self, 'restart', False):
 			if self.map.crs == self.map.tm.CRS:
 				crsOpt = 'grid'
 			else:

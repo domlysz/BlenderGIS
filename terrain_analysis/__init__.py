@@ -56,7 +56,6 @@ def unregister():
 	del bpy.types.Scene.uiListCollec
 	del bpy.types.Scene.uiListIndex
 	del bpy.types.Scene.colorRampPreview
-	del bpy.types.Scene.useColors
 	# > clear existing handlers
 	bpy.app.handlers.scene_update_post.clear()
 

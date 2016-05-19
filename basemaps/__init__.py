@@ -46,7 +46,7 @@ def register():
 
 def unregister():
 	wm = bpy.context.window_manager
-	km = wm.keyconfigs.active.keymaps['3D Viewer']
+	km = wm.keyconfigs.active.keymaps['3D View']
 	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 	bpy.utils.unregister_module(__name__)
 
