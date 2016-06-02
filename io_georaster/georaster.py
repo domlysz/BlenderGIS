@@ -234,7 +234,6 @@ class GeoRaster():
 			self.origin = xy(d, h)
 			self.pxSize = xy(a, f)
 			self.rotation = xy(e, b)
-			self.isGeoref = True
 		except:
 			#If no matrix, search for upper left coord and pixel scales
 			try:
@@ -246,11 +245,11 @@ class GeoRaster():
 				self.pxSize = xy(*modelPixelScale[0:2])
 				self.pxSize[1] = -self.pxSize.y #make negative value
 				self.rotation = xy(0, 0)
-				#instead of worldfile, topleft geotag is at corner, so adjust it to pixel center
-				self.origin[0] += abs(self.pxSize.x/2)
-				self.origin[1] -= abs(self.pxSize.y/2)
 			except:
 				raise IOError("Unable to read geotags")
+		#Instead of worldfile, topleft geotag is at corner, so adjust it to pixel center
+		self.origin[0] += abs(self.pxSize.x/2)
+		self.origin[1] -= abs(self.pxSize.y/2)
 
 
 	def degrees2meters(self):
