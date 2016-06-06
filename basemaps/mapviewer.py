@@ -50,147 +50,19 @@ else:
 #addon import
 from .servicesDefs import GRIDS, SOURCES
 
+#geoscene imports
+from geoscene.geoscn import GeoScene, SK
+from geoscene.addon import georefManagerLayout, PredefCRS
+from geoscene.proj import reprojPt, reprojBbox, dd2meters, CRS
+
 #OSM Nominatim API module
 #https://github.com/damianbraun/nominatim
 from .nominatim import Nominatim
 
 
-##
-
-#Alias to Scene Keys used to store georef infos
-# latitude and longitude of scene origin in decimal degrees
-SK_LAT = "latitude"
-SK_LON = "longitude"
-# proj4 string definition of Coordinate Reference System (CRS)
-# https://github.com/OSGeo/proj.4/wiki/GenParms
-# http://www.remotesensing.org/geotiff/proj_list/
-# Initialization from EPSG code : "+init=EPSG:3857"
-SK_CRS = "CRS"
-# Coordinates of scene origin in CRS space
-SK_CRSX = "CRS_X"
-SK_CRSY = "CRS_Y"
-# General scale denominator of the map (1:x)
-SK_SCALE = "scale"
-# Current zoom level in the Tile Matrix Set
-SK_Z = "zoom"
-
 #Constants
 # reproj resampling algo
 RESAMP_ALG = 'BL' #NN:Nearest Neighboor, BL:Bilinear, CB:Cubic, CBS:Cubic Spline, LCZ:Lanczos
-
-####################################
-
-class Ellps():
-	"""ellipsoid"""
-	def __init__(self, a, b):
-		self.a =  a#equatorial radius in meters
-		self.b =  b#polar radius in meters
-		self.f = (self.a-self.b)/self.a#inverse flat
-		self.perimeter = (2*math.pi*self.a)#perimeter at equator
-
-GRS80 = Ellps(6378137, 6356752.314245)
-
-def dd2meters(dst):
-	"""
-	Basic function to approximaly convert a short distance in decimal degrees to meters
-	Only true at equator and along horizontal axis
-	"""
-	k = GRS80.perimeter/360
-	return dst * k
-
-def meters2dd(dst):
-	k = GRS80.perimeter/360
-	return dst / k
-
-
-def isGeoCRS(crs):
-	if crs == 4326:
-		return True
-	else:
-		if GDAL:
-			prj = getSpatialRef(crs)
-			isGeo = prj.IsGeographic()
-			if isGeo == 1:
-				return True
-			else:
-				return False
-		else:
-			return None
-
-def getSpatialRef(crs):
-	"""
-	Build gdal osr spatial ref from requested crs
-	crs can be an epsg code or a proj4 string
-	"""
-	prj = osr.SpatialReference()
-
-	try:
-		crs = int(crs)
-	except:
-		pass
-
-	if isinstance(crs, int):
-		r = prj.ImportFromEPSG(crs)
-		#r = prj.ImportFromProj4("+init=epsg:"+str(crs)) #WARN 'epsg' must be in lower case
-	elif isinstance(crs, str):
-		r = prj.ImportFromProj4(crs)
-	else:
-		raise ValueError("Incorrect CRS")
-
-	#ImportFromEPSG and ImportFromProj4 do not raise any exception
-	#but return zero if the projection is valid
-	if r > 0:
-		raise ValueError("Incorrect CRS")
-
-	return prj
-
-
-def reproj(crs1, crs2, x1, y1):
-	"""
-	Reproject x1,y1 coords from crs1 to crs2
-	Without GDAL it only support lat long (decimel degrees) <--> web mercator
-	Warning, latitudes 90° or -90° are outside web mercator bounds
-	"""
-	if crs1 == 4326 and crs2 == 3857 and not GDAL:
-		long, lat = x1, y1
-		k = GRS80.perimeter/360
-		x2 = long * k
-		lat = math.log( math.tan((90 + lat) * math.pi / 360.0 )) / (math.pi / 180.0)
-		y2 = lat * k
-		return x2, y2
-	elif crs1 == 3857 and crs2 == 4326 and not GDAL:
-		k = GRS80.perimeter/360
-		long = x1 / k
-		lat = y1 / k
-		lat = 180 / math.pi * (2 * math.atan( math.exp( lat * math.pi / 180.0)) - math.pi / 2.0)
-		return long, lat
-	else:
-		#need an external lib (pyproj or gdal osr) to support others crs
-		if not GDAL:
-			raise NotImplementedError
-		else: #gdal osr
-			prj1 = getSpatialRef(crs1)
-			prj2 = getSpatialRef(crs2)
-
-			transfo = osr.CoordinateTransformation(prj1, prj2)
-			x2, y2, z2 = transfo.TransformPoint(x1, y1)
-			return x2, y2
-
-
-def reprojBbox(crs1, crs2, bbox):
-	xmin, ymin, xmax, ymax = bbox
-	ul = reproj(crs1, crs2, xmin, ymax)
-	ur = reproj(crs1, crs2, xmax, ymax)
-	br = reproj(crs1, crs2, xmax, ymin)
-	bl = reproj(crs1, crs2, xmin, ymin)
-	corners = [ ul, ur, br, bl ]
-	_xmin = min( pt[0] for pt in corners )
-	_xmax = max( pt[0] for pt in corners )
-	_ymin = min( pt[1] for pt in corners )
-	_ymax = max( pt[1] for pt in corners )
-	_bbox = (_xmin, _ymin, _xmax, _ymax)
-	return _bbox
-
 
 
 ########################
@@ -212,7 +84,8 @@ class GeoPackage():
 		self.name = os.path.splitext(os.path.basename(path))[0]
 
 		#Get props from TileMatrix object
-		self.crs = tm.CRS
+		self.auth, self.code = tm.CRS.split(':')
+		self.code = int(self.code)
 		self.tileSize = tm.tileSize
 		self.xmin, self.ymin, self.xmax, self.ymax = tm.globalbbox
 		self.resolutions = tm.getResList()
@@ -221,9 +94,9 @@ class GeoPackage():
 			self.create()
 			self.insertMetadata()
 
-			self.insertCRS(self.crs, str(self.crs), wkt='')
-			#self.insertCRS(3857, "Web Mercator", wkt='')
-			#self.insertCRS(4326, "WGS84", wkt='')
+			self.insertCRS(self.code, str(self.code), self.auth)
+			#self.insertCRS(3857, "Web Mercator")
+			#self.insertCRS(4326, "WGS84")
 
 			self.insertTileMatrixSet()
 
@@ -339,12 +212,12 @@ class GeoPackage():
 					min_x, min_y, max_x, max_y,
 					srs_id)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-		db.execute(query, ("gpkg_tiles", "tiles", self.name, "Created with BlenderGIS", self.xmin, self.ymin, self.xmax, self.ymax, self.crs))
+		db.execute(query, ("gpkg_tiles", "tiles", self.name, "Created with BlenderGIS", self.xmin, self.ymin, self.xmax, self.ymax, self.code))
 		db.commit()
 		db.close()
 
 
-	def insertCRS(self, code, name, wkt=''):
+	def insertCRS(self, code, name, auth='EPSG', wkt=''):
 		db = sqlite3.connect(self.dbPath)
 		db.execute(""" INSERT INTO gpkg_spatial_ref_sys (
 					srs_id,
@@ -353,7 +226,7 @@ class GeoPackage():
 					srs_name,
 					definition)
 				VALUES (?, ?, ?, ?, ?)
-			""", (code, "EPSG", code, name, wkt))
+			""", (code, auth, code, name, wkt))
 		db.commit()
 		db.close()
 
@@ -366,7 +239,7 @@ class GeoPackage():
 					table_name, srs_id,
 					min_x, min_y, max_x, max_y)
 				VALUES (?, ?, ?, ?, ?, ?);"""
-		db.execute(query, ('gpkg_tiles', self.crs, self.xmin, self.ymin, self.xmax, self.ymax))
+		db.execute(query, ('gpkg_tiles', self.code, self.xmin, self.ymin, self.xmax, self.ymax))
 
 
 		#Tile matrix of each levels
@@ -513,10 +386,10 @@ class TileMatrix():
 			raise NotImplementedError
 
 		#Determine unit of CRS (decimal degrees or meters)
-		if not isGeoCRS(self.CRS): #False or None (if units cannot be determined we assume its meters)
-			self.units = 'meters'
-		else:
+		if CRS(self.CRS).isGeo:
 			self.units = 'degrees'
+		else: #(if units cannot be determined we assume its meters)
+			self.units = 'meters'
 
 
 	@property
@@ -526,17 +399,17 @@ class TileMatrix():
 
 	def geoToProj(self, long, lat):
 		"""convert longitude latitude un decimal degrees to grid crs"""
-		if self.CRS == 4326:
+		if self.CRS == 'EPSG:4326':
 			return long, lat
 		else:
-			return reproj(4326, self.CRS, long, lat)
+			return reprojPt(4326, self.CRS, long, lat)
 
 	def projToGeo(self, x, y):
 		"""convert grid crs coords to longitude latitude in decimal degrees"""
-		if self.CRS == 4326:
+		if self.CRS == 'EPSG:4326':
 			return x, y
 		else:
-			return reproj(self.CRS, 4326, x, y)
+			return reprojPt(self.CRS, 4326, x, y)
 
 
 	def getResList(self):
@@ -588,18 +461,26 @@ class TileMatrix():
 
 	def getPrevResFac(self, z):
 		"""return res factor to previous zoom level"""
-		if z == 0:
-			return 1
-		else:
-			return self.getRes(z-1) / self.getRes(z)
+		return self.getFromToResFac(z, z-1)
 
 	def getNextResFac(self, z):
 		"""return res factor to next zoom level"""
-		if z == self.nbLevels - 1:
-			return 1
-		else:
-			return self.getRes(z) / self.getRes(z+1)
+		return self.getFromToResFac(z, z+1)
 
+	def getFromToResFac(self, z1, z2):
+		"""return res factor from z1 to z2"""
+		if z1 == z2:
+			return 1
+		if z1 < z2:
+			if z2 >= self.nbLevels - 1:
+				return 1
+			else:
+				return self.getRes(z2) / self.getRes(z1)
+		elif z1 > z2:
+			if z2 <= 0:
+				return 1
+			else:
+				return self.getRes(z2) / self.getRes(z1)
 
 	def getTileNumber(self, x, y, zoom):
 		"""Convert projeted coords to tiles number"""
@@ -802,6 +683,7 @@ class MapService():
 		self.running = False
 		self.nbTiles = 0
 		self.cptTiles = 0
+		self.report = None
 
 
 	def setDstGrid(self, grdkey):
@@ -884,7 +766,7 @@ class MapService():
 			xmin, ymax = tm.getTileCoords(col, row, zoom)
 			xmax = xmin + tm.tileSize * tm.getRes(zoom)
 			ymin = ymax - tm.tileSize * tm.getRes(zoom)
-			if self.urlTemplate['VERSION'] == '1.3.0' and tm.CRS == 4326:
+			if self.urlTemplate['VERSION'] == '1.3.0' and tm.CRS == 'EPSG:4326':
 				bbox = ','.join(map(str,[ymin,xmin,ymax,xmax]))
 			else:
 				bbox = ','.join(map(str,[xmin,ymin,xmax,ymax]))
@@ -1002,7 +884,11 @@ class MapService():
 
 			#reproj bbox
 			crs1, crs2 = self.srcTms.CRS, self.dstTms.CRS
-			_bbox = reprojBbox(crs2, crs1, bbox)
+			try:
+				_bbox = reprojBbox(crs2, crs1, bbox)
+			except Exception as e:
+				print('WARN : cannot reproj tile bbox - ' + str(e))
+				return None
 
 			#list, download and merge the tiles required to build this one (recursive call)
 			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=False, nbThread=4, cpt=False, allowEmptyTile=False)
@@ -1224,7 +1110,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	res = geoimg.res
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds1.SetGeoTransform(geoTrans)
-	prj1 = getSpatialRef(crs1)
+	prj1 = CRS(crs1).getOgrSpatialRef()
 	wkt1 = prj1.ExportToWkt()
 	ds1.SetProjection(wkt1)
 
@@ -1236,7 +1122,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	if out_ul is not None:
 		xmin, ymax = out_ul
 	else:
-		xmin, ymax = reproj(crs1, crs2, xmin, ymax)
+		xmin, ymax = reprojPt(crs1, crs2, xmin, ymax)
 
 	#submit resolution and size
 	if out_res is not None and out_size is not None:
@@ -1267,7 +1153,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds2.SetGeoTransform(geoTrans)
-	prj2 = getSpatialRef(crs2)
+	prj2 = CRS(crs2).getOgrSpatialRef()
 	wkt2 = prj2.ExportToWkt()
 	ds2.SetProjection(wkt2)
 
@@ -1304,7 +1190,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 
 ####################
 
-class BaseMap():
+class BaseMap(GeoScene):
 
 	"""Handle a map as background image in Blender"""
 
@@ -1312,6 +1198,7 @@ class BaseMap():
 
 		#Get context
 		self.scn = context.scene
+		GeoScene.__init__(self, self.scn)
 		self.area = context.area
 		self.area3d = [r for r in self.area.regions if r.type == 'WINDOW'][0]
 		self.view3d = self.area.spaces.active
@@ -1331,15 +1218,22 @@ class BaseMap():
 		#Set destination tile matrix
 		if grdkey is None:
 			grdkey = self.srv.srcGridKey
-		else:
-			grdkey = grdkey
-
-		if self.srv.srcGridKey == grdkey:
+		if grdkey == self.srv.srcGridKey:
 			self.tm = self.srv.srcTms
 		else:
 			#Define destination grid in map service
 			self.srv.setDstGrid(grdkey)
 			self.tm = self.srv.dstTms
+
+		#Init some geoscene props if needed
+		if not self.hasCRS:
+			self.crs = self.tm.CRS
+		if not self.hasOriginPrj:
+			self.setOriginPrj(0, 0)
+		if not self.hasScale:
+			self.scale = 1
+		if not self.hasZoom:
+			self.zoom = 0
 
 		#Set path to tiles mosaic used as background image in Blender
 		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".png"
@@ -1352,9 +1246,6 @@ class BaseMap():
 		self.laykey = laykey
 		self.grdkey = grdkey
 
-		#Read scene props (we assume these props have already been created, cf. MAP_START)
-		self.update()
-
 		#Thread attributes
 		self.thread = None
 		#Background image attributes
@@ -1364,23 +1255,6 @@ class BaseMap():
 		#Store previous request
 		#TODO
 
-	def update(self):
-		'''Read scene properties and update attributes'''
-		scn = self.scn
-		self.zoom = scn[SK_Z]
-		self.scale = scn[SK_SCALE]
-		self.lat, self.long = scn[SK_LAT], scn[SK_LON]
-
-		#TODO add ability to read proj4 def
-		if scn[SK_CRS] == "":
-			scn[SK_CRS] = str(self.tm.CRS)
-		try:
-			self.crs = int(scn[SK_CRS])
-		except:
-			self.crs = scn[SK_CRS]
-
-		#get scene origin coords in proj system
-		self.origin_x, self.origin_y = reproj(4326, self.crs, self.long, self.lat)
 
 	def get(self):
 		'''Launch run() function in a new thread'''
@@ -1397,7 +1271,6 @@ class BaseMap():
 
 	def run(self):
 		"""thread method"""
-		self.update()
 		self.mosaic = self.request()
 		if self.srv.running and self.mosaic is not None:
 			#save image
@@ -1410,19 +1283,19 @@ class BaseMap():
 		'''Report thread download progress'''
 		return self.srv.cptTiles, self.srv.nbTiles
 
-
 	def view3dToProj(self, dx, dy):
 		'''Convert view3d coords to crs coords'''
-		x = self.origin_x + dx
-		y = self.origin_y + dy
+		x = self.crsx + dx
+		y = self.crsy + dy
 		return x, y
 
-	def moveOrigin(self, dx, dy):
+	def moveOrigin(self, dx, dy, updObjLoc=False):
 		'''Move scene origin and update props'''
-		self.origin_x += dx
-		self.origin_y += dy
-		lon, lat = reproj(self.crs, 4326, self.origin_x, self.origin_y)
-		self.scn[SK_LAT], self.scn[SK_LON] = lat, lon
+		self.setOriginPrj(self.crsx + dx, self.crsy + dy)
+		if updObjLoc:
+			for obj in self.scn.objects:
+				obj.location.x -= dx
+				obj.location.y -= dy
 
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
@@ -1432,10 +1305,10 @@ class BaseMap():
 
 		#Get area bbox coords (map origin is bottom lelf)
 		res = self.tm.getRes(self.zoom)
-		xmin = self.origin_x - w/2 * res
-		ymax = self.origin_y + h/2 * res
-		xmax = self.origin_x + w/2 * res
-		ymin = self.origin_y - h/2 * res
+		xmin = self.crsx - w/2 * res
+		ymax = self.crsy + h/2 * res
+		xmax = self.crsx + w/2 * res
+		ymin = self.crsy - h/2 * res
 		bbox = (xmin, ymin, xmax, ymax)
 
 		#reproj bbox to destination grid crs if scene crs is different
@@ -1495,8 +1368,8 @@ class BaseMap():
 		self.bkg.size = sizex #since blender > 2.74 else = sizex/2
 
 		#Set background offset (image origin does not match scene origin)
-		dx = (self.origin_x - img_ox) / self.scale
-		dy = (self.origin_y - img_oy) / self.scale
+		dx = (self.crsx - img_ox) / self.scale
+		dy = (self.crsy - img_oy) / self.scale
 		self.bkg.offset_x = -dx
 		ratio = img_w / img_h
 		self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
@@ -1533,9 +1406,9 @@ def drawInfosText(self, context):
 	cx = w/2 #center x
 
 	#Get map props stored in scene
-	zoom = scn[SK_Z]
-	lat, long = scn[SK_LAT], scn[SK_LON]
-	scale = scn[SK_SCALE]
+	geoscn = GeoScene(scn)
+	zoom = geoscn.zoom
+	scale = geoscn.scale
 
 	#Set text police and color
 	font_id = 0  # ???
@@ -1559,8 +1432,13 @@ def drawInfosText(self, context):
 	blf.draw(font_id, "Zoom " + str(zoom) + " - Scale 1:" + str(int(scale)))
 	# view3d distance
 	dst = reg3d.view_distance
+	if dst > 1000:
+		dst /= 1000
+		unit = 'km'
+	else:
+		unit = 'm'
 	blf.position(font_id, cx-50, 30, 0)
-	blf.draw(font_id, '3D View distance ' + str(int(dst)))
+	blf.draw(font_id, '3D View distance ' + str(int(dst)) + ' ' + unit)
 	# cursor crs coords
 	blf.position(font_id, cx-45, 10, 0)
 	blf.draw(font_id, str((int(self.posx), int(self.posy))))
@@ -1580,7 +1458,7 @@ def drawZoomBox(self, context):
 		px, py = self.zb_xmax, self.zb_ymax
 
 		bgl.glVertex2i(0, py)
-		bgl.glVertex2i(context.area.width, py)		
+		bgl.glVertex2i(context.area.width, py)
 
 		bgl.glVertex2i(px, 0)
 		bgl.glVertex2i(px, context.area.height)
@@ -1667,16 +1545,12 @@ class MAP_START(bpy.types.Operator):
 				items = listLayers
 				)
 
-	crsOpt = EnumProperty(
-				name = "CRS",
-				description = "Choose Coordinate Reference System",
-				items = [ ("grid", "Same as tile matrix", ""), ("scene", "Custom (scene)", ""), ("predef", "Custom (predefinate)", "") ]
-				)
 
 	dialog = StringProperty(default='MAP') # 'MAP', 'SEARCH', 'OPTIONS'
 
 	query = StringProperty(name="Go to")
 
+	zoom = IntProperty(name='Zoom level', min=0, max=25)
 
 	def draw(self, context):
 		addonPrefs = context.user_preferences.addons[__package__].preferences
@@ -1685,6 +1559,7 @@ class MAP_START(bpy.types.Operator):
 
 		if self.dialog == 'SEARCH':
 				layout.prop(self, 'query')
+				layout.prop(self, 'zoom', slider=True)
 
 		elif self.dialog == 'OPTIONS':
 			layout.prop(addonPrefs, "fontColor")
@@ -1698,17 +1573,27 @@ class MAP_START(bpy.types.Operator):
 			col = layout.column()
 			if not GDAL:
 				col.enabled = False
-				col.label('Install GDAL to enable raster reprojection support')
+				col.label('(No raster reprojection support)')
 			col.prop(self, 'grd', text='Tile matrix set')
-			col.prop(self, 'crsOpt', text='CRS')
-			if self.crsOpt == 'scene':
-				#display the scene prop
-				col.prop(scn, '["'+SK_CRS+'"]', text='Scene CRS')
-			elif self.crsOpt == "predef":
-				col.prop(addonPrefs, "predefCrs", text='Predefinate CRS')
+
+			#srcCRS = GRIDS[SOURCES[self.src]['grid']]['CRS']
+			grdCRS = GRIDS[self.grd]['CRS']
 			row = layout.row()
-			row.label('Map scale:')
-			row.prop(scn, '["'+SK_SCALE+'"]', text='')
+			#row.alignment = 'RIGHT'
+			desc = PredefCRS.getName(grdCRS)
+			if desc is not None:
+				row.label('CRS: ' + desc)
+			else:
+				row.label('CRS: ' + grdCRS)
+
+			geoscn = GeoScene(scn)
+			if geoscn.isPartiallyGeoref:
+				#layout.separator()
+				georefManagerLayout(self, context)
+
+			#row = layout.row()
+			#row.label('Map scale:')
+			#row.prop(scn, '["'+SK.SCALE+'"]', text='')
 
 
 	def invoke(self, context, event):
@@ -1717,32 +1602,17 @@ class MAP_START(bpy.types.Operator):
 			self.report({'WARNING'}, "View3D not found, cannot run operator")
 			return {'CANCELLED'}
 
-		#Init scene props if not exists
-		scn = context.scene
-		# get or init the dictionary containing IDprops settings
-		rna_ui = scn.get('_RNA_UI')
-		if rna_ui is None:
-			scn['_RNA_UI'] = {}
-			rna_ui = scn['_RNA_UI']
-		# scene origin lat long
-		if SK_LAT not in scn and SK_LON not in scn:
-			scn[SK_LAT], scn[SK_LON] = 0.0, 0.0 #explicit float for id props
-		# zoom level
-		if SK_Z not in scn:
-			scn[SK_Z] = 0
-		# EPSG code or proj4 string
-		if SK_CRS not in scn:
-			scn[SK_CRS] = "" #string id props
-		# scale
-		if SK_SCALE not in scn:
-			scn[SK_SCALE] = 1 #1:1
-			rna_ui[SK_SCALE] = {"description": "Map scale denominator", "default": 1, "min": 1}
+		#Update zoom
+		geoscn = GeoScene(context.scene)
+		if geoscn.hasZoom:
+			self.zoom = geoscn.zoom
 
 		#Display dialog
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
 		scn = context.scene
+		geoscn = GeoScene(scn)
 		prefs = context.user_preferences.addons[__package__].preferences
 
 		#check cache folder
@@ -1751,23 +1621,22 @@ class MAP_START(bpy.types.Operator):
 			self.report({'ERROR'}, "Please define a valid cache folder path")
 			return {'FINISHED'}
 
-		#check crs option
-		if self.crsOpt == 'grid':
-			scn[SK_CRS] = "" #will be correctly assigned later
-		elif self.crsOpt == 'scene' and scn[SK_CRS] == "":
-			self.report({'ERROR'}, "Scene does not contains CRS definition")
-			return {'FINISHED'}
-		elif self.crsOpt == 'predef':
-			crskey = prefs.predefCrs
-			if crskey == '':
-				self.report({'ERROR'}, "No predefined CRS. Please add one in addon preferences")
+		if self.dialog == 'MAP':
+			grdCRS = GRIDS[self.grd]['CRS']
+			if geoscn.isBroken:
+				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'FINISHED'}
-			else:
-				data = json.loads(prefs.predefCrsJson)
-				scn[SK_CRS] = data[crskey]['projection']
+			#set scene crs as grid crs
+			#if not geoscn.hasCRS:
+				#geoscn.crs = grdCRS
+			#Check if raster reproj is needed
+			if geoscn.hasCRS and geoscn.crs != grdCRS and not GDAL:
+				self.report({'ERROR'}, "Please install gdal to enable raster reprojection support")
+				return {'FINISHED'}
 
 		#Move scene origin to the researched place
 		if self.dialog == 'SEARCH':
+			geoscn.zoom = self.zoom
 			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
 
 		#Start map viewer operator
@@ -1803,12 +1672,7 @@ class MAP_VIEWER(bpy.types.Operator):
 
 	def __del__(self):
 		if getattr(self, 'restart', False):
-			if self.map.crs == self.map.tm.CRS:
-				crsOpt = 'grid'
-			else:
-				crsOpt = 'scene'
-			#TODO identify predef crs
-			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog, crsOpt=crsOpt)
+			bpy.ops.view3d.map_start('INVOKE_DEFAULT', src=self.srckey, lay=self.laykey, grd=self.grdkey, dialog=self.dialog)
 
 
 	def invoke(self, context, event):
@@ -1842,7 +1706,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		self.posx, self.posy = 0, 0
 		# thread progress infos reported in draw callback
 		self.nb, self.nbTotal = 0, 0
-		# Zoom box 
+		# Zoom box
 		self.zoomBoxMode = False
 		self.zoomBoxDrag = False
 		self.zb_xmin, self.zb_xmax = 0, 0
@@ -1883,8 +1747,7 @@ class MAP_VIEWER(bpy.types.Operator):
 
 				if event.alt:
 					# map scale up
-					scn[SK_SCALE] *= 10
-					self.map.scale = scn[SK_SCALE]
+					self.map.scale *= 10
 					self.map.place()
 
 				elif event.ctrl:
@@ -1898,59 +1761,10 @@ class MAP_VIEWER(bpy.types.Operator):
 						viewLoc -= k
 				else:
 					# map zoom up
-					if scn[SK_Z] < self.map.layer.zmax and scn[SK_Z] < self.map.tm.nbLevels-1:
-						scn[SK_Z] += 1
+					if self.map.zoom < self.map.layer.zmax and self.map.zoom < self.map.tm.nbLevels-1:
+						self.map.zoom += 1
 
-						resFactor = self.map.tm.getNextResFac(scn[SK_Z])
-
-						#if not context.user_preferences.view.use_zoom_to_mouse:
-						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
-							context.region_data.view_distance /= resFactor
-						else:
-							#Progressibly zoom to cursor (use intercept theorem)
-							dst = context.region_data.view_distance
-							dst2 = dst / resFactor
-							context.region_data.view_distance = dst2
-							k = (dst - dst2) / dst
-							loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-							dx = loc.x * k
-							dy = loc.y * k
-							s = self.map.scale
-							self.map.moveOrigin(dx*s, dy*s)
-							if self.map.bkg is not None:
-								ratio = self.map.img.size[0] / self.map.img.size[1]
-								self.map.bkg.offset_x -= dx
-								self.map.bkg.offset_y -= dy * ratio
-						self.map.get()
-
-
-		if event.type in ['WHEELDOWNMOUSE', 'NUMPAD_MINUS']:
-
-			if event.value == 'PRESS':
-
-				if event.alt:
-					#map scale down
-					s = scn[SK_SCALE] / 10
-					if s < 1: s = 1
-					scn[SK_SCALE] = s
-					self.map.scale = s
-					self.map.place()
-
-				elif event.ctrl:
-					#view3d zoom down
-					dst = context.region_data.view_distance
-					context.region_data.view_distance += dst * self.moveFactor
-					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
-						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-						viewLoc = context.region_data.view_location
-						k = (viewLoc - mouseLoc) * self.moveFactor
-						viewLoc += k
-				else:
-					#map zoom down
-					if scn[SK_Z] > self.map.layer.zmin and scn[SK_Z] > 0:
-						scn[SK_Z] -= 1
-
-						resFactor = self.map.tm.getPrevResFac(scn[SK_Z])
+						resFactor = self.map.tm.getNextResFac(self.map.zoom)
 
 						#if not context.user_preferences.view.use_zoom_to_mouse:
 						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
@@ -1965,7 +1779,55 @@ class MAP_VIEWER(bpy.types.Operator):
 							dx = loc.x * k
 							dy = loc.y * k
 							s = self.map.scale
-							self.map.moveOrigin(dx*s, dy*s)
+							self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
+							if self.map.bkg is not None:
+								ratio = self.map.img.size[0] / self.map.img.size[1]
+								self.map.bkg.offset_x -= dx
+								self.map.bkg.offset_y -= dy * ratio
+						self.map.get()
+
+
+		if event.type in ['WHEELDOWNMOUSE', 'NUMPAD_MINUS']:
+
+			if event.value == 'PRESS':
+
+				if event.alt:
+					#map scale down
+					s = self.map.scale / 10
+					if s < 1: s = 1
+					self.map.scale = s
+					self.map.place()
+
+				elif event.ctrl:
+					#view3d zoom down
+					dst = context.region_data.view_distance
+					context.region_data.view_distance += dst * self.moveFactor
+					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
+						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						viewLoc = context.region_data.view_location
+						k = (viewLoc - mouseLoc) * self.moveFactor
+						viewLoc += k
+				else:
+					#map zoom down
+					if self.map.zoom > self.map.layer.zmin and self.map.zoom > 0:
+						self.map.zoom -= 1
+
+						resFactor = self.map.tm.getPrevResFac(self.map.zoom)
+
+						#if not context.user_preferences.view.use_zoom_to_mouse:
+						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
+							context.region_data.view_distance *= resFactor
+						else:
+							#Progressibly zoom to cursor (use intercept theorem)
+							dst = context.region_data.view_distance
+							dst2 = dst * resFactor
+							context.region_data.view_distance = dst2
+							k = (dst - dst2) / dst
+							loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+							dx = loc.x * k
+							dy = loc.y * k
+							s = self.map.scale
+							self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
 							if self.map.bkg is not None:
 								ratio = self.map.img.size[0] / self.map.img.size[1]
 								self.map.bkg.offset_x -= dx
@@ -1996,6 +1858,11 @@ class MAP_VIEWER(bpy.types.Operator):
 					ratio = self.map.img.size[0] / self.map.img.size[1]
 					self.map.bkg.offset_x = self.offset_x - dx
 					self.map.bkg.offset_y = self.offset_y - (dy * ratio)
+					#Move existing objects
+					for i, obj in enumerate(scn.objects):
+						loc = self.objsLoc[i]
+						obj.location.x = loc.x - dx
+						obj.location.y = loc.y - dy
 
 
 		if event.type in {'LEFTMOUSE', 'MIDDLEMOUSE'}:
@@ -2015,6 +1882,8 @@ class MAP_VIEWER(bpy.types.Operator):
 					if self.map.bkg is not None:
 						self.offset_x = self.map.bkg.offset_x
 						self.offset_y = self.map.bkg.offset_y
+					#Store current location of each objects
+					self.objsLoc = [obj.location.copy() for obj in scn.objects]
 				#Tag that map is currently draging
 				self.inMove = True
 
@@ -2040,7 +1909,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				self.zoomBoxDrag = False
 				self.zoomBoxMode = False
 				context.window.cursor_set('DEFAULT')
-				#Move scene origin to box origin
+				#Compute the move to box origin
 				w = xmax - xmin
 				h = ymax - ymin
 				cx = xmin + w/2
@@ -2048,16 +1917,23 @@ class MAP_VIEWER(bpy.types.Operator):
 				loc = self.mouseTo3d(context, cx, cy)
 				dx = loc.x * self.map.scale
 				dy = loc.y * self.map.scale
-				self.map.moveOrigin(dx, dy)
 				#Compute target resolution
 				px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
 				mapRes = self.map.tm.getRes(self.map.zoom)
 				dst_diag = math.sqrt( (w*mapRes)**2 + (h*mapRes)**2)
 				targetRes = dst_diag / px_diag
 				z = self.map.tm.getNearestZoom(targetRes, rule='lower')
-				scn[SK_Z] = z
+				#Preview
+				if self.map.bkg is not None:
+					ratio = self.map.img.size[0] / self.map.img.size[1]
+					self.map.bkg.offset_x -= dx
+					self.map.bkg.offset_y -= dy * ratio
+				resFactor = self.map.tm.getFromToResFac(self.map.zoom, z)
+				context.region_data.view_distance *= resFactor
 				#Update map
-				self.map.get()				
+				self.map.moveOrigin(dx, dy, updObjLoc=True)
+				self.map.zoom = z
+				self.map.get()
 
 
 		if event.type in ['LEFT_CTRL', 'RIGHT_CTRL']:
@@ -2079,7 +1955,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				else:
 					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(-dx*self.map.scale, 0)
+					self.map.moveOrigin(-dx*self.map.scale, 0, updObjLoc=True)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x += dx
 					self.map.get()
@@ -2092,7 +1968,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				else:
 					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(dx*self.map.scale, 0)
+					self.map.moveOrigin(dx*self.map.scale, 0, updObjLoc=True)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x -= dx
 					self.map.get()
@@ -2105,7 +1981,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				else:
 					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(0, -dy*self.map.scale)
+					self.map.moveOrigin(0, -dy*self.map.scale, updObjLoc=True)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y += dy * ratio
@@ -2119,7 +1995,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				else:
 					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(0, dy*self.map.scale)
+					self.map.moveOrigin(0, dy*self.map.scale, updObjLoc=True)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y -= dy * ratio
@@ -2143,7 +2019,7 @@ class MAP_VIEWER(bpy.types.Operator):
 			return {'FINISHED'}
 
 		#OPTIONS
-		if event.type == 'O': 
+		if event.type == 'O':
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
@@ -2159,7 +2035,7 @@ class MAP_VIEWER(bpy.types.Operator):
 			context.window.cursor_set('CROSSHAIR')
 
 		#EXIT
-		if event.type == 'ESC' and event.value == 'PRESS': 
+		if event.type == 'ESC' and event.value == 'PRESS':
 			if self.zoomBoxMode:
 				self.zoomBoxDrag = False
 				self.zoomBoxMode = False
@@ -2198,13 +2074,13 @@ class MAP_SEARCH(bpy.types.Operator):
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
-		scn = context.scene
+		geoscn = GeoScene(context.scene)
 		geocoder = Nominatim(base_url="http://nominatim.openstreetmap.org", referer="bgis")
 		results = geocoder.query(self.query)
 		if len(results) >= 1:
 			result = results[0]
-			lat, long = float(result['lat']), float(result['lon'])
-			scn[SK_LAT], scn[SK_LON] = lat, long
+			lat, lon = float(result['lat']), float(result['lon'])
+			geoscn.setOriginGeo(lat, lon)
 
 		return {'FINISHED'}
 
@@ -2215,13 +2091,6 @@ class MAP_PREFS(AddonPreferences):
 
 	bl_idname = __package__
 
-	def listPredefCRS(self, context):
-		crsItems = []
-		data = json.loads(self.predefCrsJson)
-		for crskey, crs in data.items():
-			#put each item in a tuple (key, label, tooltip)
-			crsItems.append( (crskey, crs['description'], crs['description']) )
-		return crsItems
 
 	cacheFolder = StringProperty(
 		name = "Cache folder",
@@ -2246,14 +2115,6 @@ class MAP_PREFS(AddonPreferences):
 		items = [ ('NN', 'Nearest Neighboor', ''), ('BL', 'Bilinear', ''), ('CB', 'Cubic', ''), ('CBS', 'Cubic Spline', ''), ('LCZ', 'Lanczos', '') ]
 		)
 
-	#json string
-	predefCrsJson = StringProperty(default='{}')
-
-	predefCrs = EnumProperty(
-		name = "Predefinate CRS",
-		description = "Choose predefinite Coordinate Reference System",
-		items = listPredefCRS
-		)
 
 	def draw(self, context):
 		layout = self.layout
@@ -2264,13 +2125,6 @@ class MAP_PREFS(AddonPreferences):
 		row.prop(self, "zoomToMouse")
 		row.label('Font color:')
 		row.prop(self, "fontColor", text='')
-
-		row = layout.row()
-		row.label('Predefinate CRS:')
-		row.prop(self, "predefCrs", text='')
-		row.operator("view3d.map_add_predef_crs")
-		row.operator("view3d.map_edit_predef_crs")
-		row.operator("view3d.map_rmv_predef_crs")
 
 		row = layout.row()
 		row.prop(self, "resamplAlg")
@@ -2295,74 +2149,6 @@ class MAP_PREFS_SHOW(bpy.types.Operator):
 		return {'FINISHED'}
 
 
-class PREDEF_CRS_ADD(bpy.types.Operator):
-
-	bl_idname = "view3d.map_add_predef_crs"
-	bl_description = 'Add predefinate CRS'
-	bl_label = "Add CRS"
-	bl_options = {'INTERNAL'}
-
-	key = StringProperty(name = "Short name (key)", description = "Choose an identifier for this CRS (like an acronym)")
-	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
-	prj = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
-
-	def invoke(self, context, event):
-		return context.window_manager.invoke_props_dialog(self)
-
-	def execute(self, context):
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		data = json.loads(addonPrefs.predefCrsJson)
-		data[self.key] = {"description":self.desc, "projection":self.prj}
-		addonPrefs.predefCrsJson = json.dumps(data)
-		context.area.tag_redraw()
-		#bpy.ops.wm.save_userpref()
-		return {'FINISHED'}
-
-class PREDEF_CRS_RMV(bpy.types.Operator):
-
-	bl_idname = "view3d.map_rmv_predef_crs"
-	bl_description = 'Remove predefinate CRS'
-	bl_label = "Remove CRS"
-	bl_options = {'INTERNAL'}
-
-	def execute(self, context):
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		key = addonPrefs.predefCrs
-		if key != '':
-			data = json.loads(addonPrefs.predefCrsJson)
-			del data[key]
-			addonPrefs.predefCrsJson = json.dumps(data)
-		return {'FINISHED'}
-
-class PREDEF_CRS_EDIT(bpy.types.Operator):
-
-	bl_idname = "view3d.map_edit_predef_crs"
-	bl_description = 'Edit predefinate CRS'
-	bl_label = "Edit CRS"
-	bl_options = {'INTERNAL'}
-
-	key = StringProperty(name = "Short name (key)", description = "Choose an identifier for this CRS (like an acronym)")
-	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
-	prj = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
-
-	def invoke(self, context, event):
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		key = addonPrefs.predefCrs
-		if key == '':
-			return {'FINISHED'}
-		data = json.loads(addonPrefs.predefCrsJson)
-		self.key = key
-		self.desc = data[key]["description"]
-		self.prj = data[key]["projection"]
-		return context.window_manager.invoke_props_dialog(self)
-
-	def execute(self, context):
-		addonPrefs = context.user_preferences.addons[__package__].preferences
-		data = json.loads(addonPrefs.predefCrsJson)
-		data[self.key] = {"description":self.desc, "projection":self.prj}
-		addonPrefs.predefCrsJson = json.dumps(data)
-		context.area.tag_redraw()
-		return {'FINISHED'}
 
 
 ####################################
@@ -2380,19 +2166,6 @@ class MAP_PANEL(Panel):
 		scn = context.scene
 		addonPrefs = context.user_preferences.addons[__package__].preferences
 
-		layout.operator("view3d.map_start")
-
-		layout.label("Options :")
-
-		box = layout.box()
-		box.operator("view3d.map_pref_show")
-		#box.label("Cache folder:")
-		#box.prop(addonPrefs, "cacheFolder", text='')
-
-		r = box.row()
-		r.label('Font color:')
-		r.prop(addonPrefs, "fontColor", text='')
-
-		#viewPrefs = context.user_preferences.view
-		#box.prop(viewPrefs, "use_zoom_to_mouse")
-		box.prop(addonPrefs, "zoomToMouse")
+		row = layout.row(align=True)
+		row.operator("view3d.map_start")
+		row.operator("view3d.map_pref_show", icon='SCRIPTWIN', text='')

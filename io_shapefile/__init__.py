@@ -35,17 +35,39 @@ bl_info = {
 	}
 
 import bpy
-from .op_import_shp import IMPORT_SHP_PRELOAD
+
+import addon_utils
+
+try:
+	import geoscene
+except:
+	raise ImportError("Geoscene addon isn't installed.")
+
+from .op_import_shp import IMPORT_SHP_FILE_DIALOG
 from .op_export_shp import EXPORT_SHP
+
+def checkAddon(addon_name):
+	'''Check is an addon is installed and enable it if needed'''
+	addon_utils.modules_refresh()
+	addon_utils.modules_refresh()
+	if addon_name not in addon_utils.addons_fake_modules:
+		raise ImportError("%s addon not installed." % addon_name)
+	else:
+		default, enable = addon_utils.check(addon_name)
+		#>>Warning: addon-module 'geoscene' found module but without __addon_enabled__ field, possible name collision
+		if not enable:
+			addon_utils.enable(addon_name, default_set=True, persistent=False)
+			#>>module changed on disk: \geoscene\__init__.py reloading...
 
 # Register in File > Import menu
 def menu_func_import(self, context):
-	self.layout.operator(IMPORT_SHP_PRELOAD.bl_idname, text="Shapefile (.shp)")
+	self.layout.operator(IMPORT_SHP_FILE_DIALOG.bl_idname, text="Shapefile (.shp)")
 
 def menu_func_export(self, context):
 	self.layout.operator(EXPORT_SHP.bl_idname, text="Shapefile (.shp)")
 
 def register():
+	checkAddon("geoscene")
 	bpy.utils.register_module(__name__)
 	bpy.types.INFO_MT_file_import.append(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)

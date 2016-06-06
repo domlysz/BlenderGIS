@@ -28,16 +28,19 @@ import numpy as np#Ship with Blender since 2.70
 
 try:
 	from osgeo import gdal
-	GDAL_PY = True
+	GDAL = True
 except:
-	GDAL_PY = False
+	GDAL = False
 
 #For debug
-#GDAL_PY = False
+#GDAL = False
 
 from .utils import xy, bbox, OverlapError
 from .georaster import GeoRaster, GeoRasterGDAL
 
+from geoscene.geoscn import GeoScene
+from geoscene.addon import PredefCRS, georefManagerLayout
+from geoscene.proj import reprojPt, Reproj
 
 #------------------------------------------------------------------------
 def getBBox(obj, applyTransform = True, applyDeltas=False):
@@ -52,8 +55,8 @@ def getBBox(obj, applyTransform = True, applyDeltas=False):
 	ymax = max([pt[1] for pt in boundPts])
 	if applyDeltas:
 		#Get georef deltas stored as scene properties
-		scn = bpy.context.scene
-		dx, dy = scn["Georef X"], scn["Georef Y"]
+		geoscn = GeoScene()
+		dx, dy = geoscn.getOriginPrj()
 		return bbox(xmin+dx, xmax+dx, ymin+dy, ymax+dy)
 	else:
 		return bbox(xmin, xmax, ymin, ymax)
@@ -206,20 +209,6 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
 
-class RESET_GEOREF(Operator):
-	"""Reset georefs infos stored in scene"""
-	bl_idname = "importgis.reset_georef"
-	bl_label = "Reset georef"
-
-	def execute(self, context):
-		scn = bpy.context.scene
-		if "Georef X" in scn and "Georef Y" in scn:
-			del scn["Georef X"]
-			del scn["Georef Y"]
-		return{'FINISHED'}
-
-
-
 class IMPORT_GEORAST(Operator, ImportHelper):
 	"""Import georeferenced raster (need world file)"""
 	bl_idname = "importgis.georaster"  # important since its how bpy.ops.importgis.georaster is constructed (allows calling operator from python console or another script)
@@ -242,6 +231,15 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			options={'HIDDEN'},
 			)
 
+	# Raster CRS definition
+	def listPredefCRS(self, context):
+		return PredefCRS.getEnumItems()
+	rastCRS = EnumProperty(
+		name = "Raster CRS",
+		description = "Choose a Coordinate Reference System",
+		items = listPredefCRS,
+		)
+
 	# List of operator properties, the attributes will be assigned
 	# to the class instance from the operator settings before calling.
 	importMode = EnumProperty(
@@ -263,13 +261,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			items=[ ('subsurf', 'Subsurf', "Add a subsurf modifier"),
 			('mesh', 'Mesh', "Edit the mesh to subdivise the plane according to the number of DEM pixels which overlay the plane"),
 			('none', 'None', "No subdivision")]
-			)
-	#
-	#Decimal degrees to meters
-	angCoords = BoolProperty(
-			name="Angular coords",
-			description="Will convert decimal degrees coordinates to meters",
-			default=False
 			)
 	#
 	demOnMesh = BoolProperty(
@@ -297,56 +288,53 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		layout = self.layout
 		layout.prop(self, 'importMode')
 		scn = bpy.context.scene
-		if "Georef X" in scn and "Georef Y" in scn:
-			isGeoref = True
-		else:
-			isGeoref = False
+		geoscn = GeoScene(scn)
 		#
 		if self.importMode == 'PLANE':
-			layout.prop(self, 'angCoords')
+			pass
 		#
 		if self.importMode == 'BKG':
-			layout.prop(self, 'angCoords')
+			pass
 		#
 		if self.importMode == 'MESH':
-			if isGeoref and len(self.objectsLst) > 0:
+			if geoscn.isGeoref and len(self.objectsLst) > 0:
 				layout.prop(self, 'objectsLst')
-				layout.prop(self, 'angCoords')
 			else:
 				layout.label("There isn't georef mesh to UVmap on")
 		#
 		if self.importMode == 'DEM':
 			layout.prop(self, 'demOnMesh')
 			if self.demOnMesh:
-				if isGeoref and len(self.objectsLst) > 0:
+				if geoscn.isGeoref and len(self.objectsLst) > 0:
 					layout.prop(self, 'objectsLst')
 					layout.prop(self, 'clip')
 				else:
 					layout.label("There isn't georef mesh to apply on")
 			layout.prop(self, 'subdivision')
 			layout.prop(self, 'fillNodata')
-			layout.prop(self, 'angCoords')
-			if GDAL_PY:
-				layout.label("* GDAL works *")
 		#
 		if self.importMode == 'DEM_RAW':
 			layout.prop(self, 'step')
 			layout.prop(self, 'clip')
 			if self.clip:
-				if isGeoref and len(self.objectsLst) > 0:
+				if geoscn.isGeoref and len(self.objectsLst) > 0:
 					layout.prop(self, 'objectsLst')
 				else:
 					layout.label("There isn't georef mesh to refer")
-			layout.prop(self, 'angCoords')
 		#
-		if isGeoref:
-			#layout.label("* Scene is georef *")
-			layout.operator("importgis.reset_georef")
+		row = layout.row(align=True)
+		#row.prop(self, "rastCRS", text='CRS')
+		split = row.split(percentage=0.35, align=True)
+		split.label('CRS:')
+		split.prop(self, "rastCRS", text='')
+		row.operator("geoscene.add_predef_crs", text='', icon='ZOOMIN')
+		if geoscn.isPartiallyGeoref:
+			georefManagerLayout(self, context)
+
 
 	def err(self, msg):
 		'''Report error throught a Blender's message box'''
 		self.report({'ERROR'}, msg)
-		print(msg)
 		return {'FINISHED'}
 
 	def execute(self, context):
@@ -354,13 +342,24 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			bpy.ops.object.mode_set(mode='OBJECT')
 		except:
 			pass
-		#Get scene and georef deltas
+		#Get scene and some georef data
 		scn = bpy.context.scene
-		if "Georef X" in scn and "Georef Y" in scn:
-			isGeoref = True
-			dx, dy = scn["Georef X"], scn["Georef Y"]
-		else:
-			isGeoref = False
+		geoscn = GeoScene(scn)
+		if geoscn.isBroken:
+			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+			return {'FINISHED'}
+		if geoscn.isGeoref:
+			dx, dy = geoscn.getOriginPrj()
+		scale = geoscn.scale #TODO
+		if not geoscn.hasCRS:
+			try:
+				geoscn.crs = self.rastCRS
+			except Exception as e:
+				self.report({'ERROR'}, str(e))
+				return {'FINISHED'}
+		elif geoscn.crs != self.rastCRS:
+			self.report({'ERROR'}, "Cannot reproj raster")
+			return {'FINISHED'}
 		#Path
 		filePath = self.filepath
 		name = os.path.basename(filePath)[:-4]
@@ -369,14 +368,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'PLANE':#on plane
 			#Load raster
 			try:
-				rast = GeoRaster(filePath, self.angCoords)
+				rast = GeoRaster(filePath)
 			except IOError as e:
 				return self.err(str(e))
-			#Set georef deltas is not existing
-			
-			if not isGeoref:
+			#Get or set georef dx, dy
+			if not geoscn.isGeoref:
 				dx, dy = rast.center.x, rast.center.y
-				scn["Georef X"], scn["Georef Y"] = dx, dy
+				geoscn.setOriginPrj(dx, dy)
 			#create a new mesh from raster extent
 			mesh = rasterExtentToMesh(name, rast, dx, dy)
 			#place obj
@@ -395,7 +393,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'BKG':#background
 			#Load raster
 			try:
-				rast = GeoRaster(filePath, self.angCoords)
+				rast = GeoRaster(filePath)
 			except IOError as e:
 				return self.err(str(e))
 			#Check pixel size and rotation
@@ -407,11 +405,12 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			trueSizeX = rast.geoSize.x
 			trueSizeY = rast.geoSize.y
 			ratio = rast.size.x / rast.size.y
-			if isGeoref:
-				shiftCenter = (rast.center.x - dx, rast.center.y - dy)
+			if geoscn.isGeoref:
+				offx, offy = rast.center.x - dx, rast.center.y - dy
 			else:
 				dx, dy = rast.center.x, rast.center.y
-				scn["Georef X"], scn["Georef Y"] = dx, dy
+				geoscn.setOriginPrj(dx, dy)
+				offx, offy = 0, 0
 			areas = bpy.context.screen.areas
 			for area in areas:
 				if area.type == 'VIEW_3D':
@@ -422,13 +421,12 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					bckImg.view_axis = 'TOP'
 					bckImg.opacity = 1
 					bckImg.size = trueSizeX #since Blender 2.75
-					if isGeoref:
-						bckImg.offset_x = shiftCenter[0]
-						bckImg.offset_y = shiftCenter[1]*ratio
+					bckImg.offset_x = offx
+					bckImg.offset_y = offy * ratio
 
 		######################################
 		if self.importMode == 'MESH':
-			if not isGeoref or len(self.objectsLst) == 0:
+			if not geoscn.isGeoref or len(self.objectsLst) == 0:
 				return self.err("There isn't georef mesh to apply on")
 			# Get choosen object
 			obj = scn.objects[int(self.objectsLst)]
@@ -439,7 +437,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			subBox = getBBox(obj, applyDeltas=True)
 			#Load raster
 			try:
-				rast = GeoRaster(filePath, angCoords=self.angCoords, subBox=subBox)
+				rast = GeoRaster(filePath, subBox=subBox)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 			# Add UV map texture layer
@@ -454,10 +452,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 		######################################
 		if self.importMode == 'DEM':
-			
+
 			# Get reference plane
 			if self.demOnMesh:
-				if not isGeoref or len(self.objectsLst) == 0:
+				if not geoscn.isGeoref or len(self.objectsLst) == 0:
 					return self.err("There isn't georef mesh to apply on")
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
@@ -471,25 +469,25 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = None
 
 			# Load raster
-			if not GDAL_PY:
+			if not GDAL:
 				try:
-					grid = GeoRaster(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
+					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))
 			else:
 				try:
-					grid = GeoRasterGDAL(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
+					grid = GeoRasterGDAL(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))
 
 			# If no reference, create a new plane object from raster extent
 			if not self.demOnMesh:
-				if not isGeoref:
+				if not geoscn.isGeoref:
 					dx, dy = grid.center.x, grid.center.y
-					scn["Georef X"], scn["Georef Y"] = dx, dy
+					geoscn.setOriginPrj(dx, dy)
 				mesh = rasterExtentToMesh(name, grid, dx, dy)
 				obj = placeObj(mesh, name)
-			
+
 			# Add UV map texture layer
 			previousUVmapIdx = mesh.uv_textures.active_index
 			uvTxtLayer = mesh.uv_textures.new('demUVmap')
@@ -519,31 +517,31 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 		######################################
 		if self.importMode == 'DEM_RAW':
-			
+
 			# Get reference plane
 			subBox = None
 			if self.clip:
-				if not isGeoref or len(self.objectsLst) == 0:
+				if not geoscn.isGeoref or len(self.objectsLst) == 0:
 					return self.err("No working extent")
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
 				subBox = getBBox(obj, applyDeltas=True)
 
 			# Load raster
-			if not GDAL_PY:
+			if not GDAL:
 				try:
-					grid = GeoRaster(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip)
+					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))
 			else:
 				try:
-					grid = GeoRasterGDAL(filePath, angCoords=self.angCoords, subBox=subBox, clip=self.clip)
+					grid = GeoRasterGDAL(filePath, subBox=subBox, clip=self.clip)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))
 
-			if not isGeoref:
+			if not geoscn.isGeoref:
 				dx, dy = grid.center.x, grid.center.y
-				scn["Georef X"], scn["Georef Y"] = dx, dy
+				geoscn.setOriginPrj(dx, dy)
 			mesh = grid.exportAsMesh(dx, dy, self.step)
 			obj = placeObj(mesh, name)
 			grid.unload()

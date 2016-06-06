@@ -25,7 +25,7 @@ import bpy
 #import bmesh
 import numpy as np
 from . import Tyf #geotags reader
-from .utils import xy, GRS80, bbox, overlap, OverlapError
+from .utils import xy, bbox, overlap, OverlapError
 from .utils import getImgFormat, getImgDim
 from .utils import replace_nans #inpainting function (ie fill nodata)
 
@@ -61,13 +61,12 @@ class GeoRaster():
 		## Stats
 		self.min, self.max = None, None
 		self.submin, self.submax = None, None
-		## Flags
-		self.angCoords = False #flag if raster coordinate system uses anglular units (lonlat)
+		## Others
 		self.bpyImg = None #a pointer to bpy loaded image
 
 
 
-	def __init__(self, path, angCoords=False, subBox=None, clip=False, fillNodata=False):
+	def __init__(self, path, subBox=None, clip=False, fillNodata=False):
 		'''
 		The main purpose of this initialization step is to get a loaded image in Blender
 		with all needed infos (georef, data type ...). If the data source must be edited to be
@@ -86,10 +85,6 @@ class GeoRaster():
 
 		#Try to get georef infos
 		self.getGeoref()
-		# convert angulars coords to meters if needed
-		self.angCoords = angCoords
-		if self.angCoords:
-			self.degrees2meters()
 
 		# Try to get the raster size
 		self.getRasterSize()
@@ -250,17 +245,6 @@ class GeoRaster():
 		#Instead of worldfile, topleft geotag is at corner, so adjust it to pixel center
 		self.origin[0] += abs(self.pxSize.x/2)
 		self.origin[1] -= abs(self.pxSize.y/2)
-
-
-	def degrees2meters(self):
-		"""
-		Use equirectangular projection to convert angular units to meters
-		True at equator only, horizontal distortions will increase according to distance from it
-		"""
-		k = GRS80.perimeter/360
-		self.pxSize = xy(*[v*k for v in self.pxSize])
-		self.origin = xy(*[v*k for v in self.origin])
-
 
 
 	#######################################
@@ -430,7 +414,6 @@ class GeoRaster():
 		print(' origin %s' %self.origin)
 		print(' pixel size %s' %self.pxSize)
 		print(' rotation %s' %self.rotation)
-		print(' angular %s' %self.angCoords)
 		#
 		print('* Statistics')
 		print(' min max %s' %((self.min, self.max), ))
@@ -784,7 +767,7 @@ class GeoRasterGDAL(GeoRaster):
 	large dataset.
 	'''
 
-	def __init__(self, path, angCoords=False, subBox=None, clip=False, fillNodata=False):
+	def __init__(self, path, subBox=None, clip=False, fillNodata=False):
 		
 		if not GDAL_PY:
 			raise ImportError('GDAL Python binding is not installed')
@@ -797,11 +780,6 @@ class GeoRasterGDAL(GeoRaster):
 
 		# Get data and georef infos
 		self.getGdalInfos()
-
-		# Convert angulars coords to meters if needed
-		self.angCoords = angCoords
-		if self.angCoords:
-			self.degrees2meters()
 
 		# Define subbox
 		if subBox is not None:

@@ -19,17 +19,6 @@
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
 
-import math
-
-class ellps():
-	"""ellipsoid"""
-	def __init__(self, a, b):
-		self.a =  a#equatorial radius in meters
-		self.b =  b#polar radius in meters
-		self.f = (self.a-self.b)/self.a#inverse flat
-		self.perimeter = (2*math.pi*self.a)#perimeter at equator
-
-GRS80 = ellps(6378137, 6356752.314245)
 
 class xy(object):
 	'''A class to represent 2-tuple value'''
@@ -72,12 +61,6 @@ class bbox():
 	def __eq__(self, bb):
 		if self.xmin == bb.xmin and self.xmax == bb.xmax and self.ymin == bb.ymin and self.ymax == bb.ymax:
 			return True
-	def degrees2meters(self):
-		k = GRS80.perimeter/360
-		return bbox(self.xmin * k, self.xmax * k, self.ymin * k, self.ymax * k)
-	def meters2degrees(self):
-		k = GRS80.perimeter/360
-		return bbox(self.xmin / k, self.xmax / k, self.ymin / k, self.ymax / k)
 
 def overlap(bb1, bb2):
 	'''Test if 2 bbox objects have intersection areas'''

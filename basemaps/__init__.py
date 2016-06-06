@@ -35,10 +35,31 @@ bl_info = {
 	}
 
 import bpy
+import addon_utils
+
+try:
+	import geoscene
+except:
+	raise ImportError("Geoscene addon isn't installed.")
+
 from .mapviewer import *
+
+def checkAddon(addon_name):
+	'''Check is an addon is installed and enable it if needed'''
+	addon_utils.modules_refresh()
+	addon_utils.modules_refresh()
+	if addon_name not in addon_utils.addons_fake_modules:
+		raise ImportError("%s addon not installed." % addon_name)
+	else:
+		default, enable = addon_utils.check(addon_name)
+		#>>Warning: addon-module 'geoscene' found module but without __addon_enabled__ field, possible name collision
+		if not enable:
+			addon_utils.enable(addon_name, default_set=True, persistent=False)
+			#>>module changed on disk: \geoscene\__init__.py reloading...
 
 
 def register():
+	checkAddon("geoscene")
 	bpy.utils.register_module(__name__)
 	wm = bpy.context.window_manager
 	km = wm.keyconfigs.active.keymaps['3D View']

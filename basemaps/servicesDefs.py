@@ -15,9 +15,9 @@ import math
 
 
 # About Web Mercator
-# Technically, the Mercator projection is defined for any latitude up to (but not including) 
+# Technically, the Mercator projection is defined for any latitude up to (but not including)
 # 90 degrees, but it makes sense to cut it off sooner because it grows exponentially with
-# increasing latitude. The logic behind this particular cutoff value, which is the one used 
+# increasing latitude. The logic behind this particular cutoff value, which is the one used
 # by Google Maps, is that it makes the projection square. That is, the rectangle is equal in
 # the X and Y directions. In this case the maximum latitude attained must correspond to y = w/2.
 # y = 2*pi*R / 2 = pi*R --> y/R = pi
@@ -33,9 +33,9 @@ GRIDS = {
 	"WM" : {
 		"name" : 'Web Mercator',
 		"description" : 'Global grid in web mercator projection',
-		"CRS": 3857,
+		"CRS": 'EPSG:3857',
 		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
-		"bboxCRS": 4326,
+		"bboxCRS": 'EPSG:4326',
 		#"bbox": [-20037508, -20037508, 20037508, 20037508],
 		#"bboxCRS": 3857,
 		"tileSize": 256,
@@ -47,9 +47,9 @@ GRIDS = {
 	"WGS84" : {
 		"name" : 'WGS84',
 		"description" : 'Global grid in wgs84 projection',
-		"CRS": 4326,
+		"CRS": 'EPSG:4326',
 		"bbox": [-180, -90, 180, 90], #w,s,e,n
-		"bboxCRS": 4326,
+		"bboxCRS": 'EPSG:4326',
 		"tileSize": 256,
 		"originLoc": "NW", #North West or South West
 		"resFactor" : 2
@@ -59,11 +59,11 @@ GRIDS = {
 	"WM_SW" : {
 		"name" : 'Web Mercator TMS',
 		"description" : 'Global grid in web mercator projection, origin South West',
-		"CRS": 3857,
+		"CRS": 'EPSG:3857',
 		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
-		"bboxCRS": 4326,
+		"bboxCRS": 'EPSG:4326',
 		#"bbox": [-20037508, -20037508, 20037508, 20037508],
-		#"bboxCRS": 3857,
+		#"bboxCRS": 'EPSG:3857',
 		"tileSize": 256,
 		"originLoc": "SW", #North West or South West
 		"resFactor" : 2
@@ -74,14 +74,14 @@ GRIDS = {
 	#####################
 	#Custom grid example
 	######################
-	
+
 	# >> France Lambert 93
 	"LB93" : {
 		"name" : 'Fr Lambert 93',
 		"description" : 'Local grid in French Lambert 93 projection',
-		"CRS": 2154,
+		"CRS": 'EPSG:2154',
 		"bbox": [99200, 6049600, 1242500, 7110500], #w,s,e,n
-		"bboxCRS": 2154,
+		"bboxCRS": 'EPSG:2154',
 		"tileSize": 256,
 		"originLoc": "NW", #North West or South West
 		"resFactor" : 2
@@ -91,9 +91,9 @@ GRIDS = {
 	"LB93_2" : {
 		"name" : 'Fr Lambert 93 v2',
 		"description" : 'Local grid in French Lambert 93 projection',
-		"CRS": 2154,
+		"CRS": 'EPSG:2154',
 		"bbox": [99200, 6049600, 1242500, 7110500], #w,s,e,n
-		"bboxCRS": 2154,
+		"bboxCRS": 'EPSG:2154',
 		"tileSize": 256,
 		"originLoc": "SW", #North West or South West
 		"resolutions" : [4000, 2000, 1000, 500, 250, 100, 50, 25, 10, 5, 2, 1, 0.5, 0.25, 0.1] #15 levels
@@ -106,9 +106,9 @@ GRIDS = {
 	"LB93_CRAIG" : {
 		"name" : 'Fr Lambert 93 CRAIG',
 		"description" : 'Local grid in French Lambert 93 projection',
-		"CRS": 2154,
+		"CRS": 'EPSG:2154',
 		"bbox": [-357823.23, 6037001.46, 1313634.34, 7230727.37], #w,s,e,n
-		"bboxCRS": 2154,
+		"bboxCRS": 'EPSG:2154',
 		"tileSize": 256,
 		"originLoc": "NW",
 		"initRes": 1354.666,
@@ -125,7 +125,7 @@ GRIDS = {
 ####################################
 
 #With TMS or WMTS, grid must match the one used by the service
-#With WMS you can use any grid you want but the grid CRS must 
+#With WMS you can use any grid you want but the grid CRS must
 #match one of those provided by the WMS service
 
 #The grid associated to the source define the CRS
@@ -188,7 +188,7 @@ SOURCES = {
 	# WMS examples
 	###############
 
-	#with WMS you can set source grid as you want, the only condition is that the grid 
+	#with WMS you can set source grid as you want, the only condition is that the grid
 	#crs must match one on crs provided by WMS
 
 
@@ -316,6 +316,3 @@ SOURCES = {
 
 
 """
-
-
-

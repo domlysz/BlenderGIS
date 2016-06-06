@@ -22,6 +22,7 @@ import bpy
 from mathutils import Vector
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 
+from geoscene.geoscn import GeoScene
 
 def listObjects(self, context):
 	#Function used to update the objects list (obj_list) used by the dropdown box.
@@ -79,7 +80,8 @@ class ToolsPanelSetGeorefCam(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 		scn = bpy.context.scene
-		if "Georef X" in scn and "Georef Y" in scn:
+		geoscn = GeoScene(scn)
+		if geoscn.isGeoref:
 			if len(context.scene.objLst) > 0:
 				layout.prop(context.scene, "objLst")
 				layout.prop(context.scene, "camLst")
@@ -104,6 +106,10 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 
 	def execute(self, context):#every times operator redo options are modified
 
+		#general offset used to set cam z loc and clip end distance
+		#needed to avoid clipping/black hole effects
+		offset = 10
+
 		#Operator redo count
 		self.redo+=1
 
@@ -116,7 +122,8 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 
 		#Get georef data
 		scene = bpy.context.scene
-		dx, dy = scene["Georef X"], scene["Georef Y"]
+		geoscn = GeoScene(scene)
+		dx, dy = geoscn.getOriginPrj()
 
 		#Get object
 		objIdx = context.scene.objLst
@@ -146,12 +153,12 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		cam.ortho_scale = max((dimx, dimy)) #ratio = max((dimx, dimy)) / min((dimx, dimy))
 
 		#Set camera location
-		camLocZ = bbox['zmin'] + dimz + 1 #add one unit to avoid clipping
+		camLocZ = bbox['zmin'] + dimz + offset
 		camObj.location = (locx, locy, camLocZ)
 
 		#Set camera clipping
-		cam.clip_start = 0.5
-		cam.clip_end = dimz + 2 #add 2 units to avoid clipping
+		cam.clip_start = 0
+		cam.clip_end = dimz + offset*2
 		cam.show_limits = True
 
 		if context.scene.camLst != 'NEW':
