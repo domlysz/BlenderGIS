@@ -65,7 +65,7 @@ def rasterExtentToMesh(name, rast, dx, dy):
 	'''Build a new mesh that represent a georaster extent'''
 	#create mesh
 	bm = bmesh.new()
-	pts = [(pt.x-dx, pt.y-dy) for pt in rast.cornersCenter]#shift coords
+	pts = [(pt.x-dx, pt.y-dy) for pt in rast.corners]#shift coords
 	z = 0
 	pts = [bm.verts.new((pt[0], pt[1], z)) for pt in pts]#upper left to botton left (clockwise)
 	pts.reverse()#bottom left to upper left (anticlockwise --> face up)
@@ -471,6 +471,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			# Load raster
 			if not GDAL:
 				try:
+
 					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))

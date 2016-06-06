@@ -75,7 +75,7 @@ class GeoRaster():
 		'''
 		#init properties model
 		self.initPropsModel()
-		
+
 		#Get infos from path
 		self.path = path
 		self.format = getImgFormat(path)
@@ -90,7 +90,7 @@ class GeoRaster():
 		self.getRasterSize()
 
 		# Assign subBox (will check if the box overlap the raster extent)
-		# define a subbox at init is optionnal, we can also do it later 
+		# define a subbox at init is optionnal, we can also do it later
 		if subBox is not None:
 			self.setSubBox(subBox)
 
@@ -101,7 +101,7 @@ class GeoRaster():
 
 		# Now open the file in Blender
 		self.load()
-		
+
 		# Create a new image if we need to clip or fill nodata
 		# Also, we assume int16 raster always contains some negatives values (if not it must be uint16...)
 		# to make signed 16 bits raster usuable as displacement texture the best way is to cast it to float
@@ -379,7 +379,7 @@ class GeoRaster():
 			return None
 		bbpx = self.subBoxPx
 		w, h = bbpx.xmax - bbpx.xmin, bbpx.ymax - bbpx.ymin
-		#min and max pixel number are both include 
+		#min and max pixel number are both include
 		#so we must add 1 to get the correct size
 		return xy(w+1, h+1)
 	@property
@@ -389,7 +389,7 @@ class GeoRaster():
 		if subsize is not None:
 			return xy(subsize.x * abs(self.pxSize.x), subsize.y * abs(self.pxSize.y))
 	@property
-	def subBoxOrigin(self):	
+	def subBoxOrigin(self):
 		subBoxPx = self.subBoxPx
 		return self.geoFromPx(subBoxPx.xmin, subBoxPx.ymin) #px center
 
@@ -427,13 +427,14 @@ class GeoRaster():
 		print(' bbox %s' %self.bbox)
 		print(' geoSize %s' %self.geoSize)
 		#print('	orthoGeoSize %s' %self.orthoGeoSize)
-		#print('	orthoPxSize %s' %self.orthoPxSize)  
+		#print('	orthoPxSize %s' %self.orthoPxSize)
 		#print('	corners %s' %([p.xy for p in self.corners],))
 		#print('	center %s' %self.center)
-		print(' subbox (geo space) %s' %self.subBox)
-		print(' subbox (px space) %s' %self.subBoxPx)
-		print(' sub geoSize %s' %self.subBoxGeoSize)
-		print(' sub pxSize %s' %self.subBoxSize)
+		if self.subBox is not None:
+			print(' subbox (geo space) %s' %self.subBox)
+			print(' subbox (px space) %s' %self.subBoxPx)
+			print(' sub geoSize %s' %self.subBoxGeoSize)
+			print(' sub pxSize %s' %self.subBoxSize)
 		return "------------"
 
 	#######################################
@@ -522,12 +523,12 @@ class GeoRaster():
 	def exportAsMesh(self, dx=0, dy=0, step=1, subset=False):
 		if subset and self.subBox is None:
 			subset = False
-		
+
 		data = self.readAsNpArray(0, subset)
 		x0, y0 = self.origin
 		x0 -= dx
 		y0 -= dy
-		
+
 		#Avoid using bmesh because it's very slow with large mesh
 		#use from-pydata instead
 		#bm = bmesh.new()
@@ -540,13 +541,13 @@ class GeoRaster():
 				if z != self.noData:
 					#bm.verts.new((x, y, z))
 					verts.append((x, y, z))
-		
+
 		mesh = bpy.data.meshes.new("DEM")
 		#bm.to_mesh(mesh)
 		#bm.free()
 		mesh.from_pydata(verts, [], [])
-		mesh.update() 
-		
+		mesh.update()
+
 		return mesh
 
 
@@ -556,14 +557,14 @@ class GeoRaster():
 
 	def toBitDepth(self, a):
 		"""
-		Convert Blender pixel intensity value (from 0.0 to 1.0) 
+		Convert Blender pixel intensity value (from 0.0 to 1.0)
 		in true pixel value in initial image bit depth range
 		"""
 		return a * (2**self.depth - 1)
 
 	def fromBitDepth(self, a):
 		"""
-		Convert true pixel value in initial image bit depth range 
+		Convert true pixel value in initial image bit depth range
 		to Blender pixel intensity value (from 0.0 to 1.0)
 		"""
 		return a / (2**self.depth - 1)
@@ -611,7 +612,7 @@ class GeoRaster():
 		# Extract the requested band
 		if bandIdx is not None:
 			a = a[:,:,bandIdx]
-		# In blender, non float raster pixels values are normalized from 0.0 to 1.0	
+		# In blender, non float raster pixels values are normalized from 0.0 to 1.0
 		if not self.isFloat:
 			# Multiply by 2**depth - 1 to get raw values
 			a = self.toBitDepth(a)
@@ -651,11 +652,11 @@ class GeoRaster():
 			px = np.repeat(px, 3, axis=2)
 			alpha = np.ones(shape)
 			alpha = np.expand_dims(alpha, axis=2)
-			px = np.append(px, alpha, axis=2) 
+			px = np.append(px, alpha, axis=2)
 		#px = px.swapaxes(0,1)
 		px = np.flipud(px)
 		px = px.flatten()
-		return px   
+		return px
 
 
 	def getStats(self):
@@ -689,16 +690,16 @@ class GeoRaster():
 	def copy(self, clip=False, fillNodata=False):
 		'''
 		Use bpy and numpy to create directly in Blender a new copy of the raster.
-		
+
 		This method provides some usefull options:
-		
+
 		* clip : will clip the raster according to the working extent define in subBox property.
-		
+
 		* fillNodata : use an inpainting method based on numpy to fill nodata values. Nodata is generally
-		representent with a very high or low value. It's why using raster that contains nodata as displacement 
+		representent with a very high or low value. It's why using raster that contains nodata as displacement
 		texture can give huge unwanted glitch. Fill nodata help to get smooth results.
-		
-		This function always force data type to float32. For our purpose, float raster are easiest to use 
+
+		This function always force data type to float32. For our purpose, float raster are easiest to use
 		because, instead of integer data, they will not be normalized from 0.0 to 1.0 in Blender.
 		Also, signed 16bits raster that contains negatives must be cast to float to be usuable
 		as displacement texture.
@@ -717,7 +718,7 @@ class GeoRaster():
 			bandIdx = None
 		if clip and self.subBox is not None:
 			# Get subset data from first band
-			data = self.readAsNpArray(bandIdx, subset=True)	
+			data = self.readAsNpArray(bandIdx, subset=True)
 		else:
 			data = self.readAsNpArray(bandIdx)
 			clip = False #force clip to false
@@ -756,22 +757,22 @@ class GeoRaster():
 class GeoRasterGDAL(GeoRaster):
 	'''
 	A subclass of GeoRaster that use GDAL to override some methods.
-	
-	Reading pixels is now performed through GDAL API and does not use 
+
+	Reading pixels is now performed through GDAL API and does not use
 	bpy.image.pixels method anymore.
-	
-	All overriden functions which required reading pixels now operate 
-	directly on source file and before the image is loaded in Blender. 
-	
-	This way prevents memory overflow when trying to open and clip a 
+
+	All overriden functions which required reading pixels now operate
+	directly on source file and before the image is loaded in Blender.
+
+	This way prevents memory overflow when trying to open and clip a
 	large dataset.
 	'''
 
 	def __init__(self, path, subBox=None, clip=False, fillNodata=False):
-		
+
 		if not GDAL_PY:
 			raise ImportError('GDAL Python binding is not installed')
-		
+
 		# Init properties model
 		self.initPropsModel()
 
@@ -827,7 +828,7 @@ class GeoRasterGDAL(GeoRaster):
 		else:
 			self.dtype = ddtype[0:len(ddtype)-2].lower()
 			self.depth = int(ddtype[-2:])
-		#Get Georef	
+		#Get Georef
 		params = ds.GetGeoTransform()
 		if params is not None:
 			topleftx, pxsizex, rotx, toplefty, roty, pxsizey = params
@@ -878,7 +879,7 @@ class GeoRasterGDAL(GeoRaster):
 		so be careful not confusing axes and use syntax like data[row, column]
 		Array origin is top left
 		'''
-		
+
 		#GDAL need a file on disk, but in some case init() will create a new altered copy directly in Blender.
 		#In this case the class does not refer anymore to the file on disk but to the image in Blender data
 		#and so, we must call the method of the parent class which use bpy to access pixels values
@@ -941,12 +942,12 @@ class GeoRasterGDAL(GeoRaster):
 		'''
 		Use gdal and numpy to create directly in Blender a new copy of the raster.
 		Data type is always cast to float32.
-		
+
 		This method provides some usefull options:
 		* clip : will clip the raster according to the working extent define in subBox property.
 		* fillNodata : use gdal fillnodata function.
 		'''
-		
+
 		# Check some assert
 		if self.path is None or not self.fileExists:
 			raise IOError("Cannot find file on disk")
@@ -974,7 +975,7 @@ class GeoRasterGDAL(GeoRaster):
 		# Write pixels values to it
 		img.pixels = self.flattenPixelsArray(data)
 		# Save/pack
-		img.pack(as_png=True) #as_png needed for generated images)  
+		img.pack(as_png=True) #as_png needed for generated images)
 
 		# Update class properties
 		self.path = None
