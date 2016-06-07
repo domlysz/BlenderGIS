@@ -1305,10 +1305,13 @@ class BaseMap(GeoScene):
 
 		#Get area bbox coords (map origin is bottom lelf)
 		res = self.tm.getRes(self.zoom)
-		xmin = self.crsx - w/2 * res
-		ymax = self.crsy + h/2 * res
-		xmax = self.crsx + w/2 * res
-		ymin = self.crsy - h/2 * res
+		dx, dy, dz = self.reg3d.view_location
+		ox = self.crsx + (dx * self.scale)
+		oy = self.crsy + (dy * self.scale)
+		xmin = ox - w/2 * res
+		ymax = oy + h/2 * res
+		xmax = ox + w/2 * res
+		ymin = oy - h/2 * res
 		bbox = (xmin, ymin, xmax, ymax)
 
 		#reproj bbox to destination grid crs if scene crs is different
@@ -1566,6 +1569,7 @@ class MAP_START(bpy.types.Operator):
 			#viewPrefs = context.user_preferences.view
 			#layout.prop(viewPrefs, "use_zoom_to_mouse")
 			layout.prop(addonPrefs, "zoomToMouse")
+			layout.prop(addonPrefs, "lockOrigin")
 
 		elif self.dialog == 'MAP':
 			layout.prop(self, 'src', text='Source')
@@ -1682,6 +1686,8 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		self.moveFactor = 0.1
 
+		self.prefs = context.user_preferences.addons[__package__].preferences
+
 		#Add draw callback to view space
 		args = (self, context)
 		self._drawTextHandler = bpy.types.SpaceView3D.draw_handler_add(drawInfosText, args, 'WINDOW', 'POST_PIXEL')
@@ -1696,8 +1702,8 @@ class MAP_VIEWER(bpy.types.Operator):
 		bpy.ops.view3d.viewnumpad(type='TOP')
 		view3d.region_3d.view_perspective = 'ORTHO'
 		view3d.cursor_location = (0, 0, 0)
-		bpy.ops.view3d.view_center_cursor()
-		##view3d.region_3d.view_location = (0, 0, 0)
+		#bpy.ops.view3d.view_center_cursor()
+		view3d.region_3d.view_location = (0, 0, 0)
 
 		#Init some properties
 		# tag if map is currently drag
@@ -1749,12 +1755,16 @@ class MAP_VIEWER(bpy.types.Operator):
 					# map scale up
 					self.map.scale *= 10
 					self.map.place()
+					#Scale existing objects
+					for obj in scn.objects:
+						obj.location /= 10
+						obj.scale /= 10
 
 				elif event.ctrl:
 					# view3d zoom up
 					dst = context.region_data.view_distance
 					context.region_data.view_distance -= dst * self.moveFactor
-					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
+					if self.prefs.zoomToMouse:
 						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						viewLoc = context.region_data.view_location
 						k = (viewLoc - mouseLoc) * self.moveFactor
@@ -1767,23 +1777,31 @@ class MAP_VIEWER(bpy.types.Operator):
 						resFactor = self.map.tm.getNextResFac(self.map.zoom)
 
 						#if not context.user_preferences.view.use_zoom_to_mouse:
-						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
+						if not self.prefs.zoomToMouse:
 							context.region_data.view_distance *= resFactor
 						else:
 							#Progressibly zoom to cursor (use intercept theorem)
 							dst = context.region_data.view_distance
 							dst2 = dst * resFactor
 							context.region_data.view_distance = dst2
-							k = (dst - dst2) / dst
-							loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-							dx = loc.x * k
-							dy = loc.y * k
-							s = self.map.scale
-							self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
-							if self.map.bkg is not None:
-								ratio = self.map.img.size[0] / self.map.img.size[1]
-								self.map.bkg.offset_x -= dx
-								self.map.bkg.offset_y -= dy * ratio
+							if self.prefs.lockOrigin:
+								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								viewLoc = context.region_data.view_location
+								moveFactor = (dst - dst2) / dst
+								k = (viewLoc - mouseLoc) * moveFactor
+								viewLoc -= k
+							else:
+								k = (dst - dst2) / dst
+								loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								dx = loc.x * k
+								dy = loc.y * k
+								s = self.map.scale
+								self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
+								#make a preview by moving bkg image
+								if self.map.bkg is not None:
+									ratio = self.map.img.size[0] / self.map.img.size[1]
+									self.map.bkg.offset_x -= dx
+									self.map.bkg.offset_y -= dy * ratio
 						self.map.get()
 
 
@@ -1797,12 +1815,16 @@ class MAP_VIEWER(bpy.types.Operator):
 					if s < 1: s = 1
 					self.map.scale = s
 					self.map.place()
+					#Scale existing objects
+					for obj in scn.objects:
+						obj.location *= 10
+						obj.scale *= 10
 
 				elif event.ctrl:
 					#view3d zoom down
 					dst = context.region_data.view_distance
 					context.region_data.view_distance += dst * self.moveFactor
-					if context.user_preferences.addons[__package__].preferences.zoomToMouse:
+					if self.prefs.zoomToMouse:
 						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						viewLoc = context.region_data.view_location
 						k = (viewLoc - mouseLoc) * self.moveFactor
@@ -1815,23 +1837,31 @@ class MAP_VIEWER(bpy.types.Operator):
 						resFactor = self.map.tm.getPrevResFac(self.map.zoom)
 
 						#if not context.user_preferences.view.use_zoom_to_mouse:
-						if not context.user_preferences.addons[__package__].preferences.zoomToMouse:
+						if not self.prefs.zoomToMouse:
 							context.region_data.view_distance *= resFactor
 						else:
 							#Progressibly zoom to cursor (use intercept theorem)
 							dst = context.region_data.view_distance
 							dst2 = dst * resFactor
 							context.region_data.view_distance = dst2
-							k = (dst - dst2) / dst
-							loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-							dx = loc.x * k
-							dy = loc.y * k
-							s = self.map.scale
-							self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
-							if self.map.bkg is not None:
-								ratio = self.map.img.size[0] / self.map.img.size[1]
-								self.map.bkg.offset_x -= dx
-								self.map.bkg.offset_y -= dy * ratio
+							if self.prefs.lockOrigin:
+								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								viewLoc = context.region_data.view_location
+								moveFactor = (dst - dst2) / dst
+								k = (viewLoc - mouseLoc) * moveFactor
+								viewLoc -= k
+							else:
+								k = (dst - dst2) / dst
+								loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								dx = loc.x * k
+								dy = loc.y * k
+								s = self.map.scale
+								self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
+								#make a preview by moving bkg image
+								if self.map.bkg is not None:
+									ratio = self.map.img.size[0] / self.map.img.size[1]
+									self.map.bkg.offset_x -= dx
+									self.map.bkg.offset_y -= dy * ratio
 						self.map.get()
 
 
@@ -1851,7 +1881,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 				dx = loc1.x - loc2.x
 				dy = loc1.y - loc2.y
-				if event.ctrl:
+				if event.ctrl or self.prefs.lockOrigin:
 					x, y, z = self.viewLoc
 					context.region_data.view_location = (dx+x, dy+y, z)
 				else:
@@ -1867,37 +1897,39 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		if event.type in {'LEFTMOUSE', 'MIDDLEMOUSE'}:
 
-			if event.value == 'PRESS' and self.zoomBoxMode:
-				self.zoomBoxDrag = True
-				self.zb_xmin, self.zb_ymin = event.mouse_region_x, event.mouse_region_y
-
 			if event.value == 'PRESS' and not self.zoomBoxMode:
 				#Get click mouse position and background image offset (if exist)
 				self.x1, self.y1 = event.mouse_region_x, event.mouse_region_y
-				if event.ctrl:
-					self.viewLoc = context.region_data.view_location.copy()
-				else:
+				self.viewLoc = context.region_data.view_location.copy()
+				if not event.ctrl:
 					#Stop thread now, because we don't know when the mouse click will be released
 					self.map.stop()
-					if self.map.bkg is not None:
-						self.offset_x = self.map.bkg.offset_x
-						self.offset_y = self.map.bkg.offset_y
-					#Store current location of each objects
-					self.objsLoc = [obj.location.copy() for obj in scn.objects]
+					if not self.prefs.lockOrigin:
+						if self.map.bkg is not None:
+							self.offset_x = self.map.bkg.offset_x
+							self.offset_y = self.map.bkg.offset_y
+						#Store current location of each objects
+						self.objsLoc = [obj.location.copy() for obj in scn.objects]
 				#Tag that map is currently draging
 				self.inMove = True
 
 			if event.value == 'RELEASE' and not self.zoomBoxMode:
 				self.inMove = False
 				if not event.ctrl:
-					#Compute final shift
-					loc1 = self.mouseTo3d(context, self.x1, self.y1)
-					loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-					dx = (loc1.x - loc2.x) * self.map.scale
-					dy = (loc1.y - loc2.y) * self.map.scale
-					#Update map
-					self.map.moveOrigin(dx,dy)
+					if not self.prefs.lockOrigin:
+						#Compute final shift
+						loc1 = self.mouseTo3d(context, self.x1, self.y1)
+						loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						dx = (loc1.x - loc2.x) * self.map.scale
+						dy = (loc1.y - loc2.y) * self.map.scale
+						#Update map
+						self.map.moveOrigin(dx,dy)
 					self.map.get()
+
+
+			if event.value == 'PRESS' and self.zoomBoxMode:
+				self.zoomBoxDrag = True
+				self.zb_xmin, self.zb_ymin = event.mouse_region_x, event.mouse_region_y
 
 			if event.value == 'RELEASE' and self.zoomBoxMode:
 				#Get final zoom box
@@ -1915,91 +1947,92 @@ class MAP_VIEWER(bpy.types.Operator):
 				cx = xmin + w/2
 				cy = ymin + h/2
 				loc = self.mouseTo3d(context, cx, cy)
-				dx = loc.x * self.map.scale
-				dy = loc.y * self.map.scale
 				#Compute target resolution
 				px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
 				mapRes = self.map.tm.getRes(self.map.zoom)
 				dst_diag = math.sqrt( (w*mapRes)**2 + (h*mapRes)**2)
 				targetRes = dst_diag / px_diag
 				z = self.map.tm.getNearestZoom(targetRes, rule='lower')
-				#Preview
-				if self.map.bkg is not None:
-					ratio = self.map.img.size[0] / self.map.img.size[1]
-					self.map.bkg.offset_x -= dx
-					self.map.bkg.offset_y -= dy * ratio
 				resFactor = self.map.tm.getFromToResFac(self.map.zoom, z)
+				#Preview
 				context.region_data.view_distance *= resFactor
-				#Update map
-				self.map.moveOrigin(dx, dy, updObjLoc=True)
+				if self.prefs.lockOrigin:
+					context.region_data.view_location = loc
+				else:
+					dx = loc.x * self.map.scale
+					dy = loc.y * self.map.scale
+					if self.map.bkg is not None:
+						ratio = self.map.img.size[0] / self.map.img.size[1]
+						self.map.bkg.offset_x -= dx
+						self.map.bkg.offset_y -= dy * ratio
+					#Update map
+					self.map.moveOrigin(dx, dy, updObjLoc=True)
 				self.map.zoom = z
 				self.map.get()
 
 
 		if event.type in ['LEFT_CTRL', 'RIGHT_CTRL']:
+
+			if event.value == 'PRESS':
+				self._viewDstZ = context.region_data.view_distance
+				self._viewLoc = context.region_data.view_location.copy()
+
 			if event.value == 'RELEASE':
 				#restore view 3d distance and location
-				if self.map.viewDstZ is not None:
-					context.region_data.view_distance = self.map.viewDstZ
-				context.region_data.view_location = (0,0,0)
+				context.region_data.view_distance = self._viewDstZ
+				context.region_data.view_location = self._viewLoc
 
 
 		#NUMPAD MOVES (3D VIEW or MAP)
 		if event.value == 'PRESS':
 			if event.type == 'NUMPAD_4':
-				if event.ctrl:
+				if event.ctrl or self.prefs.lockOrigin:
 					x, y, z = context.region_data.view_location
 					dx = self.map.bkg.size * self.moveFactor
 					x -= dx
 					context.region_data.view_location = (x,y,z)
 				else:
-					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
 					self.map.moveOrigin(-dx*self.map.scale, 0, updObjLoc=True)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x += dx
-					self.map.get()
 			if event.type == 'NUMPAD_6':
-				if event.ctrl:
+				if event.ctrl or self.prefs.lockOrigin:
 					x, y, z = context.region_data.view_location
 					dx = self.map.bkg.size * self.moveFactor
 					x += dx
 					context.region_data.view_location = (x,y,z)
 				else:
-					self.map.stop()
 					dx = self.map.bkg.size * self.moveFactor
 					self.map.moveOrigin(dx*self.map.scale, 0, updObjLoc=True)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x -= dx
-					self.map.get()
 			if event.type == 'NUMPAD_2':
-				if event.ctrl:
+				if event.ctrl or self.prefs.lockOrigin:
 					x, y, z = context.region_data.view_location
 					dy = self.map.bkg.size * self.moveFactor
 					y -= dy
 					context.region_data.view_location = (x,y,z)
 				else:
-					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
 					self.map.moveOrigin(0, -dy*self.map.scale, updObjLoc=True)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y += dy * ratio
-					self.map.get()
 			if event.type == 'NUMPAD_8':
-				if event.ctrl:
+				if event.ctrl or self.prefs.lockOrigin:
 					x, y, z = context.region_data.view_location
 					dy = self.map.bkg.size * self.moveFactor
 					y += dy
 					context.region_data.view_location = (x,y,z)
 				else:
-					self.map.stop()
 					dy = self.map.bkg.size * self.moveFactor
 					self.map.moveOrigin(0, dy*self.map.scale, updObjLoc=True)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y -= dy * ratio
-					self.map.get()
+			if not event.ctrl and event.type in ['NUMPAD_2', 'NUMPAD_4', 'NUMPAD_6', 'NUMPAD_8']:
+				self.map.get()
 
 		#SWITCH LAYER
 		if event.type == 'SPACE':
@@ -2109,6 +2142,8 @@ class MAP_PREFS(AddonPreferences):
 
 	zoomToMouse = BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
+	lockOrigin = BoolProperty(name="Lock origin", description='Do not move scene origin when panning map', default=False)
+
 	resamplAlg = EnumProperty(
 		name = "Resampling method",
 		description = "Choose GDAL's resampling method used for reprojection",
@@ -2123,6 +2158,7 @@ class MAP_PREFS(AddonPreferences):
 
 		row = layout.row()
 		row.prop(self, "zoomToMouse")
+		row.prop(self, "lockOrigin")
 		row.label('Font color:')
 		row.prop(self, "fontColor", text='')
 
