@@ -61,11 +61,14 @@ def getBBox(obj, applyTransform = True, applyDeltas=False):
 	else:
 		return bbox(xmin, xmax, ymin, ymax)
 
-def rasterExtentToMesh(name, rast, dx, dy):
+def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
 	'''Build a new mesh that represent a georaster extent'''
 	#create mesh
 	bm = bmesh.new()
-	pts = [(pt.x-dx, pt.y-dy) for pt in rast.corners]#shift coords
+	if pxLoc == 'CORNER':
+		pts = [(pt.x-dx, pt.y-dy) for pt in rast.corners]#shift coords
+	elif pxLoc == 'CENTER':
+		pts = [(pt.x-dx, pt.y-dy) for pt in rast.cornersCenter]
 	z = 0
 	pts = [bm.verts.new((pt[0], pt[1], z)) for pt in pts]#upper left to botton left (clockwise)
 	pts.reverse()#bottom left to upper left (anticlockwise --> face up)
@@ -471,7 +474,6 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			# Load raster
 			if not GDAL:
 				try:
-
 					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
 				except (IOError, OverlapError) as e:
 					return self.err(str(e))
@@ -486,7 +488,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				if not geoscn.isGeoref:
 					dx, dy = grid.center.x, grid.center.y
 					geoscn.setOriginPrj(dx, dy)
-				mesh = rasterExtentToMesh(name, grid, dx, dy)
+				mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER') #use pixel center to avoid displacement glitch
 				obj = placeObj(mesh, name)
 
 			# Add UV map texture layer
