@@ -1289,12 +1289,15 @@ class BaseMap(GeoScene):
 		y = self.crsy + dy
 		return x, y
 
-	def moveOrigin(self, dx, dy, updObjLoc=False):
+	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True):
 		'''Move scene origin and update props'''
-		self.setOriginPrj(self.crsx + dx, self.crsy + dy)
+		if useScale:
+			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
+		else:
+			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
 		if updObjLoc:
 			for obj in self.scn.objects:
-				obj.location.x -= dx
+				obj.location.x -= dx #objs are already scaled
 				obj.location.y -= dy
 
 	def request(self):
@@ -1702,8 +1705,9 @@ class MAP_VIEWER(bpy.types.Operator):
 		bpy.ops.view3d.viewnumpad(type='TOP')
 		view3d.region_3d.view_perspective = 'ORTHO'
 		view3d.cursor_location = (0, 0, 0)
-		#bpy.ops.view3d.view_center_cursor()
-		view3d.region_3d.view_location = (0, 0, 0)
+		if not self.prefs.lockOrigin:
+			#bpy.ops.view3d.view_center_cursor()
+			view3d.region_3d.view_location = (0, 0, 0)
 
 		#Init some properties
 		# tag if map is currently drag
@@ -1795,8 +1799,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 								dx = loc.x * k
 								dy = loc.y * k
-								s = self.map.scale
-								self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
+								self.map.moveOrigin(dx, dy)
 								#make a preview by moving bkg image
 								if self.map.bkg is not None:
 									ratio = self.map.img.size[0] / self.map.img.size[1]
@@ -1855,8 +1858,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 								dx = loc.x * k
 								dy = loc.y * k
-								s = self.map.scale
-								self.map.moveOrigin(dx*s, dy*s, updObjLoc=True)
+								self.map.moveOrigin(dx, dy)
 								#make a preview by moving bkg image
 								if self.map.bkg is not None:
 									ratio = self.map.img.size[0] / self.map.img.size[1]
@@ -1920,10 +1922,10 @@ class MAP_VIEWER(bpy.types.Operator):
 						#Compute final shift
 						loc1 = self.mouseTo3d(context, self.x1, self.y1)
 						loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-						dx = (loc1.x - loc2.x) * self.map.scale
-						dy = (loc1.y - loc2.y) * self.map.scale
+						dx = (loc1.x - loc2.x)
+						dy = (loc1.y - loc2.y)
 						#Update map
-						self.map.moveOrigin(dx,dy)
+						self.map.moveOrigin(dx, dy, updObjLoc=False)
 					self.map.get()
 
 
@@ -1959,14 +1961,14 @@ class MAP_VIEWER(bpy.types.Operator):
 				if self.prefs.lockOrigin:
 					context.region_data.view_location = loc
 				else:
-					dx = loc.x * self.map.scale
-					dy = loc.y * self.map.scale
+					dx = loc.x
+					dy = loc.y
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_x -= dx
 						self.map.bkg.offset_y -= dy * ratio
 					#Update map
-					self.map.moveOrigin(dx, dy, updObjLoc=True)
+					self.map.moveOrigin(dx, dy)
 				self.map.zoom = z
 				self.map.get()
 
@@ -1993,7 +1995,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					context.region_data.view_location = (x,y,z)
 				else:
 					dx = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(-dx*self.map.scale, 0, updObjLoc=True)
+					self.map.moveOrigin(-dx, 0)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x += dx
 			if event.type == 'NUMPAD_6':
@@ -2004,7 +2006,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					context.region_data.view_location = (x,y,z)
 				else:
 					dx = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(dx*self.map.scale, 0, updObjLoc=True)
+					self.map.moveOrigin(dx, 0)
 					if self.map.bkg is not None:
 						self.map.bkg.offset_x -= dx
 			if event.type == 'NUMPAD_2':
@@ -2015,7 +2017,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					context.region_data.view_location = (x,y,z)
 				else:
 					dy = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(0, -dy*self.map.scale, updObjLoc=True)
+					self.map.moveOrigin(0, -dy)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y += dy * ratio
@@ -2027,7 +2029,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					context.region_data.view_location = (x,y,z)
 				else:
 					dy = self.map.bkg.size * self.moveFactor
-					self.map.moveOrigin(0, dy*self.map.scale, updObjLoc=True)
+					self.map.moveOrigin(0, dy)
 					if self.map.bkg is not None:
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_y -= dy * ratio
