@@ -66,8 +66,7 @@ class BaseMap(GeoScene):
 		folder = prefs.cacheFolder
 
 		#Get resampling algo preference and set the constant
-		global RESAMP_ALG
-		RESAMP_ALG = prefs.resamplAlg
+		MapService.RESAMP_ALG = prefs.resamplAlg
 
 		#Init MapService class
 		self.srv = MapService(srckey, folder)

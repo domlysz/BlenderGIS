@@ -47,8 +47,7 @@ from .servicesDefs import GRIDS, SOURCES
 from geoscene.proj import reprojPt, reprojBbox, dd2meters, CRS
 
 #Constants
-# reproj resampling algo
-RESAMP_ALG = 'BL' #NN:Nearest Neighboor, BL:Bilinear, CB:Cubic, CBS:Cubic Spline, LCZ:Lanczos
+
 
 
 ########################
@@ -624,6 +623,9 @@ class MapService():
 		referer
 	"""
 
+	# resampling algo for reprojection
+	RESAMP_ALG = 'BL' #NN:Nearest Neighboor, BL:Bilinear, CB:Cubic, CBS:Cubic Spline, LCZ:Lanczos
+
 	def __init__(self, srckey, cacheFolder, dstGridKey=None):
 
 
@@ -884,7 +886,7 @@ class MapService():
 
 			tileSize = self.dstTms.tileSize
 
-			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res)
+			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, resamplAlg=self.RESAMP_ALG)
 
 			#Get BLOB
 			b = io.BytesIO()
@@ -1050,7 +1052,7 @@ class MapService():
 		geoimg = GeoImage(mosaic, (xmin, ymax), res)
 
 		if outCRS is not None and outCRS != tm.CRS:
-			geoimg = reprojImg(tm.CRS, outCRS, geoimg)
+			geoimg = reprojImg(tm.CRS, outCRS, geoimg, resamplAlg=self.RESAMP_ALG)
 
 		if self.running:
 			return geoimg
@@ -1060,7 +1062,7 @@ class MapService():
 
 
 
-def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
+def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None, resamplAlg='BL'):
 	'''
 	Use GDAL Python binding to reproject an image
 	crs1, crs2 >> epsg code
@@ -1145,11 +1147,11 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None):
 
 	#Perform the projection/resampling
 	# Resample algo
-	if RESAMP_ALG == 'NN' : alg = gdal.GRA_NearestNeighbour
-	elif RESAMP_ALG == 'BL' : alg = gdal.GRA_Bilinear
-	elif RESAMP_ALG == 'CB' : alg = gdal.GRA_Cubic
-	elif RESAMP_ALG == 'CBS' : alg = gdal.GRA_CubicSpline
-	elif RESAMP_ALG == 'LCZ' : alg = gdal.GRA_Lanczos
+	if resamplAlg == 'NN' : alg = gdal.GRA_NearestNeighbour
+	elif resamplAlg == 'BL' : alg = gdal.GRA_Bilinear
+	elif resamplAlg == 'CB' : alg = gdal.GRA_Cubic
+	elif resamplAlg == 'CBS' : alg = gdal.GRA_CubicSpline
+	elif resamplAlg == 'LCZ' : alg = gdal.GRA_Lanczos
 	# Memory limit (0 = no limit)
 	memLimit = 0
 	# Error in pixels (0 will use the exact transformer)
