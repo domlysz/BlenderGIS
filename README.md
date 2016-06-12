@@ -5,16 +5,19 @@ Blender GIS
 
 **Update 2016**
 
-[New tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
+- [New tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
 
-Import georaster refactoring :
-- Add support for float32 and negatives values
-- Add abitity to read geotiff tags (worldfile no longer necessary for tiff raster)
-- A new option to fill nodata values
-- Possibility to import directly a DEM (i.e without the requirement of a reference plane)
-- More user friendly
+- Import georaster refactoring :
+	- Add support for float32 and negatives values
+	- Add abitity to read geotiff tags (worldfile no longer necessary for tiff raster)
+	- A new option to fill nodata values
+	- Possibility to import directly a DEM (i.e without the requirement of a reference plane)
+	- More user friendly
 
-[Experimental basemaps addon](https://github.com/domlysz/BlenderGIS/wiki/Basemaps) : display web map service like Open Street Map directly in Blender
+
+- More powerfull [georeferencing management](https://github.com/domlysz/BlenderGIS/wiki/Gereferencing-management) with reprojection capabilities and better compatibility with others addons
+
+- [New Basemaps addon](https://github.com/domlysz/BlenderGIS/wiki/Basemaps) : display web map service like Open Street Map directly in Blender
 
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
 
