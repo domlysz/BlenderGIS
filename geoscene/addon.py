@@ -25,7 +25,7 @@ from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
 from .geoscn import GeoScene, SK
-from .proj import reprojPt, EPSGIO, search_EPSGio
+from .proj import reprojPt, EPSGIO, search_EPSGio, CRS
 
 ################
 # store crs preset as json string into addon preferences
@@ -188,6 +188,8 @@ class PREDEF_CRS_ADD(Operator):
 		prefs = context.user_preferences.addons[ __package__].preferences
 		#append the new crs def to json string
 		data = json.loads(prefs.predefCrsJson)
+		if not CRS.validate(self.crs):
+			self.report({'ERROR'}, 'Invalid CRS')
 		if self.crs.isdigit():
 			self.crs = 'EPSG:' + self.crs
 		data[self.crs] = self.desc
@@ -238,8 +240,8 @@ class PREDEF_CRS_EDIT(Operator):
 	bl_label = "Edit"
 	bl_options = {'INTERNAL'}
 
+	desc = StringProperty(name = "Name", description = "Choose a convenient name for this CRS")
 	crs = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
-	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
 
 	def invoke(self, context, event):
 		prefs = context.user_preferences.addons[__package__].preferences
@@ -253,10 +255,17 @@ class PREDEF_CRS_EDIT(Operator):
 
 	def execute(self, context):
 		prefs = context.user_preferences.addons[__package__].preferences
+		key = prefs.predefCrs
 		data = json.loads(prefs.predefCrsJson)
-		data[self.crs] = self.desc
-		prefs.predefCrsJson = json.dumps(data)
-		context.area.tag_redraw()
+
+		if CRS.validate(self.crs):
+			del data[key]
+			data[self.crs] = self.desc
+			prefs.predefCrsJson = json.dumps(data)
+			context.area.tag_redraw()
+		else:
+			self.report({'ERROR'}, 'Invalid CRS')
+
 		return {'FINISHED'}
 
 

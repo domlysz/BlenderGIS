@@ -225,6 +225,14 @@ class CRS():
 	A simple class to handle crs inputs
 	'''
 
+	@classmethod
+	def validate(cls, crs):
+		try:
+			cls(crs)
+			return True
+		except:
+			return False
+
 	def __init__(self, crs):
 		'''
 		Valid crs input can be :

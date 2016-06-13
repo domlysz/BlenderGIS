@@ -68,11 +68,7 @@ class GeoScene():
 	def hasValidCRS(self):
 		if not self.hasCRS:
 			return False
-		try:
-			CRS(self.crs)
-			return True
-		except:
-			return False
+		return CRS.validate(self.crs)
 
 	@property
 	def isGeoref(self):
@@ -118,6 +114,18 @@ class GeoScene():
 		except Exception as e:
 			print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
 			self.delOriginGeo()
+
+	#WIP
+	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True):
+		'''Move scene origin and update props'''
+		if useScale:
+			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
+		else:
+			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
+		if updObjLoc:
+			for obj in self.scn.objects:
+				obj.location.x -= dx #objs are already scaled
+				obj.location.y -= dy
 
 	def getOriginGeo(self):
 		return self.lon, self.lat
