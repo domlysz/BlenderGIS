@@ -477,6 +477,19 @@ def search_EPSGio(query):
 	return obj['results']
 
 
+def getEsriWkt_EPSGio(crs):
+	if not EPSGIO:
+		return None
+	crs = CRS(crs)
+	if not crs.isEPSG:
+		return None
+	url = "http://epsg.io/{CODE}.esriwkt"
+	url = url.replace("{CODE}", str(crs.code))
+	wkt = urllib.request.urlopen(url).read().decode('utf8')
+	return wkt
+
+
+
 ######################################
 # World Coordinate Converter
 # https://github.com/ClemRz/TWCC

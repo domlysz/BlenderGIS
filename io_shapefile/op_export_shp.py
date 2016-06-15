@@ -10,6 +10,8 @@ from bpy_extras.io_utils import ExportHelper #helper class defines filename and 
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
+from geoscene.geoscn import GeoScene
+from geoscene.proj import getEsriWkt_EPSGio
 
 class EXPORT_SHP(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
@@ -43,7 +45,9 @@ class EXPORT_SHP(Operator, ExportHelper):
 
 	def execute(self, context):
 		filePath = self.filepath
+		folder = os.path.dirname(filePath)
 		scn = bpy.context.scene
+		geoscn = GeoScene(scn)
 		#Get selected obj
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -60,10 +64,15 @@ class EXPORT_SHP(Operator, ExportHelper):
 			print("Selection isn't a mesh")
 			return {'FINISHED'}
 
-		if "Georef X" in scn and "Georef Y" in scn:
-			dx, dy = scn["Georef X"], scn["Georef Y"]
+		if geoscn.isGeoref:
+			dx, dy = geoscn.getOriginPrj()
+			wkt = getEsriWkt_EPSGio(geoscn.crs)
+		elif geoscn.isBroken:
+				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+				return {'FINISHED'}
 		else:
 			dx, dy = (0, 0)
+			wkt = None
 
 		bpy.ops.object.transform_apply(rotation=True, scale=True)
 		mesh = obj.data
@@ -97,7 +106,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 				outShp.line([line], shapeType=13)#cause shp feature can be multipart we need to enclose poly in a list
 				outShp.record(id)
 			outShp.save(filePath)
-		
+
 		if self.exportType == 'POLYGONZ':
 			outShp = shpWriter(POLYGONZ)
 			outShp.field('id','N','10')
@@ -114,7 +123,12 @@ class EXPORT_SHP(Operator, ExportHelper):
 				outShp.record(id)
 			outShp.save(filePath)
 
+		if wkt is not None:
+			prjPath = os.path.splitext(filePath)[0] + '.prj'
+			prj = open(prjPath, "w")
+			prj.write(wkt)
+			prj.close()
+
 		self.report({'INFO'}, "Export complete")
 		print("Export complete")
 		return {'FINISHED'}
-
