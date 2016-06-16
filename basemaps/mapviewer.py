@@ -153,7 +153,8 @@ class BaseMap(GeoScene):
 			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
 		#Objects and background image are already scaled
 		if updObjLoc:
-			for obj in self.scn.objects:
+			topParents = [obj for obj in self.scn.objects if not obj.parent]
+			for obj in topParents:
 				obj.location.x -= dx
 				obj.location.y -= dy
 		if updBkgImg and self.bkg is not None:
@@ -730,8 +731,9 @@ class MAP_VIEWER(bpy.types.Operator):
 						ratio = self.map.img.size[0] / self.map.img.size[1]
 						self.map.bkg.offset_x = self.offx1 - dlt.x
 						self.map.bkg.offset_y = self.offy1 - (dlt.y * ratio)
-					#Move existing objects
-					for i, obj in enumerate(scn.objects):
+					#Move existing objects (only top level parent)
+					topParents = [obj for obj in scn.objects if not obj.parent]
+					for i, obj in enumerate(topParents):
 						loc1 = self.objsLoc1[i]
 						obj.location.x = loc1.x - dlt.x
 						obj.location.y = loc1.y - dlt.y
@@ -750,8 +752,8 @@ class MAP_VIEWER(bpy.types.Operator):
 						if self.map.bkg is not None:
 							self.offx1 = self.map.bkg.offset_x
 							self.offy1 = self.map.bkg.offset_y
-						#Store current location of each objects
-						self.objsLoc1 = [obj.location.copy() for obj in scn.objects]
+						#Store current location of each objects (only top level parent)
+						self.objsLoc1 = [obj.location.copy() for obj in scn.objects if not obj.parent]
 				#Tag that map is currently draging
 				self.inMove = True
 
