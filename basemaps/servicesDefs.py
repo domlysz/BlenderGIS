@@ -205,7 +205,7 @@ SOURCES = {
 			"SERVICE" : 'WMS',
 			"VERSION" : '1.1.1',
 			"REQUEST" : 'GetMap',
-			"SRS" : 'EPSG:{CRS}',
+			"SRS" : '{CRS}', #EPSG:xxxx
 			"LAYERS" : '{LAY}',
 			"FORMAT" : 'image/{FORMAT}',
 			"STYLES" : '{STYLE}',
@@ -236,7 +236,7 @@ SOURCES = {
 			"SERVICE" : 'WMS',
 			"VERSION" : '1.3.0',
 			"REQUEST" : 'GetMap',
-			"CRS" : 'EPSG:{CRS}',
+			"CRS" : '{CRS}',
 			"LAYERS" : '{LAY}',
 			"FORMAT" : 'image/{FORMAT}',
 			"STYLES" : '{STYLE}',
