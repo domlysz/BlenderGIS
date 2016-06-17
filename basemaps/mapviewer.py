@@ -44,6 +44,102 @@ from geoscene.proj import reprojPt, reprojBbox, GDAL
 #https://github.com/damianbraun/nominatim
 from .nominatim import Nominatim
 
+####################
+
+class BBOX(dict):
+	'''A class to represent a bounding box'''
+
+	@classmethod
+	def fromObj(cls, obj, applyTransform = True):
+		if applyTransform:
+			boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
+		else:
+			boundPts = obj.bound_box
+
+		xmin = min([pt[0] for pt in boundPts])
+		xmax = max([pt[0] for pt in boundPts])
+		ymin = min([pt[1] for pt in boundPts])
+		ymax = max([pt[1] for pt in boundPts])
+		zmin = min([pt[2] for pt in boundPts])
+		zmax = max([pt[2] for pt in boundPts])
+
+		return cls(xmin, xmax, ymin, ymax)
+
+	@classmethod
+	def fromScn(cls, scn):
+		scn = bpy.context.scene
+		objs = scn.objects
+		if len(objs) == 0:
+			scnBbox = cls(0,0,0,0)
+		else:
+			scnBbox = BBOX.fromObj(objs[0])
+		for obj in objs:
+			bbox = BBOX.fromObj(obj)
+			scnBbox += bbox
+		return scnBbox
+
+	def __init__(self, xmin, xmax, ymin, ymax):
+		#(xmin, ymin, xmax, ymax) or (xmin, xmax, ymin, ymax) format ???
+		self.xmin = xmin
+		self.xmax = xmax
+		self.ymin = ymin
+		self.ymax = ymax
+
+	def __str__(self):
+		return "xmin "+str(self.xmin)+" xmax "+str(self.xmax)+" ymin "+str(self.ymin)+" ymax "+str(self.ymax)
+
+	def __eq__(self, bb):
+		if self.xmin == bb.xmin and self.xmax == bb.xmax and self.ymin == bb.ymin and self.ymax == bb.ymax:
+			return True
+
+	def __add__(self, bb):
+		xmax = max(self.xmax, bb.xmax)
+		xmin = min(self.xmin, bb.xmin)
+		ymax = max(self.ymax, bb.ymax)
+		ymin = min(self.ymin, bb.ymin)
+		return BBOX(xmin, xmax, ymin, ymax)
+
+	def __getitem__(self, attr):
+		'access attributes like a dictionnary'
+		return getattr(self, attr)
+
+	def __setitem__(self, key, value):
+		'set attributes like a dictionnary'
+		setattr(self, key, value)
+
+	def toDict(self):
+		return self.__dict__
+
+	@property
+	def ul(self):
+		'''upper left corner'''
+		return (self.xmin, self.ymax)
+	@property
+	def ur(self):
+		'''upper right corner'''
+		return (self.xmax, self.ymax)
+	@property
+	def bl(self):
+		'''bottom left corner'''
+		return (self.xmin, self.ymin)
+	@property
+	def br(self):
+		'''bottom right corner'''
+		return (self.xmax, self.ymin)
+
+	@property
+	def center(self):
+		x = self.xmin + (self.xmax - self.xmin) / 2
+		y = self.ymin + (self.ymax - self.ymin) / 2
+		#z = self.zmin + (self.zmax - self.zmin) / 2
+		return (x,y)#,z)
+
+	@property
+	def dimensions(self):
+		dx = self.xmax - self.xmin
+		dy = self.ymax - self.ymin
+		#dz = self.zmax - self.zmin
+		return (dx,dy)#,dz)
 
 ####################
 
@@ -421,6 +517,8 @@ class MAP_START(bpy.types.Operator):
 
 	zoom = IntProperty(name='Zoom level', min=0, max=25)
 
+	recenter = BoolProperty(name='Center to existing objects')
+
 	def draw(self, context):
 		addonPrefs = context.user_preferences.addons[__package__].preferences
 		scn = context.scene
@@ -455,6 +553,9 @@ class MAP_START(bpy.types.Operator):
 				row.label('CRS: ' + desc)
 			else:
 				row.label('CRS: ' + grdCRS)
+
+			row = layout.row()
+			row.prop(self, 'recenter')
 
 			geoscn = GeoScene(scn)
 			if geoscn.isPartiallyGeoref:
@@ -511,7 +612,7 @@ class MAP_START(bpy.types.Operator):
 
 		#Start map viewer operator
 		self.dialog = 'MAP' #reinit dialog type
-		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd)
+		bpy.ops.view3d.map_viewer('INVOKE_DEFAULT', srckey=self.src, laykey=self.lay, grdkey=self.grd, recenter=self.recenter)
 
 		return {'FINISHED'}
 
@@ -534,6 +635,8 @@ class MAP_VIEWER(bpy.types.Operator):
 	grdkey = StringProperty()
 
 	laykey = StringProperty()
+
+	recenter = BoolProperty()
 
 	@classmethod
 	def poll(cls, context):
@@ -587,6 +690,23 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		#Get map
 		self.map = BaseMap(context, self.srckey, self.laykey, self.grdkey)
+
+		if self.recenter and len(context.scene.objects) > 0:
+			scnBbox = BBOX.fromScn(context.scene)
+			w, h = scnBbox.dimensions
+			px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
+			dst_diag = math.sqrt( w**2 + h**2 )
+			targetRes = dst_diag / px_diag
+			z = self.map.tm.getNearestZoom(targetRes, rule='lower')
+			resFactor = self.map.tm.getFromToResFac(self.map.zoom, z)
+			context.region_data.view_distance *= resFactor
+			x, y = scnBbox.center
+			if self.prefs.lockOrigin:
+				context.region_data.view_location = (x, y, 0)
+			else:
+				self.map.moveOrigin(x, y)
+			self.map.zoom = z
+
 		self.map.get()
 
 		return {'RUNNING_MODAL'}
