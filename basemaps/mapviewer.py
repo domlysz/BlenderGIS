@@ -33,7 +33,7 @@ import blf, bgl
 
 #addon import
 from .servicesDefs import GRIDS, SOURCES
-from .mapservice import MapService
+from .mapservice import MapService, PILLOW
 
 #geoscene imports
 from geoscene.geoscn import GeoScene, SK
@@ -568,6 +568,10 @@ class MAP_START(bpy.types.Operator):
 
 
 	def invoke(self, context, event):
+
+		if not PILLOW:
+			self.report({'ERROR'}, "Please install Python Pillow module")
+			return {'CANCELLED'}
 
 		if not context.area.type == 'VIEW_3D':
 			self.report({'WARNING'}, "View3D not found, cannot run operator")

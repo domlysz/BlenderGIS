@@ -30,8 +30,14 @@ import imghdr
 
 
 #deps imports
-from PIL import Image
 import numpy as np
+
+try:
+	from PIL import Image
+except:
+	PILLOW = False
+else:
+	PILLOW = True
 
 try:
 	from osgeo import gdal, osr
