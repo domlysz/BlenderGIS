@@ -505,12 +505,12 @@ class IMPORT_SHP(Operator):
 					if len(geom) >= 3: #needs 3 points to get a valid face
 						verts = [bm.verts.new(pt) for pt in geom]
 						face = bm.faces.new(verts)
-						if face.normal < 0: #this is a polygon hole, bmesh cannot handle polygon hole
+						#update normal to avoid null vector
+						face.normal_update()
+						if face.normal.z < 0: #this is a polygon hole, bmesh cannot handle polygon hole
 							pass #TODO
 						#Extrusion
 						if self.fieldExtrudeName and offset > 0:
-							#update normal to avoid null vector
-							bm.normal_update()
 							#build translate vector
 							if self.extrusionAxis == 'NORMAL':
 								normal = face.normal
