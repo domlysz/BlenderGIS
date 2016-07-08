@@ -3,6 +3,8 @@ Blender GIS
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
+**Coming soon** : OSM & LIDAR support
+
 **Update 2016**
 
 - [New tool](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis) to analyzing height, slope and aspect of a terrain.
