@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import os, sys
+import os, sys, time
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
@@ -252,6 +252,7 @@ class IMPORT_SHP(Operator):
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
+		t0 = time.clock()
 
 		#Toogle object mode and deselect all
 		try:
@@ -336,7 +337,11 @@ class IMPORT_SHP(Operator):
 		#Init reprojector class
 		if geoscn.crs != shpCRS:
 			print("Data will be reprojected from " + shpCRS + " to " + geoscn.crs)
-			rprj = Reproj(shpCRS, geoscn.crs)
+			try:
+				rprj = Reproj(shpCRS, geoscn.crs)
+			except Exception as e:
+				self.report({'ERROR'}, "Unable to reproject data. " + str(e))
+				return {'FINISHED'}
 
 		#Get bbox
 		if geoscn.crs != shpCRS:
@@ -371,18 +376,16 @@ class IMPORT_SHP(Operator):
 			shpIter = shp.iterShapes()
 		nbFeats = shp.numRecords
 
-		#Init Python lists expected by from_pydata() function
-		if not self.separateObjects:
-			meshVerts = []
-			meshEdges = []
-			meshFaces = []
+		#Create an empty BMesh
+		bm = bmesh.new()
+		#Extrusion is exponentially slow with large bmesh
+		#it's fastest to extrude a small bmesh and then join it to a final large bmesh
+		if not self.separateObjects and self.fieldExtrudeName:
+			finalBm = bmesh.new()
 
 		progress = -1
 
-		#For each feature create a new bmesh
-		#using an intermediate bmesh object allows some extra operation like extrusion
-		#then extract bmesh data to python list formated as required by from_pydata function
-		#using from_pydata is the fastest way to produce a large mesh (appending all geom to the same bmesh is exponentially slow)
+		#Main iteration over features
 		for i, feat in enumerate(shpIter):
 
 			if self.useDbf:
@@ -429,12 +432,8 @@ class IMPORT_SHP(Operator):
 			if self.fieldExtrudeName:
 				try:
 					offset = float(record[extrudeFieldIdx])
-
 				except:
 					offset = 0 #null values will be set to zero
-
-			#Create an empty BMesh
-			bm = bmesh.new()
 
 			#Iter over parts
 			for j in range(nbParts):
@@ -514,18 +513,15 @@ class IMPORT_SHP(Operator):
 							#build translate vector
 							if self.extrusionAxis == 'NORMAL':
 								normal = face.normal
-								vect = normal*offset
+								vect = normal * offset
 							elif self.extrusionAxis == 'Z':
-								vect=(0, 0, offset)
-							faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face], use_select_history=False) #{'faces': [BMFace]}
+								vect = (0, 0, offset)
+							faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
 							verts = faces['faces'][0].verts
+							##result = bmesh.ops.extrude_face_region(bm, geom=[face]) #return dict {"geom":[BMVert, BMEdge, BMFace]}
+							##verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)] #geom type filter
 							bmesh.ops.translate(bm, verts=verts, vec=vect)
 
-			#Clean up and update the bmesh
-			bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-			bm.verts.index_update()
-			bm.edges.index_update()
-			bm.faces.index_update()
 
 			if self.separateObjects:
 
@@ -561,10 +557,10 @@ class IMPORT_SHP(Operator):
 				#Create new mesh from bmesh
 				mesh = bpy.data.meshes.new(name)
 				bm.to_mesh(mesh)
+				bm.clear()
 
 				#Validate new mesh
-				if mesh.validate():
-					print('Imported mesh had some problem, check the result!')
+				mesh.validate(verbose=False)
 
 				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
@@ -578,33 +574,40 @@ class IMPORT_SHP(Operator):
 				# so we must avoid using operators when created many objects with the 'separate objects' option)
 				##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 
-			else:
-				#Extent lists with bmesh data
-				offset = len(meshVerts)
-				meshVerts.extend(v.co[:] for v in bm.verts)
-				meshEdges.extend([[v.index + offset for v in e.verts] for e in bm.edges])
-				meshFaces.extend([[v.index + offset for v in f.verts] for f in bm.faces])
+			elif self.fieldExtrudeName:
+				#Join to final bmesh (use from_mesh method hack)
+				buff = bpy.data.meshes.new(".temp")
+				bm.to_mesh(buff)
+				finalBm.from_mesh(buff)
+				bpy.data.meshes.remove(buff)
+				bm.clear()
 
-			bm.free()
-
-		#using from_pydata to create the final mesh
+		#Write back the whole mesh
 		if not self.separateObjects:
 
 			mesh = bpy.data.meshes.new(shpName)
-			mesh.from_pydata(meshVerts, meshEdges, meshFaces)
 
-			#Validate new mesh
-			if mesh.validate():
-				print('Imported mesh had some problem, check the result!')
+			if self.fieldExtrudeName:
+				bm.free()
+				bm = finalBm
 
+			bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+			bm.to_mesh(mesh)
+
+			#Finish
+			#mesh.update(calc_edges=True)
+			mesh.validate(verbose=False) #return true if the mesh has been corrected
 			obj = bpy.data.objects.new(shpName, mesh)
 			context.scene.objects.link(obj)
 			context.scene.objects.active = obj
 			obj.select = True
-
 			bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 
+		#free the bmesh
+		bm.free()
 
+		t = time.clock() - t0
+		print('Build in %f seconds' % t)
 
 		#Adjust grid size
 		# get object(s) bbox in 3dview from previously computed shapefile bbox
