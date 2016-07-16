@@ -5,10 +5,11 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from bpy.types import Operator, Panel, AddonPreferences
 import addon_utils
 
+from . import bl_info
 from .utils.proj import SRS, EPSGIO
 from .utils.proj import GDAL, PYPROJ #constants to check module availibility
 
-PKG = __package__ #'blendergis'
+PKG = __package__
 
 #default predefinate crs
 PREDEF_CRS = {
@@ -27,7 +28,7 @@ class BGIS_PREFS_SHOW(bpy.types.Operator):
 	def execute(self, context):
 		addon_utils.modules_refresh()
 		bpy.context.user_preferences.active_section = 'ADDONS'
-		bpy.data.window_managers["WinMan"].addon_search = 'blendergis'#PKG
+		bpy.data.window_managers["WinMan"].addon_search = bl_info['name']
 		#bpy.ops.wm.addon_expand(module=PKG)
 		mod = addon_utils.addons_fake_modules.get(PKG)
 		mod.bl_info['show_expanded'] = True
