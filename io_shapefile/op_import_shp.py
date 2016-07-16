@@ -339,6 +339,7 @@ class IMPORT_SHP(Operator):
 				return {'FINISHED'}
 
 		#Init reprojector class
+		print(shp.numRecords, shp.shpLength)
 		if geoscn.crs != shpCRS:
 			print("Data will be reprojected from " + shpCRS + " to " + geoscn.crs)
 			try:
@@ -347,7 +348,9 @@ class IMPORT_SHP(Operator):
 				self.report({'ERROR'}, "Unable to reproject data. " + str(e))
 				return {'FINISHED'}
 			if rprj.iproj == 'EPSGIO':
-				self.report({'WARNING'}, "Reprojection will computed through online epsg.io engine. It will be extremly slow with lot of points")
+				if shp.numRecords > 100:
+					self.report({'ERROR'}, "Reprojection through online epsg.io engine is limited to 100 features. \nPlease install GDAL or pyproj module.")
+					return {'FINISHED'}
 
 		#Get bbox
 		bbox = BBOX(shp.bbox)

@@ -392,6 +392,7 @@ def lonLatToWebMerc(lon, lat):
 
 class EPSGIO():
 
+	@staticmethod
 	def ping():
 		url = "http://epsg.io"
 		try:
@@ -424,7 +425,7 @@ class EPSGIO():
 
 		if len(points) == 1:
 			x, y = points[0]
-			return [self.reprojPt(epsg1, epsg2, x, y)]
+			return [EPSGIO.reprojPt(epsg1, epsg2, x, y)]
 
 		urlTemplate = "http://epsg.io/trans?data={POINTS}&s_srs={CRS1}&t_srs={CRS2}"
 
