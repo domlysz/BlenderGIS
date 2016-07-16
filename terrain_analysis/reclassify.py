@@ -5,7 +5,8 @@ import bpy
 import math
 from mathutils import Vector
 #import numpy as np
-from .utils.misc import getBBox, scale
+from ..utils.interpo import scale
+from ..utils.geom import BBOX
 from .utils.kmeans1D import kmeans1d, getBreaks
 #from .utils.jenks_caspall import jenksCaspall
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
@@ -29,6 +30,30 @@ scn = None
 obj = None
 mat = None
 node = None
+
+
+def register():
+	#Register PropertyGroup
+	bpy.utils.register_class(CustomItem)
+	bpy.utils.register_class(ColorList)
+	#Create uilist collections
+	bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
+	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist
+	bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
+	#Add handlers
+	bpy.app.handlers.scene_update_post.append(scene_update)
+
+def unregister():
+	#Clear uilist
+	del bpy.types.Scene.uiListCollec
+	del bpy.types.Scene.uiListIndex
+	del bpy.types.Scene.colorRampPreview
+	#Clear handlers
+	bpy.app.handlers.scene_update_post.clear()
+	#Unregister PropertyGroup
+	bpy.utils.unregister_class(CustomItem)
+	bpy.utils.unregister_class(ColorList)
+
 
 #Set up a propertyGroup and populate a CollectionProperty
 #########################################
@@ -80,13 +105,11 @@ class CustomItem(PropertyGroup):
 	val = FloatProperty(update=updStop)
 	color = FloatVectorProperty(subtype='COLOR', min=0, max=1, update=updColor, size=4)
 
-
-#Create and register ui list collection in scene properties
-#PropertyGroup class need to be register before
+'''#See register()
 bpy.utils.register_class(CustomItem)
 bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
-#This one store the index of the selected item in the uilist
 bpy.types.Scene.uiListIndex = IntProperty()
+'''
 
 #POPULATE
 #Make function to populate collection
@@ -131,7 +154,7 @@ def setBounds():
 	global obj
 	if mode == 'HEIGHT':
 		obj = scn.objects.active
-		bbox = getBBox(obj)
+		bbox = BBOX.fromObj(obj)
 		inMin = bbox['zmin']
 		inMax = bbox['zmax']
 	elif mode == 'SLOPE':
@@ -178,8 +201,8 @@ def scene_update(scn):
 				node = activeNode
 				populateList(activeNode)
 
-
-bpy.app.handlers.scene_update_post.append(scene_update)
+#See register()
+#bpy.app.handlers.scene_update_post.append(scene_update)
 
 
 #Set up ui list
@@ -648,9 +671,10 @@ interpoMethods = [('LINEAR', 'Linear', "Linear interpolation"),
 class ColorList(PropertyGroup):
 	color = FloatVectorProperty(subtype='COLOR', min=0, max=1, size=4)
 
+'''#See register()
 bpy.utils.register_class(ColorList)
 bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
-
+'''
 
 class Reclass_quickGradient(Operator):
 	'''Quick colors gradient edit'''

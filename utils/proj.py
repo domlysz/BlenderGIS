@@ -22,6 +22,10 @@ import urllib.request
 import json
 import math
 
+from .utm import UTM, UTM_EPSG_CODES
+from .errors import ReprojError
+from .geom import BBOX
+
 try:
 	from osgeo import osr
 except:
@@ -36,32 +40,6 @@ except:
 else:
 	PYPROJ = True
 
-def check_connectivity(reference):
-	try:
-		urllib.request.urlopen(reference, timeout=1)
-		return True
-	except urllib.request.URLError:
-		return False
-
-if check_connectivity("http://epsg.io"):
-	EPSGIO = True
-else:
-	EPSGIO = False
-
-
-"""
-PROJ_INTERFACE = 'AUTO' #value in ['AUTO', 'GDAL', 'PYPROJ', 'EPSGIO', 'BUILTIN']
-#Choose the best interface for proj4
-if PROJ_INTERFACE == 'AUTO':
-	if GDAL:
-		PROJ_INTERFACE = 'GDAL'
-	elif PYPROJ:
-		PROJ_INTERFACE = 'PYPROJ'
-	elif EPSGIO:
-		PROJ_INTERFACE = 'EPSGIO'
-	else:
-		PROJ_INTERFACE = 'BUILTIN'
-"""
 
 ##############
 
@@ -90,12 +68,6 @@ def meters2dd(dst):
 
 
 
-class ReprojError(Exception):
-	def __init__(self, value):
-		self.value = value
-	def __str__(self):
-		return repr(self.value)
-
 
 class Reproj():
 
@@ -103,7 +75,7 @@ class Reproj():
 
 		#init CRS class
 		try:
-			crs1, crs2 = CRS(crs1), CRS(crs2)
+			crs1, crs2 = SRS(crs1), SRS(crs2)
 		except Exception as e:
 			raise ReprojError(str(e))
 
@@ -112,16 +84,15 @@ class Reproj():
 			self.iproj = 'GDAL'
 		elif PYPROJ:
 			 self.iproj = 'PYPROJ'
-		elif (crs1.isWM and crs2.isWGS84) or (crs1.isWGS84 and crs2.isWM):
+		elif ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)):
 			self.iproj = 'BUILTIN'
-		elif EPSGIO:
+		elif EPSGIO.ping():
 			#this is the slower solution, not suitable for reproject lot of points
 			self.iproj = 'EPSGIO'
 		else:
 			raise ReprojError('Too limited reprojection capabilities.')
 		#for debug, force an interface
-		#self.iproj = 'BUILTIN'
-
+		#self.iproj = 'EPSGIO'
 
 		if self.iproj == 'GDAL':
 			self.crs1 = crs1.getOgrSpatialRef()
@@ -139,11 +110,16 @@ class Reproj():
 				raise ReprojError('EPSG.io support only EPSG code')
 
 		elif self.iproj == 'BUILTIN':
-			if (crs1.isWM and crs2.isWGS84) or (crs1.isWGS84 and crs2.isWM):
+			if ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)):
+				#just store codes
 				self.crs1, self.crs2 = crs1.code, crs2.code
 			else:
 				raise ReprojError('Not implemented transformation')
-
+			#init UTM class
+			if crs1.isUTM:
+				self.utm = UTM.init_from_epsg(crs1)
+			elif crs2.isUTM:
+				self.utm = UTM.init_from_epsg(crs2)
 
 
 	def pts(self, pts):
@@ -163,14 +139,19 @@ class Reproj():
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'EPSGIO':
-			return reprojMany_EPSGio(self.crs1, self.crs2, pts)
+			return EPSGIO.reprojPts(self.crs1, self.crs2, pts)
 
 		elif self.iproj == 'BUILTIN':
+			#Web Mercator
 			if self.crs1 == 4326 and self.crs2 == 3857:
 				return [lonLatToWebMerc(*pt) for pt in pts]
 			elif self.crs1 == 3857 and self.crs2 == 4326:
 				return [webMercToLonLat(*pt) for pt in pts]
-
+			#UTM
+			if self.crs1 == 4326 and self.crs2 in UTM_EPSG_CODES:
+				return [self.utm.lonlat_to_utm(*pt) for pt in pts]
+			elif self.crs1 in UTM_EPSG_CODES and self.crs2 == 4326:
+				return [self.utm.utm_to_lonlat(*pt) for pt in pts]
 
 	def pt(self, x, y):
 		if x is None or y is None:
@@ -179,17 +160,18 @@ class Reproj():
 
 
 	def bbox(self, bbox):
-		xmin, ymin, xmax, ymax = bbox
-		ul = self.pt(xmin, ymax)
-		ur = self.pt(xmax, ymax)
-		br = self.pt(xmax, ymin)
-		bl = self.pt(xmin, ymin)
-		corners = [ ul, ur, br, bl ]
+		'''io type = BBOX() class'''
+		if not isinstance(bbox, BBOX):
+			bbox = BBOX(*bbox) #list must be ordered from bottom left upper right
+		corners = self.pts(bbox.corners)
 		_xmin = min( pt[0] for pt in corners )
 		_xmax = max( pt[0] for pt in corners )
 		_ymin = min( pt[1] for pt in corners )
 		_ymax = max( pt[1] for pt in corners )
-		return (_xmin, _ymin, _xmax, _ymax)
+		if bbox.hasZ:
+			return BBOX(_xmin, _ymin, bbox.zmin, _xmax, _ymax, bbox.zmax)
+		else:
+			return BBOX(_xmin, _ymin, _xmax, _ymax)
 
 
 
@@ -197,6 +179,7 @@ def reprojPt(crs1, crs2, x, y):
 	"""
 	Reproject x1,y1 coords from crs1 to crs2
 	crs can be an EPSG code (interger or string) or a proj4 string
+	WARN : do not use this function in a loop because Reproj() init is slow
 	"""
 	rprj = Reproj(crs1, crs2)
 	return rprj.pt(x, y)
@@ -217,12 +200,12 @@ def reprojBbox(crs1, crs2, bbox):
 	return rprj.bbox(bbox)
 
 
+##########################
 
-
-class CRS():
+class SRS():
 
 	'''
-	A simple class to handle crs inputs
+	A simple class to handle Spatial Ref System inputs
 	'''
 
 	@classmethod
@@ -302,6 +285,10 @@ class CRS():
 	@property
 	def isWGS84(self):
 		return self.auth == 'EPSG' and self.code == 4326
+
+	@property
+	def isUTM(self):
+		return self.auth == 'EPSG' and self.code in UTM_EPSG_CODES
 
 	def __str__(self):
 		'''Return the best string representation for this crs'''
@@ -403,90 +390,104 @@ def lonLatToWebMerc(lon, lat):
 # https://github.com/klokantech/epsg.io
 
 
-def reproj_EPSGio(epsg1, epsg2, x1, y1):
+class EPSGIO():
 
-	url = "http://epsg.io/trans?x={X}&y={Y}&z={Z}&s_srs={CRS1}&t_srs={CRS2}"
-
-	url = url.replace("{X}", str(x1))
-	url = url.replace("{Y}", str(y1))
-	url = url.replace("{Z}", '0')
-	url = url.replace("{CRS1}", str(epsg1))
-	url = url.replace("{CRS2}", str(epsg2))
-
-	response = urllib.request.urlopen(url).read().decode('utf8')
-	obj = json.loads(response)
-
-	return (float(obj['x']), float(obj['y']))
-
-
-def reprojMany_EPSGio(epsg1, epsg2, points):
-
-	if len(points) == 1:
-		x, y = points[0]
-		return [reproj_EPSGio(epsg1, epsg2, x, y)]
-
-	urlTemplate = "http://epsg.io/trans?data={POINTS}&s_srs={CRS1}&t_srs={CRS2}"
-
-	urlTemplate = urlTemplate.replace("{CRS1}", str(epsg1))
-	urlTemplate = urlTemplate.replace("{CRS2}", str(epsg2))
-
-	#data = ';'.join([','.join(map(str, p)) for p in points])
-
-	precision = 4
-	data = [','.join( [str(round(v, precision)) for v in p] ) for p in points ]
-	part, parts = [], []
-	for i,p in enumerate(data):
-		l = sum([len(p) for p in part]) + len(';'*len(part))
-		if l + len(p) < 4000: #limit is 4094
-			part.append(p)
-		else:
-			parts.append(part)
-			part = [p]
-		if i == len(data)-1:
-			parts.append(part)
-	parts = [';'.join(part) for part in parts]
-
-	result = []
-	for part in parts:
-		url = urlTemplate.replace("{POINTS}", part)
-
+	def ping():
+		url = "http://epsg.io"
 		try:
-			response = urllib.request.urlopen(url).read().decode('utf8')
-		except urllib.error.HTTPError as err:
-			print(err.code, err.reason, err.headers)
-			print(url)
+			urllib.request.urlopen(url, timeout=1)
+			return True
+		except urllib.request.URLError:
+			return False
+		except:
 			raise
 
+
+	@staticmethod
+	def reprojPt(epsg1, epsg2, x1, y1):
+
+		url = "http://epsg.io/trans?x={X}&y={Y}&z={Z}&s_srs={CRS1}&t_srs={CRS2}"
+
+		url = url.replace("{X}", str(x1))
+		url = url.replace("{Y}", str(y1))
+		url = url.replace("{Z}", '0')
+		url = url.replace("{CRS1}", str(epsg1))
+		url = url.replace("{CRS2}", str(epsg2))
+
+		response = urllib.request.urlopen(url).read().decode('utf8')
 		obj = json.loads(response)
-		result.extend( [(float(p['x']), float(p['y'])) for p in obj] )
 
-	return result
+		return (float(obj['x']), float(obj['y']))
 
+	@staticmethod
+	def reprojPts(epsg1, epsg2, points):
 
-def search_EPSGio(query):
-	query = str(query).replace(' ', '+')
-	url = "http://epsg.io/?q={QUERY}&format=json"
-	url = url.replace("{QUERY}", query)
-	response = urllib.request.urlopen(url).read().decode('utf8')
-	obj = json.loads(response)
-	'''
-	for res in obj['results']:
-		#print( res['name'], res['code'], res['proj4'] )
-		print( res['code'], res['name'] )
-	'''
-	return obj['results']
+		if len(points) == 1:
+			x, y = points[0]
+			return [self.reprojPt(epsg1, epsg2, x, y)]
 
+		urlTemplate = "http://epsg.io/trans?data={POINTS}&s_srs={CRS1}&t_srs={CRS2}"
 
-def getEsriWkt_EPSGio(crs):
-	if not EPSGIO:
-		return None
-	crs = CRS(crs)
-	if not crs.isEPSG:
-		return None
-	url = "http://epsg.io/{CODE}.esriwkt"
-	url = url.replace("{CODE}", str(crs.code))
-	wkt = urllib.request.urlopen(url).read().decode('utf8')
-	return wkt
+		urlTemplate = urlTemplate.replace("{CRS1}", str(epsg1))
+		urlTemplate = urlTemplate.replace("{CRS2}", str(epsg2))
+
+		#data = ';'.join([','.join(map(str, p)) for p in points])
+
+		precision = 4
+		data = [','.join( [str(round(v, precision)) for v in p] ) for p in points ]
+		part, parts = [], []
+		for i,p in enumerate(data):
+			l = sum([len(p) for p in part]) + len(';'*len(part))
+			if l + len(p) < 4000: #limit is 4094
+				part.append(p)
+			else:
+				parts.append(part)
+				part = [p]
+			if i == len(data)-1:
+				parts.append(part)
+		parts = [';'.join(part) for part in parts]
+
+		result = []
+		for part in parts:
+			url = urlTemplate.replace("{POINTS}", part)
+
+			try:
+				response = urllib.request.urlopen(url).read().decode('utf8')
+			except urllib.error.HTTPError as err:
+				print(err.code, err.reason, err.headers)
+				print(url)
+				raise
+
+			obj = json.loads(response)
+			result.extend( [(float(p['x']), float(p['y'])) for p in obj] )
+
+		return result
+
+	@staticmethod
+	def search(query):
+		query = str(query).replace(' ', '+')
+		url = "http://epsg.io/?q={QUERY}&format=json"
+		url = url.replace("{QUERY}", query)
+		response = urllib.request.urlopen(url).read().decode('utf8')
+		obj = json.loads(response)
+		'''
+		for res in obj['results']:
+			#print( res['name'], res['code'], res['proj4'] )
+			print( res['code'], res['name'] )
+		'''
+		return obj['results']
+
+	@staticmethod
+	def getEsriWkt(crs):
+		if not EPSGIO:
+			return None
+		crs = SRS(crs)
+		if not crs.isEPSG:
+			return None
+		url = "http://epsg.io/{CODE}.esriwkt"
+		url = url.replace("{CODE}", str(crs.code))
+		wkt = urllib.request.urlopen(url).read().decode('utf8')
+
 
 
 
@@ -494,17 +495,26 @@ def getEsriWkt_EPSGio(crs):
 # World Coordinate Converter
 # https://github.com/ClemRz/TWCC
 
-def reproj_TWCC(epsg1, epsg2, x1, y1):
+class TWCC():
 
-	url = "http://twcc.fr/en/ws/?fmt=json&x={X}&y={Y}&in=EPSG:{CRS1}&out=EPSG:{CRS2}"
+	@staticmethod
+	def reprojPt(epsg1, epsg2, x1, y1):
 
-	url = url.replace("{X}", str(x1))
-	url = url.replace("{Y}", str(y1))
-	url = url.replace("{Z}", '0')
-	url = url.replace("{CRS1}", str(epsg1))
-	url = url.replace("{CRS2}", str(epsg2))
+		url = "http://twcc.fr/en/ws/?fmt=json&x={X}&y={Y}&in=EPSG:{CRS1}&out=EPSG:{CRS2}"
 
-	response = urllib.request.urlopen(url).read().decode('utf8')
-	obj = json.loads(response)
+		url = url.replace("{X}", str(x1))
+		url = url.replace("{Y}", str(y1))
+		url = url.replace("{Z}", '0')
+		url = url.replace("{CRS1}", str(epsg1))
+		url = url.replace("{CRS2}", str(epsg2))
 
-	return (float(obj['point']['x']), float(obj['point']['y']))
+		response = urllib.request.urlopen(url).read().decode('utf8')
+		obj = json.loads(response)
+
+		return (float(obj['point']['x']), float(obj['point']['y']))
+
+
+######################################
+#http://spatialreference.org/ref/epsg/2154/esriwkt/
+
+#class SpatialRefOrg():

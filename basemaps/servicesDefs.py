@@ -69,8 +69,7 @@ GRIDS = {
 		"resFactor" : 2
 	},
 
-}
-"""
+
 	#####################
 	#Custom grid example
 	######################
@@ -115,7 +114,7 @@ GRIDS = {
 		"resFactor" : 2
 	},
 
-"""
+}
 
 
 ####################################
@@ -217,9 +216,7 @@ SOURCES = {
 		"referer": "http://www.osm-wms.de/"
 	},
 
-}
 
-"""
 
 	#http://wms.craig.fr/ortho?SERVICE=WMS&REQUEST=GetCapabilities
 	# example of valid location in Auvergne : lat 45.77 long 3.082
@@ -236,7 +233,7 @@ SOURCES = {
 			"SERVICE" : 'WMS',
 			"VERSION" : '1.3.0',
 			"REQUEST" : 'GetMap',
-			"CRS" : '{CRS}',
+			"CRS" : 'EPSG:{CRS}',
 			"LAYERS" : '{LAY}',
 			"FORMAT" : 'image/{FORMAT}',
 			"STYLES" : '{STYLE}',
@@ -314,5 +311,4 @@ SOURCES = {
 	},
 
 
-
-"""
+}

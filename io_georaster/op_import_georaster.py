@@ -35,31 +35,19 @@ except:
 #For debug
 #GDAL = False
 
-from .utils import xy, bbox, OverlapError
 from .georaster import GeoRaster, GeoRasterGDAL
 
-from geoscene.geoscn import GeoScene
-from geoscene.addon import PredefCRS, georefManagerLayout
-from geoscene.proj import reprojPt, Reproj
+from ..utils.geom import XY as xy, BBOX
+from ..utils.errors import OverlapError
+from ..utils.interpo import scale
+from ..utils.img import getImgFormat, getImgDim
+#from ..utils.proj import Reproj
+from ..geoscene import GeoScene, georefManagerLayout
+from ..prefs import PredefCRS
+
 
 #------------------------------------------------------------------------
-def getBBox(obj, applyTransform = True, applyDeltas=False):
-	'''Compute bbox of a given object'''
-	if applyTransform:
-		boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
-	else:
-		boundPts = obj.bound_box
-	xmin = min([pt[0] for pt in boundPts])
-	xmax = max([pt[0] for pt in boundPts])
-	ymin = min([pt[1] for pt in boundPts])
-	ymax = max([pt[1] for pt in boundPts])
-	if applyDeltas:
-		#Get georef deltas stored as scene properties
-		geoscn = GeoScene()
-		dx, dy = geoscn.getOriginPrj()
-		return bbox(xmin+dx, xmax+dx, ymin+dy, ymax+dy)
-	else:
-		return bbox(xmin, xmax, ymin, ymax)
+
 
 def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
 	'''Build a new mesh that represent a georaster extent'''
@@ -330,7 +318,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		split = row.split(percentage=0.35, align=True)
 		split.label('CRS:')
 		split.prop(self, "rastCRS", text='')
-		row.operator("geoscene.add_predef_crs", text='', icon='ZOOMIN')
+		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
 		if geoscn.isPartiallyGeoref:
 			georefManagerLayout(self, context)
 
@@ -437,7 +425,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			obj.select = True
 			scn.objects.active = obj
 			# Compute projeted bbox (in geographic coordinates system)
-			subBox = getBBox(obj, applyDeltas=True)
+			subBox = BBOX.fromObj(obj).toGeo(geoscn)
 			#Load raster
 			try:
 				rast = GeoRaster(filePath, subBox=subBox)
@@ -467,7 +455,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				obj.select = True
 				scn.objects.active = obj
 				# Compute projeted bbox (in geographic coordinates system)
-				subBox = getBBox(obj, applyDeltas=True)
+				subBox = BBOX.fromObj(obj).toGeo(geoscn)
 			else:
 				subBox = None
 
@@ -528,7 +516,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					return self.err("No working extent")
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
-				subBox = getBBox(obj, applyDeltas=True)
+				subBox = BBOX.fromObj(obj).toGeo(geoscn)
 
 			# Load raster
 			if not GDAL:
@@ -558,7 +546,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 		#...if so, maybee we need to adjust 3d view settings to it
 		if newObjCreated:
-			bb = getBBox(obj)
+			bb = BBOX.fromObj(obj)
 			dstMax = round(max(abs(bb.xmax), abs(bb.xmin), abs(bb.ymax), abs(bb.ymin)))*2
 			nbDigit = len(str(dstMax))
 			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
@@ -584,7 +572,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 						space.grid_scale = scale
 						space.clip_end = targetDst*10#10x more than necessary
 					#Zoom to selected
-					overrideContext = {'area': area, 'region':area.regions[-1]}
+					#overrideContext = {'area': area, 'region':area.regions[-1]}
+					overrideContext = context.copy()
+					overrideContext['area'] = area
+					overrideContext['region'] = area.regions[-1]
 					bpy.ops.view3d.view_selected(overrideContext)
 
 		return {'FINISHED'}

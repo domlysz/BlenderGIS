@@ -24,10 +24,13 @@ import math
 import bpy
 #import bmesh
 import numpy as np
+
 from . import Tyf #geotags reader
-from .utils import xy, bbox, overlap, OverlapError
-from .utils import getImgFormat, getImgDim
 from .utils import replace_nans #inpainting function (ie fill nodata)
+
+from ..utils.geom import XY as xy, BBOX
+from ..utils.errors import OverlapError
+from ..utils.img import getImgFormat, getImgDim
 
 try:
 	from osgeo import gdal
@@ -347,7 +350,7 @@ class GeoRaster():
 		xmax = max([pt.x for pt in self.corners])
 		ymin = min([pt.y for pt in self.corners])
 		ymax = max([pt.y for pt in self.corners])
-		return bbox(xmin, xmax, ymin, ymax)
+		return BBOX(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
 	@property
 	def center(self):
 		'''(x,y) geo coordinates of image center'''
@@ -504,16 +507,16 @@ class GeoRaster():
 		if xmax > sizex: xmax = sizex - 1
 		if ymin < 0: ymin = 0
 		if ymax > sizey: ymax = sizey - 1
-		return bbox(xmin, xmax, ymin, ymax)#xmax and ymax include
+		return BBOX(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)#xmax and ymax include
 
 
 	def setSubBox(self, subBox):
 		'''Before set the property, ensure that the desired subbox overlap the raster extent'''
 		if not self.isGeoref:
 			raise IOError("Not georef")
-		if not overlap(self.bbox, subBox):
+		if not self.bbox.overlap(subBox):
 			raise OverlapError()
-		elif subBox.xmin <= self.bbox.xmin and subBox.xmax >= self.bbox.xmax and subBox.ymin <= self.bbox.ymin and subBox.ymax >= self.bbox.ymax:
+		elif self.bbox.isWithin(subBox):
 			#Ignore because subbox is greater than raster extent
 			return
 		else:

@@ -22,7 +22,8 @@ import bpy
 from mathutils import Vector
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 
-from geoscene.geoscn import GeoScene
+from ..utils.geom import BBOX
+from ..geoscene import GeoScene
 
 def listObjects(self, context):
 	#Function used to update the objects list (obj_list) used by the dropdown box.
@@ -40,35 +41,11 @@ def listCams(self, context):
 			objs.append((str(index), object.name, "Camera : "+object.name)) #put each object in a tuple (key, label, tooltip) and add this to the objects list
 	return objs
 
-def getBBox(obj, applyTransform = True):
-	if applyTransform:
-		boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
-	else:
-		boundPts = obj.bound_box
-	bbox={}
-	bbox['xmin']=min([pt[0] for pt in boundPts])
-	bbox['xmax']=max([pt[0] for pt in boundPts])
-	bbox['ymin']=min([pt[1] for pt in boundPts])
-	bbox['ymax']=max([pt[1] for pt in boundPts])
-	bbox['zmin']=min([pt[2] for pt in boundPts])
-	bbox['zmax']=max([pt[2] for pt in boundPts])
-	return bbox
 
-def getBBoxCenter(bbox):
-	x = bbox['xmin'] + (bbox['xmax'] - bbox['xmin']) / 2
-	y = bbox['ymin'] + (bbox['ymax'] - bbox['ymin']) / 2
-	z = bbox['zmin'] + (bbox['zmax'] - bbox['zmin']) / 2
-	return (x,y,z)
 
-def getBBoxDim(bbox):
-	dx = bbox['xmax'] - bbox['xmin']
-	dy = bbox['ymax'] - bbox['ymin']
-	dz = bbox['zmax'] - bbox['zmin']
-	return (dx,dy,dz)
-
-#store property in scene
-bpy.types.Scene.objLst = EnumProperty(attr="obj_list", name="Object", description="Choose an object", items=listObjects)
-bpy.types.Scene.camLst = EnumProperty(attr="cam_list", name="Camera", description="Choose a camera", items=listCams)
+#store property in window manager
+bpy.types.WindowManager.objLst = EnumProperty(attr="obj_list", name="Object", description="Choose an object", items=listObjects)
+bpy.types.WindowManager.camLst = EnumProperty(attr="cam_list", name="Camera", description="Choose a camera", items=listCams)
 
 class ToolsPanelSetGeorefCam(bpy.types.Panel):
 	bl_category = "GIS"
@@ -79,12 +56,13 @@ class ToolsPanelSetGeorefCam(bpy.types.Panel):
 
 	def draw(self, context):
 		layout = self.layout
-		scn = bpy.context.scene
+		scn = context.scene
+		wm = context.window_manager
 		geoscn = GeoScene(scn)
 		if geoscn.isGeoref:
-			if len(context.scene.objLst) > 0:
-				layout.prop(context.scene, "objLst")
-				layout.prop(context.scene, "camLst")
+			if len(wm.objLst) > 0:
+				layout.prop(wm, "objLst")
+				layout.prop(wm, "camLst")
 				layout.operator("object.set_georef_cam")
 			else:
 				layout.label("There isn't reference object to set camera on")
@@ -106,6 +84,9 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 
 	def execute(self, context):#every times operator redo options are modified
 
+		wm = bpy.context.window_manager
+		scn = context.scene
+
 		#general offset used to set cam z loc and clip end distance
 		#needed to avoid clipping/black hole effects
 		offset = 10
@@ -121,30 +102,29 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		bpy.ops.object.select_all(action='DESELECT')
 
 		#Get georef data
-		scene = bpy.context.scene
-		geoscn = GeoScene(scene)
+		geoscn = GeoScene(scn)
 		dx, dy = geoscn.getOriginPrj()
 
 		#Get object
-		objIdx = context.scene.objLst
-		georefObj = bpy.context.scene.objects[int(objIdx)]
+		objIdx = wm.objLst
+		georefObj = scn.objects[int(objIdx)]
 
 		#Object properties
-		bbox = getBBox(georefObj, True)
-		locx, locy, locz = getBBoxCenter(bbox)
-		dimx, dimy, dimz = getBBoxDim(bbox)
+		bbox = BBOX.fromObj(georefObj, True)
+		locx, locy, locz = bbox.center
+		dimx, dimy, dimz = bbox.dimensions
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
 
-		if context.scene.camLst == 'NEW':
+		if wm.camLst == 'NEW':
 			#Add camera data
 			cam = bpy.data.cameras.new(name=self.name)
 			#Add camera obj
 			camObj = bpy.data.objects.new(name=self.name, object_data=cam)
-			scene.objects.link(camObj)
+			scn.objects.link(camObj)
 		else:
 			#Get camera obj
-			objIdx = context.scene.camLst
-			camObj = bpy.context.scene.objects[int(objIdx)]
+			objIdx = wm.camLst
+			camObj = scn.objects[int(objIdx)]
 			#Get data
 			cam = camObj.data
 
@@ -161,7 +141,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		cam.clip_end = dimz + offset*2
 		cam.show_limits = True
 
-		if context.scene.camLst != 'NEW':
+		if wm.camLst != 'NEW':
 			if self.redo == 1:#in update mode, we don't want overwrite initial camera name
 				self.name = camObj.name
 			else:#but user can change camera name in redo parameters
@@ -169,26 +149,26 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 				camObj.data.name = self.name
 
 		camObj.select = True
-		scene.objects.active = camObj
+		scn.objects.active = camObj
 
 		#setup scene
-		scene.camera = camObj
-		scene.render.resolution_x = dimx / self.target_res
-		scene.render.resolution_y = dimy / self.target_res
-		scene.render.resolution_percentage = 100
+		scn.camera = camObj
+		scn.render.resolution_x = dimx / self.target_res
+		scn.render.resolution_y = dimy / self.target_res
+		scn.render.resolution_percentage = 100
 
 		#write wf
 		res = self.target_res#dimx / scene.render.resolution_x
 		rot=0
-		x=bbox['xmin']+dx
-		y=bbox['ymax']+dy
+		x = bbox['xmin'] + dx
+		y = bbox['ymax'] + dy
 		wf_data = str(res)+'\n'+str(rot)+'\n'+str(rot)+'\n'+str(-res)+'\n'+str(x+res/2)+'\n'+str(y-res/2)
 		wf_name = self.name+'.wld'
 		if wf_name in bpy.data.texts:
 			wfText = bpy.data.texts[wf_name]
 			wfText.clear()
 		else:
-			wfText=bpy.data.texts.new(name=wf_name)
+			wfText = bpy.data.texts.new(name=wf_name)
 		wfText.write(wf_data)
 
 

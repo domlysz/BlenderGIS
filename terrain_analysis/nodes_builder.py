@@ -2,7 +2,8 @@
 
 import bpy
 import math
-from .utils.misc import getBBox, scale
+from ..utils.interpo import scale
+from ..utils.geom import BBOX
 from bpy.types import Panel, Operator
 
 class Analysis_panel(Panel):
@@ -27,6 +28,9 @@ class Analysis_nodes(Operator):
 		scn = context.scene
 		scn.render.engine = 'CYCLES' #force Cycles render
 		obj = scn.objects.active
+		if obj is None:
+			self.report({'ERROR'}, "No active object")
+			return {'FINISHED'}
 		#######################
 		#HEIGHT
 		#######################
@@ -102,7 +106,7 @@ class Analysis_nodes(Operator):
 		scaleNodeGroup.location = (-200, 200)
 		#
 		# create z bbox value nodes
-		bbox = getBBox(obj)
+		bbox = BBOX.fromObj(obj)
 		zmin = node_tree.nodes.new('ShaderNodeValue')
 		zmin.label = 'zmin ' + obj.name
 		zmin.outputs[0].default_value = bbox['zmin']
@@ -143,7 +147,7 @@ class Analysis_nodes(Operator):
 		#######################
 		# Create material
 		slopeMatName = 'Slope'
-		if slopeMatName not in [m.name for m in bpy.data.materials]:	
+		if slopeMatName not in [m.name for m in bpy.data.materials]:
 			slopeMat = bpy.data.materials.new(slopeMatName)
 		else:
 			slopeMat = bpy.data.materials[slopeMatName]
@@ -206,7 +210,7 @@ class Analysis_nodes(Operator):
 		#select color ramp
 		colorRampNode.select = True
 		node_tree.nodes.active = colorRampNode
-	
+
 		#######################
 		#ASPECT
 		#######################
@@ -259,7 +263,7 @@ class Analysis_nodes(Operator):
 		yNegMutiply.inputs[1].default_value = 180
 		yNegAdd = node_tree.nodes.new('ShaderNodeMath')
 		yNegAdd.operation = 'ADD'
-		yNegAdd.location = (400,200)	
+		yNegAdd.location = (400,200)
 		node_tree.links.new(yNegMutiply.outputs[0] , yNegAdd.inputs[0])
 		node_tree.links.new(rad2dg.outputs[0] , yNegAdd.inputs[1])
 		# if y > 0 & x < 0 then aspect = aspect + 360
@@ -282,12 +286,12 @@ class Analysis_nodes(Operator):
 		node_tree.links.new(yPosMask.outputs[0] , mask.inputs[1])
 		maskMultiply = node_tree.nodes.new('ShaderNodeMath')
 		maskMultiply.operation = 'MULTIPLY'
-		maskMultiply.location = (400,500)	
+		maskMultiply.location = (400,500)
 		node_tree.links.new(mask.outputs[0] , maskMultiply.inputs[0])
 		maskMultiply.inputs[1].default_value = 360
 		maskAdd = node_tree.nodes.new('ShaderNodeMath')
 		maskAdd.operation = 'ADD'
-		maskAdd.location = (600,300)	
+		maskAdd.location = (600,300)
 		node_tree.links.new(maskMultiply.outputs[0] , maskAdd.inputs[0])
 		node_tree.links.new(yNegAdd.outputs[0] , maskAdd.inputs[1])
 		#  create math node to normalize value
@@ -363,4 +367,3 @@ class Analysis_nodes(Operator):
 			faces.material_index = obj.active_material_index
 
 		return {'FINISHED'}
-

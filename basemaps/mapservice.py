@@ -30,14 +30,15 @@ import imghdr
 
 
 #deps imports
-import numpy as np
-
 try:
 	from PIL import Image
 except:
 	PILLOW = False
 else:
 	PILLOW = True
+
+
+import numpy as np
 
 try:
 	from osgeo import gdal, osr
@@ -50,8 +51,8 @@ else:
 from .servicesDefs import GRIDS, SOURCES
 
 #reproj functions
-from geoscene.proj import reprojPt, reprojBbox, dd2meters, CRS
-
+from ..utils.geom import BBOX
+from ..utils.proj import reprojPt, reprojBbox, dd2meters, SRS
 #Constants
 
 
@@ -377,7 +378,7 @@ class TileMatrix():
 			raise NotImplementedError
 
 		#Determine unit of CRS (decimal degrees or meters)
-		if CRS(self.CRS).isGeo:
+		if SRS(self.CRS).isGeo:
 			self.units = 'degrees'
 		else: #(if units cannot be determined we assume its meters)
 			self.units = 'meters'
@@ -1104,7 +1105,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None, resa
 	res = geoimg.res
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds1.SetGeoTransform(geoTrans)
-	prj1 = CRS(crs1).getOgrSpatialRef()
+	prj1 = SRS(crs1).getOgrSpatialRef()
 	wkt1 = prj1.ExportToWkt()
 	ds1.SetProjection(wkt1)
 
@@ -1147,7 +1148,7 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None, resa
 	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
 	geoTrans = (xmin, res, 0, ymax, 0, -res)
 	ds2.SetGeoTransform(geoTrans)
-	prj2 = CRS(crs2).getOgrSpatialRef()
+	prj2 = SRS(crs2).getOgrSpatialRef()
 	wkt2 = prj2.ExportToWkt()
 	ds2.SetProjection(wkt2)
 

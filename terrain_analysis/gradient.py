@@ -4,12 +4,12 @@ import os
 import colorsys
 from xml.dom.minidom import parse, parseString
 from xml.etree import ElementTree as etree
-from .utils.misc import linearInterpo, scale
+from ..utils.interpo import scale, linearInterpo
 from .utils import akima
 
 
 class Color(object):
-	
+
 	def __init__(self, values=None, space='RGBA'):
 		#color data is stored as rgba vector (values range from 0 to 1)
 		self.data = None
@@ -29,7 +29,7 @@ class Color(object):
 		#
 		if values is not None and space is not None:
 			if type(values) not in (tuple, list, dict) or space not in ('RGB', 'RGBA', 'rgb', 'rgba', 'HSV', 'HSVA', 'hsv', 'hsva'):
-				raise ValueError("Wrong parameters")	
+				raise ValueError("Wrong parameters")
 			#
 			if space in ['RGB', 'RGBA']:
 				if type(values) == dict:
@@ -54,7 +54,7 @@ class Color(object):
 					self.from_hsv(*values)
 
 	def __str__(self):
-		if self.data is not None:	
+		if self.data is not None:
 			strRGB = 'RGB ' + str(self.RGB)
 			strHSV = 'HSV ' + str(self.HSV)
 			strAlpha = 'Alpha ' + str(self.alpha)
@@ -64,11 +64,11 @@ class Color(object):
 
 	def __eq__(self, other):
 		return self.data == other.data
-	
+
 	#All properties will be computed from rgba vector data
 	@property
 	def alpha(self):
-		if self.data is not None:	
+		if self.data is not None:
 			return self.rgba[-1]#range from 0 to 1
 		else:
 			return None
@@ -130,7 +130,7 @@ class Color(object):
 			return colorsys.rgb_to_hsv(*self.rgb)
 		else:
 			return None
-	
+
 	#another way to get color value (dictionary output possible)
 	def getColor(self, space='RGB', asDict=False):
 		if space == 'RGB':
@@ -173,7 +173,7 @@ class Color(object):
 				return {key:self.hsv[i] for i, key in enumerate(space)}
 			else:
 				return self.hsv
-			
+
 	#You can create Color object in many ways:
 	# Color.from_rgb(0, 1, 1, 1) - passing arguments
 	# Color.from_rgb(r=0, g=1, b=1, a=1) - passing keywords arguments
@@ -205,7 +205,7 @@ class Color(object):
 			self.data.append(a)
 		else:
 			raise ValueError("hsv values must range from 0 to 1")
-			
+
 	def from_hex(self, hex):
 		R,G,B = [int(hex[i:i+2], 16) for i in range(1,6,2)]
 		self.data = [ v/255 for v in (R, G, B, 255) ]
@@ -216,11 +216,11 @@ class Stop():
 	def __init__(self, position, color):
 		self.position = position
 		self.color = color
-			
+
 	def __lt__(self, other):
 		return self.position < other.position
 
-	
+
 class Gradient():
 
 	def __init__(self, svg=False, permissive=False):
@@ -267,7 +267,7 @@ class Gradient():
 			color = Color()
 			color.from_rgb(*rgba)
 			self.addStop(position, color, reorder=False)
-		#finish	
+		#finish
 		self.sortStops()
 		domData.unlink()
 		return True
@@ -308,7 +308,7 @@ class Gradient():
 		if reorder:
 			self.sortStops()
 		return True
-	
+
 	def addStops(self, positions, colors):
 		if len(positions) != len(colors):
 			return False
@@ -380,7 +380,7 @@ class Gradient():
 
 		if method == 'DISCRETE':
 			return prevStop.color
-		
+
 		elif method == 'NEAREST':
 			if (pos - prevStop.position) < (nextStop.position - pos):
 				return prevStop.color
@@ -445,7 +445,7 @@ class Gradient():
 		# create an SVG XML element (see the SVG specification for attribute details)
 		svg = etree.Element('svg', width='300', height='45', version='1.1', xmlns='http://www.w3.org/2000/svg', viewBox='0 0 300 45')
 		gradient = etree.Element('linearGradient', id=name, gradientUnits='objectBoundingBox', spreadMethod='pad', x1='0%', x2='100%', y1='0%', y2='0%')
-		
+
 		#make discrete svg ramp
 		if discrete:
 			stops = []
@@ -455,7 +455,7 @@ class Gradient():
 				stops.append( Stop(stop.position, stop.color) )
 		else:
 			stops = self.stops
-			
+
 		for stop in stops:
 			p = stop.position * 100
 			p = str(round(p,2)) + '%'
@@ -475,5 +475,5 @@ class Gradient():
 		f = open(svgPath,"w")
 		f.write(xmlstr)
 		f.close()
-		
+
 		return

@@ -59,7 +59,7 @@ def _read_IFD(obj, fileobj, offset, byteorder="<"):
 	# get number of entry
 	nb_entry, = unpack(byteorder+"H", fileobj)
 
-	# for each entry 
+	# for each entry
 	for i in range(nb_entry):
 		# read tag, type and count values
 		tag, typ, count = unpack(byteorder+"HHL", fileobj)
@@ -252,7 +252,7 @@ def to_buffer(obj, fileobj, offset, byteorder="<"):
 
 	# write IFD
 	next_ifd_offset = _write_IFD(obj, fileobj, offset, byteorder)
-	# write SubIFD 
+	# write SubIFD
 	for tag, p_ifd in sorted(obj.sub_ifd.items(), key=lambda e:e[0]):
 		_write_IFD(p_ifd, fileobj, obj[tag], byteorder)
 
@@ -304,7 +304,10 @@ class TiffFile(list):
 		magic_number, = unpack(byteorder+"H", fileobj)
 		if magic_number != 0x2A: # 42
 			fileobj.close()
-			raise IOError("Bad magic number. Not a valid TIFF file")
+			if magic_number == 0x2B: # 43
+				raise IOError("BigTIFF file not supported")
+			else:
+				raise IOError("Bad magic number. Not a valid TIFF file")
 		next_ifd, = unpack(byteorder+"L", fileobj)
 
 		ifds = []
@@ -362,7 +365,7 @@ class TiffFile(list):
 
 def open(f):
 	fileobj, _close = _fileobj(f, "rb")
-		
+
 	first, = unpack(">H", fileobj)
 	fileobj.seek(0)
 
@@ -370,7 +373,7 @@ def open(f):
 		obj = TiffFile(fileobj)
 
 	if _close: fileobj.close()
-	
+
 	try:
 		return obj
 	except:
@@ -618,7 +621,7 @@ class Ifd(dict):
 			"ifd": struct.calcsize("H" + (len(obj)*"HHLL") + "L"),
 			"data": reduce(int.__add__, [t.calcsize() for t in dict.values(obj)])
 		}, None, None, "return ifd-packed size and data-packed size")
-		
+
 	def __init__(self, sub_ifd={}, **kwargs):
 		self._sub_ifd = sub_ifd
 		setattr(self, "tagname", kwargs.pop("tagname", "Tiff tag"))
@@ -1077,7 +1080,7 @@ _TAGS = {
 	2059: ("GeogInvFlatteningGeoKey", [12], None, None),
 	2060: ("GeogAzimuthUnitsGeoKey",[3], None, None),
 	2061: ("GeogPrimeMeridianLongGeoKey", [12], None, None), # custom prime meridian value in GeogAngularUnits
-	
+
 	# Projected CS Parameter GeoKeys
 	3072: ("ProjectedCSTypeGeoKey", [3], None, None),        # epsg grid code [20000 - 32760]
 	3073: ("PCSCitationGeoKey", [2], None, None),            # ASCII text
@@ -1103,7 +1106,7 @@ _TAGS = {
 	3093: ("ProjScaleAtCenterGeoKey", [12], None, None),
 	3094: ("ProjAzimuthAngleGeoKey", [12], None, None),
 	3095: ("ProjStraightVertPoleLongGeoKey", [12], None, None),
-	
+
 	# Vertical CS Parameter Keys
 	4096: ("VerticalCSTypeGeoKey", [3], None, None),
 	4097: ("VerticalCitationGeoKey", [2], None, None),
@@ -1349,7 +1352,7 @@ class values():
     }
 
     PlanarConfiguration = {
-    	1: "Chunky", #, format: RGBARGBARGBA....RGBA 
+    	1: "Chunky", #, format: RGBARGBARGBA....RGBA
     	2: "Planar"  #, format: RRR.RGGG.GBBB.BAAA.A
     }
 
@@ -1467,7 +1470,7 @@ class values():
     }
 
     YCbCrPositioning = {
-    	1: "Centered", 
+    	1: "Centered",
     	2: "Co-sited"
     }
 
@@ -3770,4 +3773,3 @@ class values():
     }
 
     VerticalUnitsGeoKey = GeogLinearUnitsGeoKey
-

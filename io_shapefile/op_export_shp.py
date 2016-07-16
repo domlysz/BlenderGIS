@@ -10,8 +10,8 @@ from bpy_extras.io_utils import ExportHelper #helper class defines filename and 
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
-from geoscene.geoscn import GeoScene
-from geoscene.proj import getEsriWkt_EPSGio
+from ..geoscene import GeoScene
+from ..utils.proj import EPSGIO
 
 class EXPORT_SHP(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
@@ -66,7 +66,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
-			wkt = getEsriWkt_EPSGio(geoscn.crs)
+			wkt = EPSGIO.getEsriWkt(geoscn.crs)
 		elif geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'FINISHED'}

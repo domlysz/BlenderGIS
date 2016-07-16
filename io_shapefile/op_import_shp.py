@@ -8,9 +8,10 @@ import math
 import mathutils
 from .shapefile import Reader as shpReader
 
-from geoscene.geoscn import GeoScene
-from geoscene.addon import PredefCRS, georefManagerLayout
-from geoscene.proj import reprojPt, Reproj
+from ..geoscene import GeoScene, georefManagerLayout
+from ..prefs import PredefCRS
+from ..utils.geom import BBOX
+from ..utils.proj import Reproj
 
 featureType={
 0:'Null',
@@ -189,7 +190,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		split = row.split(percentage=0.35, align=True)
 		split.label('CRS:')
 		split.prop(self, "shpCRS", text='')
-		row.operator("geoscene.add_predef_crs", text='', icon='ZOOMIN')
+		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
 		#
 		geoscn = GeoScene()
 		if geoscn.isPartiallyGeoref:
@@ -205,9 +206,13 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		extrudField = self.fieldExtrudeName if self.useFieldExtrude else ""
 		nameField = self.fieldObjName if self.useFieldName else ""
 
-		bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=self.shpCRS,
-			fieldElevName=elevField, fieldExtrudeName=extrudField, fieldObjName=nameField,
-			extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+		try:
+			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=self.shpCRS,
+				fieldElevName=elevField, fieldExtrudeName=extrudField, fieldObjName=nameField,
+				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			return {'FINISHED'}
 
 		return{'FINISHED'}
 
@@ -271,7 +276,6 @@ class IMPORT_SHP(Operator):
 			shp = shpReader(self.filepath)
 		except:
 			self.report({'ERROR'}, "Unable to read shapefile")
-			print("Unable to read shapefile")
 			return {'FINISHED'}
 
 		#Check shape type
@@ -342,19 +346,17 @@ class IMPORT_SHP(Operator):
 			except Exception as e:
 				self.report({'ERROR'}, "Unable to reproject data. " + str(e))
 				return {'FINISHED'}
+			if rprj.iproj == 'EPSGIO':
+				self.report({'WARNING'}, "Reprojection will computed through online epsg.io engine. It will be extremly slow with lot of points")
 
 		#Get bbox
+		bbox = BBOX(shp.bbox)
 		if geoscn.crs != shpCRS:
-			xmin, ymin, xmax, ymax = rprj.bbox(shp.bbox)
-		else:
-			xmin, ymin, xmax, ymax = shp.bbox
-		bbox_dx = xmax-xmin
-		bbox_dy = ymax-ymin
-		center = (xmin+bbox_dx/2, ymin+bbox_dy/2)
+			bbox = rprj.bbox(bbox)
 
 		#Get or set georef dx, dy
 		if not geoscn.isGeoref:
-			dx, dy = center[0], center[1]
+			dx, dy = bbox.center
 			geoscn.setOriginPrj(dx, dy)
 		else:
 			dx, dy = geoscn.getOriginPrj()
@@ -539,19 +541,13 @@ class IMPORT_SHP(Operator):
 					name = shpName
 
 				#Calc bmesh bbox
-				_xmin = min([pt.co.x for pt in bm.verts])
-				_xmax = max([pt.co.x for pt in bm.verts])
-				_ymin = min([pt.co.y for pt in bm.verts])
-				_ymax = max([pt.co.y for pt in bm.verts])
-				_zmin = min([pt.co.z for pt in bm.verts])
-				_zmax = max([pt.co.z for pt in bm.verts])
+				_bbox = BBOX.fromBmesh(bm)
 
 				#Calc bmesh geometry origin and translate coords according to it
 				#then object location will be set to initial bmesh origin
 				#its a work around to bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-				ox = (_xmin + ((_xmax - _xmin) / 2))
-				oy = (_ymin + ((_ymax - _ymin) / 2))
-				oz = _zmin
+				ox, oy, oz = _bbox.center
+				oz = _bbox.zmin
 				bmesh.ops.translate(bm, verts=bm.verts, vec=(-ox, -oy, -oz))
 
 				#Create new mesh from bmesh
@@ -610,13 +606,10 @@ class IMPORT_SHP(Operator):
 		print('Build in %f seconds' % t)
 
 		#Adjust grid size
-		# get object(s) bbox in 3dview from previously computed shapefile bbox
-		xmin -= dx
-		xmax -= dx
-		ymin -= dy
-		ymax -= dy
+		#convert shapefile bbox in 3d view space
+		bbox.shift(-dx, -dy)
 		# grid size and clip distance
-		dstMax = round(max(abs(xmax), abs(xmin), abs(ymax), abs(ymin)))*2
+		dstMax = round(max(abs(bbox.xmax), abs(bbox.xmin), abs(bbox.ymax), abs(bbox.ymin)))*2
 		nbDigit = len(str(dstMax))
 		scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
 		nbLines = round(dstMax/scale)
@@ -632,7 +625,10 @@ class IMPORT_SHP(Operator):
 					space.grid_scale = scale
 					space.clip_end = targetDst*10 #10x more than necessary
 				#Zoom to selected
-				overrideContext = {'area': area, 'region':area.regions[-1]}
+				#overrideContext = {'area': area, 'region':area.regions[-1]}
+				overrideContext = context.copy()
+				overrideContext['area'] = area
+				overrideContext['region'] = area.regions[-1]
 				bpy.ops.view3d.view_selected(overrideContext)
 
 
