@@ -41,6 +41,7 @@ from ..utils.geom import XY as xy, BBOX
 from ..utils.errors import OverlapError
 from ..utils.interpo import scale
 from ..utils.img import getImgFormat, getImgDim
+from ..utils.bpu import adjust3Dview
 #from ..utils.proj import Reproj
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
@@ -333,6 +334,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			bpy.ops.object.mode_set(mode='OBJECT')
 		except:
 			pass
+		bpy.ops.object.select_all(action='DESELECT')
 		#Get scene and some georef data
 		scn = bpy.context.scene
 		geoscn = GeoScene(scn)
@@ -547,35 +549,17 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		#...if so, maybee we need to adjust 3d view settings to it
 		if newObjCreated:
 			bb = BBOX.fromObj(obj)
-			dstMax = round(max(abs(bb.xmax), abs(bb.xmin), abs(bb.ymax), abs(bb.ymin)))*2
-			nbDigit = len(str(dstMax))
-			scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
-			nbLines = round(dstMax/scale)
-			targetDst = nbLines*scale
+			adjust3Dview(context, bb)
 
-		#update 3d view settings
-		areas = bpy.context.screen.areas
-		for area in areas:
+		#Force view mode with textures
+		for area in context.screen.areas:
 			if area.type == 'VIEW_3D':
 				space = area.spaces.active
-				#Force view mode with textures
 				space.show_textured_solid = True
 				if scn.render.engine == 'CYCLES':
 					area.spaces.active.viewport_shade = 'TEXTURED'
 				elif scn.render.engine == 'BLENDER_RENDER':
 					area.spaces.active.viewport_shade = 'SOLID'
-				#
-				if newObjCreated:
-					#Adjust floor grid and clip distance if the new obj is largest the actual settings
-					if space.grid_lines*space.grid_scale < targetDst:
-						space.grid_lines = nbLines
-						space.grid_scale = scale
-						space.clip_end = targetDst*10#10x more than necessary
-					#Zoom to selected
-					#overrideContext = {'area': area, 'region':area.regions[-1]}
-					overrideContext = context.copy()
-					overrideContext['area'] = area
-					overrideContext['region'] = area.regions[-1]
-					bpy.ops.view3d.view_selected(overrideContext)
+
 
 		return {'FINISHED'}

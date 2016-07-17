@@ -10,6 +10,7 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from ..geoscene import GeoScene
 from ..utils.geom import BBOX
 from ..utils.proj import Reproj, reprojBbox, reprojPt
+from ..utils.bpu import adjust3Dview
 from ..utils import utm
 from ..osm import overpy
 
@@ -381,8 +382,6 @@ class OSM_IMPORT():
 
 
 
-		#work only if self.separate
-		#how to represent relations when features are grouped ? >> vertex group ?
 		if 'relation' in self.featureType and self.separate:
 
 			groups = bpy.data.groups
@@ -454,6 +453,12 @@ class OSM_FILE(Operator, OSM_IMPORT):
 			self.report({'ERROR'}, "Invalid file")
 			return{'FINISHED'}
 
+		try:
+			bpy.ops.object.mode_set(mode='OBJECT')
+		except:
+			pass
+		bpy.ops.object.select_all(action='DESELECT')
+
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
@@ -496,6 +501,9 @@ class OSM_FILE(Operator, OSM_IMPORT):
 		t = time.clock() - t0
 		print('build in %f' % t)
 
+		bbox = BBOX.fromScn(scn)
+		adjust3Dview(context, bbox)
+
 		return{'FINISHED'}
 
 
@@ -521,20 +529,8 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 			self.report({'ERROR'}, "View3d must be in top ortho")
 			return {'FINISHED'}
 
-		return context.window_manager.invoke_props_dialog(self)
-
-
-
-	def execute(self, context):
-
-		scn = context.scene
-
-		#Set cursor representation to 'loading' icon
-		w = context.window
-		w.cursor_set('WAIT')
-
-		#Check georef
-		geoscn = GeoScene(scn)
+		#check georef
+		geoscn = GeoScene(context.scene)
 		if not geoscn.isGeoref:
 				self.report({'ERROR'}, "Scene is not georef")
 				return {'FINISHED'}
@@ -542,6 +538,24 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'FINISHED'}
 
+		return context.window_manager.invoke_props_dialog(self)
+
+
+
+	def execute(self, context):
+
+		scn = context.scene
+		geoscn = GeoScene(scn)
+
+		try:
+			bpy.ops.object.mode_set(mode='OBJECT')
+		except:
+			pass
+		bpy.ops.object.select_all(action='DESELECT')
+
+		#Set cursor representation to 'loading' icon
+		w = context.window
+		w.cursor_set('WAIT')
 
 		#Get view3d bbox in lonlat
 		bbox = BBOX.fromTopView(context).toGeo(geoscn)
@@ -566,6 +580,9 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 			print('Overpass query success')
 
 		self.build(context, result, geoscn.crs)
+
+		bbox = BBOX.fromScn(scn)
+		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}
 

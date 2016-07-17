@@ -12,6 +12,7 @@ from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 from ..utils.geom import BBOX
 from ..utils.proj import Reproj
+from ..utils.bpu import adjust3Dview
 
 featureType={
 0:'Null',
@@ -339,7 +340,6 @@ class IMPORT_SHP(Operator):
 				return {'FINISHED'}
 
 		#Init reprojector class
-		print(shp.numRecords, shp.shpLength)
 		if geoscn.crs != shpCRS:
 			print("Data will be reprojected from " + shpCRS + " to " + geoscn.crs)
 			try:
@@ -609,30 +609,8 @@ class IMPORT_SHP(Operator):
 		print('Build in %f seconds' % t)
 
 		#Adjust grid size
-		#convert shapefile bbox in 3d view space
-		bbox.shift(-dx, -dy)
-		# grid size and clip distance
-		dstMax = round(max(abs(bbox.xmax), abs(bbox.xmin), abs(bbox.ymax), abs(bbox.ymin)))*2
-		nbDigit = len(str(dstMax))
-		scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
-		nbLines = round(dstMax/scale)
-		targetDst = nbLines*scale
-		# set each 3d view
-		areas = context.screen.areas
-		for area in areas:
-			if area.type == 'VIEW_3D':
-				space = area.spaces.active
-				#Adjust floor grid and clip distance if the new obj is largest than actual settings
-				if space.grid_lines*space.grid_scale < targetDst:
-					space.grid_lines = nbLines
-					space.grid_scale = scale
-					space.clip_end = targetDst*10 #10x more than necessary
-				#Zoom to selected
-				#overrideContext = {'area': area, 'region':area.regions[-1]}
-				overrideContext = context.copy()
-				overrideContext['area'] = area
-				overrideContext['region'] = area.regions[-1]
-				bpy.ops.view3d.view_selected(overrideContext)
+		bbox.shift(-dx, -dy) #convert shapefile bbox in 3d view space
+		adjust3Dview(context, bbox)
 
 
 		return {'FINISHED'}
