@@ -245,9 +245,23 @@ class GeoRaster():
 				self.rotation = xy(0, 0)
 			except:
 				raise IOError("Unable to read geotags")
-		#Instead of worldfile, topleft geotag is at corner, so adjust it to pixel center
-		self.origin[0] += abs(self.pxSize.x/2)
-		self.origin[1] -= abs(self.pxSize.y/2)
+		#Define anchor point for top left coord
+		#	http://www.remotesensing.org/geotiff/spec/geotiff2.5.html#2.5.2
+		#	http://www.remotesensing.org/geotiff/spec/geotiff6.html#6.3.1.2
+		# >> 1 = area (cell anchor = top left corner)
+		# >> 2 = point (cell anchor = center)
+		#geotags = Tyf.gkd.Gkd(tif)
+		#cellAnchor = geotags['GTRasterTypeGeoKey']
+		geotags = tif['GeoKeyDirectoryTag']
+		try:
+			#get GTRasterTypeGeoKey value
+			cellAnchor = geotags[geotags.index(1025)+3] #http://www.remotesensing.org/geotiff/spec/geotiff2.4.html
+		except:
+			cellAnchor = 1 #if this key is missing then RasterPixelIsArea is the default
+		if cellAnchor == 1:
+			#adjust topleft coord to pixel center
+			self.origin[0] += abs(self.pxSize.x/2)
+			self.origin[1] -= abs(self.pxSize.y/2)
 
 
 	#######################################
