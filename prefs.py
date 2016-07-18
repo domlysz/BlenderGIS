@@ -93,7 +93,7 @@ class BGIS_PREFS(AddonPreferences):
 
 		if GDAL:
 			projEngine = 'GDAL'
-		elif pyproj:
+		elif PYPROJ:
 			projEngine = 'PYPROJ'
 		else:
 			projEngine = 'BUILTIN / EPSG.IO'
