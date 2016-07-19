@@ -6,7 +6,7 @@ from bpy.types import Operator, Panel, AddonPreferences
 import addon_utils
 
 from . import bl_info
-from .utils.proj import SRS, EPSGIO
+from .utils.proj import SRS, EPSGIO #classes
 from .utils.proj import GDAL, PYPROJ #constants to check module availibility
 
 PKG = __package__
@@ -16,6 +16,17 @@ PREDEF_CRS = {
 	'EPSG:4326' : 'WGS84 latlon',
 	'EPSG:3857' : 'Web Mercator'
 }
+
+#default filter tags for OSM import
+OSM_TAGS = [
+	'building',
+	'highway',
+	'landuse',
+	'leisure',
+	'natural',
+	'railway',
+	'waterway'
+]
 
 
 class BGIS_PREFS_SHOW(bpy.types.Operator):
@@ -41,6 +52,10 @@ class BGIS_PREFS(AddonPreferences):
 
 	bl_idname = PKG
 
+
+	################
+	#Predefinate Spatial Ref. Systems
+
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
 
@@ -52,6 +67,26 @@ class BGIS_PREFS(AddonPreferences):
 		description = "Choose predefinite Coordinate Reference System",
 		items = listPredefCRS
 		)
+
+	################
+	#OSM
+
+	osmTagsJson = StringProperty(default=json.dumps(OSM_TAGS)) #just a serialized list of tags
+
+	def listOsmTags(self, context):
+		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		tags = json.loads(prefs.osmTagsJson)
+		#put each item in a tuple (key, label, tooltip)
+		return [ (tag, tag, tag) for tag in tags]
+
+	osmTags = EnumProperty(
+		name = "OSM tags",
+		description = "List of registered OSM tags",
+		items = listOsmTags
+		)
+
+	################
+	#Basemaps
 
 	cacheFolder = StringProperty(
 		name = "Cache folder",
@@ -79,9 +114,11 @@ class BGIS_PREFS(AddonPreferences):
 		)
 
 
+
 	def draw(self, context):
 		layout = self.layout
 
+		#SRS
 		box = layout.box()
 		box.label('Spatial Reference Systems')
 		row = box.row().split(percentage=0.5)
@@ -90,7 +127,6 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_predef_crs", icon='SCRIPTWIN')
 		row.operator("bgis.rmv_predef_crs", icon='ZOOMOUT')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
-
 		if GDAL:
 			projEngine = 'GDAL'
 		elif PYPROJ:
@@ -99,6 +135,7 @@ class BGIS_PREFS(AddonPreferences):
 			projEngine = 'BUILTIN / EPSG.IO'
 		box.label('Reprojection engine : ' + projEngine)
 
+		#Basemaps
 		box = layout.box()
 		box.label('Basemaps')
 		box.prop(self, "cacheFolder")
@@ -110,6 +147,17 @@ class BGIS_PREFS(AddonPreferences):
 		row = box.row()
 		row.prop(self, "resamplAlg")
 
+		#IO
+		box = layout.box()
+		box.label('Import/Export')
+		row = box.row().split(percentage=0.5)
+		split = row.split(percentage=0.9, align=True)
+		split.prop(self, "osmTags")
+		split.operator("wm.url_open", icon='INFO').url = "http://wiki.openstreetmap.org/wiki/Map_Features"
+		row.operator("bgis.add_osm_tag", icon='ZOOMIN')
+		row.operator("bgis.edit_osm_tag", icon='SCRIPTWIN')
+		row.operator("bgis.rmv_osm_tag", icon='ZOOMOUT')
+		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
 
 
 #######################
@@ -292,4 +340,86 @@ class PREDEF_CRS_EDIT(Operator):
 		else:
 			self.report({'ERROR'}, 'Invalid CRS')
 
+		return {'FINISHED'}
+
+
+#################
+# Collection of operators to manage predefinates OSM Tags
+
+class OSM_TAG_ADD(Operator):
+	bl_idname = "bgis.add_osm_tag"
+	bl_description = 'Add new predefinate OSM filter tag'
+	bl_label = "Add"
+	bl_options = {'INTERNAL'}
+
+	tag = StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)#, width=300)
+
+	def execute(self, context):
+		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		tags = json.loads(prefs.osmTagsJson)
+		tags.append(self.tag)
+		prefs.osmTagsJson = json.dumps(tags)
+		prefs.osmTags = self.tag #update current idx
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+
+class OSM_TAG_RMV(Operator):
+
+	bl_idname = "bgis.rmv_osm_tag"
+	bl_description = 'Remove predefinate OSM filter tag'
+	bl_label = "Remove"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.user_preferences.addons[PKG].preferences
+		tag = prefs.osmTags
+		if tag != '':
+			tags = json.loads(prefs.osmTagsJson)
+			del tags[tags.index(tag)]
+			prefs.osmTagsJson = json.dumps(tags)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class OSM_TAGS_RESET(Operator):
+
+	bl_idname = "bgis.reset_osm_tags"
+	bl_description = 'Reset predefinate OSM filter tag'
+	bl_label = "Reset"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.user_preferences.addons[PKG].preferences
+		prefs.osmTagsJson = json.dumps(OSM_TAGS)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class OSM_TAG_EDIT(Operator):
+
+	bl_idname = "bgis.edit_osm_tag"
+	bl_description = 'Edit predefinate OSM filter tag'
+	bl_label = "Edit"
+	bl_options = {'INTERNAL'}
+
+	tag = StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
+
+	def invoke(self, context, event):
+		prefs = context.user_preferences.addons[PKG].preferences
+		self.tag = prefs.osmTags
+		if self.tag == '':
+			return {'FINISHED'}
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		prefs = context.user_preferences.addons[PKG].preferences
+		tag = prefs.osmTags
+		tags = json.loads(prefs.osmTagsJson)
+		del tags[tags.index(tag)]
+		tags.append(self.tag)
+		prefs.osmTagsJson = json.dumps(tags)
+		prefs.osmTags = self.tag #update current idx
+		context.area.tag_redraw()
 		return {'FINISHED'}

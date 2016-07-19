@@ -6,7 +6,6 @@ import bmesh
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
-
 from ..geoscene import GeoScene
 from ..utils.geom import BBOX
 from ..utils.proj import Reproj, reprojBbox, reprojPt
@@ -14,41 +13,23 @@ from ..utils.bpu import adjust3Dview
 from ..utils import utm
 from ..osm import overpy
 
-from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
+import json
 
 
+PKG, SUBPKG = __package__.split('.')
 
-# http://wiki.openstreetmap.org/wiki/Map_Features
-osmkeys = [
-	#'aerialway',
-	#'aeroway',
-	#'amenity',
-	#'barrier',
-	#'boundary',
-	'building',
-	#'craft',
-	#'cycleway',
-	#'emergency',
-	#'geological',
-	'highway',
-	#'historic',
-	'landuse',
-	'leisure',
-	#'man_made',
-	#'military',
-	'natural',
-	#'office',
-	#'places',
-	#'power',
-	#'public_transport',
-	'railway',
-	#'route'
-	#'shop',
-	#'sport',
-	#'tourism',
-	'waterway',
-	'source=Bing'
-]
+#WARNING: There is a known bug with using an enum property with a callback, Python must keep a reference to the strings returned
+#https://developer.blender.org/T48873
+#https://developer.blender.org/T38489
+def getTags():
+	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	tags = json.loads(prefs.osmTagsJson)
+	return tags
+
+#Global variable that will be seed by getTags() at each operator invoke
+#then callback of dynamic enum will use this global variable
+OSMTAGS = []
+
 
 
 closedWaysArePolygons = ['aeroway', 'amenity', 'boundary', 'building', 'craft', 'geological', 'historic', 'landuse', 'leisure', 'military', 'natural', 'office', 'place', 'shop' , 'sport', 'tourism']
@@ -102,13 +83,15 @@ def queryBuilder(bbox, tags=['building', 'highway'], types=['node', 'way', 'rela
 
 ########################
 def joinBmesh(src_bm, dest_bm):
-
+	'''
+	Hack to join a bmesh to another
+	TODO: replace this function by bmesh.ops.duplicate when 'dest' argument will be implemented
+	'''
 	buff = bpy.data.meshes.new(".temp")
 	src_bm.to_mesh(buff)
-
 	dest_bm.from_mesh(buff)
-
 	bpy.data.meshes.remove(buff)
+
 
 
 
@@ -116,17 +99,20 @@ def joinBmesh(src_bm, dest_bm):
 class OSM_IMPORT():
 	"""Import from Open Street Map"""
 
-	def EnumTags(self, context):
-		tags = []
-		for tag in osmkeys:
+	def enumTags(self, context):
+		items = []
+		##prefs = bpy.context.user_preferences.addons[PKG].preferences
+		##osmTags = json.loads(prefs.osmTagsJson)
+		#we need to use a global variable as workaround to enum callback bug (T48873, T38489)
+		for tag in OSMTAGS:
 			#put each item in a tuple (key, label, tooltip)
-			tags.append( (tag, tag, tag) )
-		return tags
+			items.append( (tag, tag, tag) )
+		return items
 
 	filterTags = EnumProperty(
 			name="Tags",
 			description="Select tags to include",
-			items = EnumTags,
+			items = enumTags,
 			options = {"ENUM_FLAG"})
 
 	featureType = EnumProperty(
@@ -154,7 +140,6 @@ class OSM_IMPORT():
 		layout.prop(self, 'separate')
 
 
-
 	def build(self, context, result, dstCRS):
 		scn = context.scene
 		geoscn = GeoScene(scn)
@@ -176,7 +161,7 @@ class OSM_IMPORT():
 			'''
 			Sub funtion :
 				1. create a bmesh from [pts]
-				2. seed meshesData array or create a new object
+				2. seed a global bmesh or create a new object
 			'''
 			if len(pts) > 1:
 				if pts[0] == pts[-1] and any(tag in closedWaysArePolygons for tag in tags):
@@ -223,9 +208,7 @@ class OSM_IMPORT():
 
 			if self.separate:
 
-				#Clean up and update the bmesh
-				#bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-
+				##bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 
 				name = tags.get('name', str(id))
 
@@ -247,14 +230,10 @@ class OSM_IMPORT():
 
 			else:
 				#Grouping
-				#extract bmesh data to python list formated as required by from_pydata function
-				#using from_pydata is the fastest way to produce a large mesh (appending lot of geom to the same bmesh is exponentially slow)
-
 
 				bm.verts.index_update()
 				#bm.edges.index_update()
 				#bm.faces.index_update()
-
 
 				if self.filterTags:
 
@@ -281,7 +260,7 @@ class OSM_IMPORT():
 				vgroups = vgroupsObj.setdefault(objName, {})
 
 				for tag in extags:
-					#if tag in osmkeys:#filter
+					#if tag in osmTags:#filter
 					if not tag.startswith('name'):
 						vgroup = vgroups.setdefault('Tag:'+tag, [])
 						vgroup.extend(vidx)
@@ -302,11 +281,10 @@ class OSM_IMPORT():
 
 
 
-
 			bm.free()
 
 
-		#
+		######
 
 		#Build mesh
 		waysNodesId = [node.id for way in result.ways for node in way.nodes]
@@ -330,7 +308,6 @@ class OSM_IMPORT():
 
 		if 'way' in self.featureType:
 
-
 			for way in result.ways:
 
 				extags = list(way.tags.keys()) + [k + '=' + v for k, v in way.tags.items()]
@@ -338,32 +315,18 @@ class OSM_IMPORT():
 				if self.filterTags and not any(tag in self.filterTags for tag in extags):
 					continue
 
-				#if way.nodes[0].id == way.nodes[-1].id:
-				#	closed = True
-				#else:
-				#	closed = False
-
 				pts = [(float(node.lon), float(node.lat)) for node in way.nodes]
-				#if closed:
-				#	pts.pop() #exclude last duplicate node
 				seed(way.id, way.tags, pts)
 
 
 
 		if not self.separate:
-			'''
-			#Clean up and update the bmesh
-			bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-			bm.verts.index_update()
-			bm.edges.index_update()
-			bm.faces.index_update()
-			'''
 
 			for name, bm in bmeshes.items():
+				##bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 				mesh = bpy.data.meshes.new(name)
 				bm.to_mesh(mesh)
 				bm.free()
-
 
 				mesh.update()#calc_edges=True)
 				mesh.validate()
@@ -380,9 +343,7 @@ class OSM_IMPORT():
 						g.add(vgroupIdx, weight=1, type='ADD')
 
 
-
-
-		if 'relation' in self.featureType and self.separate:
+		elif 'relation' in self.featureType:
 
 			groups = bpy.data.groups
 			objects = scn.objects
@@ -415,10 +376,6 @@ class OSM_IMPORT():
 
 
 
-
-
-
-
 #######################
 
 class OSM_FILE(Operator, OSM_IMPORT):
@@ -442,6 +399,10 @@ class OSM_FILE(Operator, OSM_IMPORT):
 			options = {'HIDDEN'} )
 
 	def invoke(self, context, event):
+		#workaround to enum callback bug (T48873, T38489)
+		global OSMTAGS
+		OSMTAGS = getTags()
+		#open file browser
 		context.window_manager.fileselect_add(self)
 		return {'RUNNING_MODAL'}
 
@@ -494,7 +455,6 @@ class OSM_FILE(Operator, OSM_IMPORT):
 			x, y = reprojPt(4326, geoscn.crs, lon, lat)
 			geoscn.setOriginPrj(x, y)
 
-
 		#Build meshes
 		t0 = time.clock()
 		self.build(context, result, geoscn.crs)
@@ -515,13 +475,15 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 	"""Import from Open Street Map"""
 
 	bl_idname = "importgis.osm_query"
-	bl_description = 'Import through an overpass query, OSM data which cover view3d area'
+	bl_description = 'Import, through overpass query, OSM data which cover view3d area'
 	bl_label = "Import OSM"
 	bl_options = {"UNDO"}
 
-
-
 	def invoke(self, context, event):
+
+		#workaround to enum callback bug (T48873, T38489)
+		global OSMTAGS
+		OSMTAGS = getTags()
 
 		#check if 3dview is top ortho
 		reg3d = context.region_data
@@ -539,7 +501,6 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 				return {'FINISHED'}
 
 		return context.window_manager.invoke_props_dialog(self)
-
 
 
 	def execute(self, context):
@@ -597,14 +558,11 @@ class OSM_PANEL(Panel):
 	bl_context = "objectmode"
 	bl_region_type = "TOOLS"#"UI"
 
-
 	def draw(self, context):
 		layout = self.layout
-		layout.operator("importgis.osm_query")
-		'''
 		scn = context.scene
 		addonPrefs = context.user_preferences.addons[PKG].preferences
 		row = layout.row(align=True)
-		row.operator("view3d.map_start")
+		row.operator("importgis.osm_query")
 		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
-		'''
+

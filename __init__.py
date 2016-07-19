@@ -45,7 +45,7 @@ from .misc import view3d_setGeorefCam
 from .delaunay_voronoi import delaunayVoronoiBlender
 from .io_georaster import op_import_georaster
 from .io_shapefile import op_export_shp, op_import_shp
-#from .osm import op_import_osm
+from .osm import op_import_osm
 from .terrain_analysis import nodes_builder, reclassify
 
 
@@ -53,7 +53,7 @@ from .terrain_analysis import nodes_builder, reclassify
 def menu_func_import(self, context):
 	self.layout.operator('importgis.georaster', text="Georeferenced raster")
 	self.layout.operator('importgis.shapefile_file_dialog', text="Shapefile (.shp)")
-	#self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
+	self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
 
 def menu_func_export(self, context):
 	self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
