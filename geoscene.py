@@ -322,20 +322,7 @@ class GEOSCENE_SET_CRS(Operator):
 		geoscn = GeoScene()
 		prefs = context.user_preferences.addons[PKG].preferences
 		try:
-			#geoscn.crs = self.crsEnum
-			#geoscn.crs = prefs.predefCrs
-
-			crs = prefs.predefCrs
-			if '{LON}' in crs or '{LAT}' in crs:
-				if not geoscn.hasOriginGeo:
-					self.report({'ERROR'}, 'Cannot build this crs because geoscene has not origin geo')
-					return {'FINISHED'}
-				else:
-					crs = crs.replace('{LON}', str(geoscn.lon))
-					crs = crs.replace('{LAT}', str(geoscn.lon))
-
-			geoscn.crs = crs
-
+			geoscn.crs = prefs.predefCrs
 		except Exception as err:
 			self.report({'ERROR'}, 'Cannot update crs. '+str(err))
 		#
