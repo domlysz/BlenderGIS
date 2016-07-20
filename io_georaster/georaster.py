@@ -914,7 +914,8 @@ class GeoRasterGDAL(GeoRaster):
 		#
 		if not subset:
 			if bandIdx is None:
-				data = ds.ReadAsArray()
+				data = ds.ReadAsArray() #first index = number of bands
+				data = np.rollaxis(data, 0, 3) #switch band index to last axis
 			else:
 				data = b.ReadAsArray()
 		else:
