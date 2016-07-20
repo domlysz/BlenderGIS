@@ -3,7 +3,7 @@ Blender GIS
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
-**Coming soon** : OSM & LIDAR support
+**Coming soon** : LIDAR support
 
 **Update 2016**
 
@@ -22,6 +22,12 @@ Blender GIS
 - [New Basemaps addon](https://github.com/domlysz/BlenderGIS/wiki/Basemaps) : display web map service like Open Street Map directly in Blender
 
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
+
+
+- OSM importer
+
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/osm_demo.gif)
+
 
 
 ESRI Shapefile import / export
