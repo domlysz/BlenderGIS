@@ -24,7 +24,7 @@ Blender GIS
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
 
 
-- OSM importer
+- [OSM import](https://github.com/domlysz/BlenderGIS/wiki/OSM-import)
 
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/osm_demo.gif)
 
