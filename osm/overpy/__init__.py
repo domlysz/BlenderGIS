@@ -146,7 +146,11 @@ class Overpass(object):
         :rtype: overpy.Result
         """
 
-        if not os.path.exists(data):
+        try:
+            isFile = os.path.exists(data)
+        except:
+            isFile = False
+        if not isFile:
 
             if isinstance(data, bytes):
                 data = data.decode(encoding)
@@ -282,7 +286,11 @@ class Result(object):
         """
         result = cls(api=api)
 
-        if not os.path.exists(data):
+        try:
+            isFile = os.path.exists(data)
+        except:
+            isFile = False
+        if not isFile:
             data = StringIO(data)
         root = ET.iterparse(data, events=("start", "end"))
         elem_clss = {'node':Node, 'way':Way, 'relation':Relation}
