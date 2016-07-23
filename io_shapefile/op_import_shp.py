@@ -291,7 +291,7 @@ class IMPORT_SHP(Operator):
 		fieldsNames = [field[0] for field in fields]
 		#print("DBF fields : "+str(fieldsNames))
 
-		if self.fieldElevName or self.fieldElevName or self.fieldExtrudeName:
+		if self.fieldElevName or (self.fieldObjName and self.separateObjects) or self.fieldExtrudeName:
 			self.useDbf = True
 		else:
 			self.useDbf = False
