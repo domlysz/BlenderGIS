@@ -217,7 +217,8 @@ SOURCES = {
 	},
 
 
-
+}
+"""
 	#http://wms.craig.fr/ortho?SERVICE=WMS&REQUEST=GetCapabilities
 	# example of valid location in Auvergne : lat 45.77 long 3.082
 	"CRAIG_WMS" : {
@@ -312,3 +313,4 @@ SOURCES = {
 
 
 }
+"""
