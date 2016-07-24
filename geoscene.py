@@ -129,7 +129,8 @@ class GeoScene():
 		else:
 			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
 		if updObjLoc:
-			for obj in self.scn.objects:
+			topParents = [obj for obj in self.scn.objects if not obj.parent]
+			for obj in topParents:
 				obj.location.x -= dx #objs are already scaled
 				obj.location.y -= dy
 
