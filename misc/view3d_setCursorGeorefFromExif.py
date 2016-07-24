@@ -2,16 +2,12 @@
 # license MIT, requires pillow
 import bpy
 import os
-#import BlenderGIS modules depends on how the package is named
-#if the addon is installed through github zip archive 
-#then the name contains an illegal hyphe
-#bellow an hacky workaround
 import sys
-sys.modules['BlenderGIS'] = __import__('BlenderGIS-master')
-
-from BlenderGIS.geoscene import GeoScene
-from BlenderGIS.utils.proj import reprojPt, SRS
-
+from bpy_extras.io_utils import ImportHelper
+from bpy.props import StringProperty, CollectionProperty
+from bpy.types import Panel, Operator, OperatorFileListElement
+from ..geoscene import GeoScene
+from ..utils.proj import reprojPt, SRS
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 
@@ -52,9 +48,9 @@ def _convert_to_degress(value):
 
 def get_wgs84(exif_data):
     """Returns the latitude and longitude, if available, from the provided exif_data (obtained through get_exif_data above)"""
-    lat = 0
-    lon = 0
-    alt = 0
+    lat = None
+    lon = None
+    alt = None
     if "GPSInfo" in exif_data:      
         gps_info = exif_data["GPSInfo"]
         gps_latitude = _get_if_exist(gps_info, "GPSLatitude")
@@ -75,12 +71,12 @@ def get_wgs84(exif_data):
                 lon = 0 - lon
     return lat, lon, alt
 
-# Convert WGS84 to local CRS
 def convert_wgs84_to_CRS(lat, lon):
+    """Convert WGS84 to local CRS"""
     scn = bpy.context.scene
     geoscn = GeoScene(scn)
-    x = 0
-    y = 0
+    x = None
+    y = None
     try:
         x, y = reprojPt(4326, geoscn.crs, lon, lat)
     except Exception as e:
@@ -90,7 +86,7 @@ def convert_wgs84_to_CRS(lat, lon):
 def image_reference_from_exif(filepath):
     try:
         image = Image.open(filepath) # load an image through PIL's Image object
-    except
+    except:
         return
     exif_data = get_exif_data(image)
     lat, lon, alt = get_wgs84(exif_data)
@@ -100,20 +96,20 @@ def image_reference_from_exif(filepath):
     except Exception as e:
         print('Unable to move cursor. ' + str(e))
         
+class ToolsPanelExif(Panel):
+    bl_category = "GIS"#Tab
+    bl_label = "Georef from Exif"
+    bl_space_type = "VIEW_3D"
+    bl_context = "objectmode"
+    bl_region_type = "TOOLS"
+    def draw(self, context):
+        self.layout.operator("imagereference.fromexif")
 
-from bpy_extras.io_utils import ImportHelper
-from bpy.props import (
-        StringProperty,
-        CollectionProperty,
-        )
-from bpy.types import (
-        Operator,
-        OperatorFileListElement,
-        )
-
-class ImageReferenceFromExif(bpy.types.Operator, ImportHelper):
+class ImageReferenceFromExifButton(Operator, ImportHelper):
     bl_idname = "imagereference.fromexif"
-    bl_label = "Move cursor to reference from exif"
+    bl_description  = "Move cursor to reference from exif"
+    bl_label = "Exif"
+    bl_options = {"REGISTER"}
     files = CollectionProperty(
             name="File Path",
             type=OperatorFileListElement,
@@ -130,17 +126,3 @@ class ImageReferenceFromExif(bpy.types.Operator, ImportHelper):
             if os.path.isfile(filepath):
                 image_reference_from_exif(filepath)
         return {'FINISHED'}
-
-def register():
-    bpy.utils.register_class(ImageReferenceFromExif)
-
-
-def unregister():
-    bpy.utils.unregister_class(ImageReferenceFromExif)
-
-
-if __name__ == "__main__":
-    register()
-
-# test call
-#bpy.ops.imagereference.fromexif('INVOKE_DEFAULT')
