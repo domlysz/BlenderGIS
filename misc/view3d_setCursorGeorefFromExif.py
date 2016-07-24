@@ -8,8 +8,16 @@ from bpy.props import StringProperty, CollectionProperty
 from bpy.types import Panel, Operator, OperatorFileListElement
 from ..geoscene import GeoScene
 from ..utils.proj import reprojPt, SRS
-from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
+
+#deps imports
+try:
+    from PIL import Image
+    from PIL.ExifTags import TAGS, GPSTAGS
+except:
+    PILLOW = False
+else:
+    PILLOW = True
+
 
 def get_exif_data(image):
     """Returns a dictionary from the exif data of an PIL Image item. Also converts the GPS Tags"""
@@ -117,9 +125,19 @@ class ImageReferenceFromExifButton(Operator, ImportHelper):
     directory = StringProperty(
             subtype='DIR_PATH',
             )
+    filter_glob = StringProperty(
+        default="*" + ";*".join(bpy.path.extensions_image),
+        options={'HIDDEN'},
+        )
     filename_ext = ""
+    def invoke(self, context, event):
+        if not PILLOW:
+            self.report({'ERROR'}, "Please install Python Pillow module")
+            return {'CANCELLED'}
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
     def execute(self, context):
-        import os
         directory = self.directory
         for file_elem in self.files:
             filepath = os.path.join(directory, file_elem.name)
