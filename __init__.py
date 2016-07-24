@@ -42,6 +42,7 @@ from . import prefs
 from . import geoscene
 from .basemaps import mapviewer
 from .misc import view3d_setGeorefCam
+from .misc import view3d_setCursorGeorefFromExif
 from .delaunay_voronoi import delaunayVoronoiBlender
 from .io_georaster import op_import_georaster
 from .io_shapefile import op_export_shp, op_import_shp
