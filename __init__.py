@@ -40,7 +40,7 @@ import bpy, os
 from . import prefs
 from . import geoscene
 from .basemaps import mapviewer
-from .misc import view3d_setGeorefCam, view3d_setCursorGeorefFromExif
+from .misc import view3d_setGeorefCam, view3d_setCamFromExif
 from .delaunay_voronoi import delaunayVoronoiBlender
 from .io_georaster import op_import_georaster
 from .io_shapefile import op_export_shp, op_import_shp
@@ -76,7 +76,7 @@ class bgisPanel(bpy.types.Panel):
 		layout.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id)
 		layout.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id)
 
-		layout.operator("analysis.nodes", text="Build node setup")
+		layout.operator("analysis.nodes")
 
 
 

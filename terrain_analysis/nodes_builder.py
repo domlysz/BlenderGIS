@@ -6,23 +6,12 @@ from ..utils.interpo import scale
 from ..utils.geom import BBOX
 from bpy.types import Panel, Operator
 
-class Analysis_panel(Panel):
-	"""MATERIAL NODES TREE CREATION"""
-	bl_category = "GIS"
-	bl_label = "Terrain analysis "
-	bl_idname = "analysis_panel"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'TOOLS'
-
-	def draw(self, context):
-		layout = self.layout
-		layout.operator("analysis.nodes", text="Build node setup")
-
 
 class Analysis_nodes(Operator):
 	'''Create material node thee to analysis height, slope and aspect'''
 	bl_idname = "analysis.nodes"
-	bl_label = "Create height, slope and aspect node three"
+	bl_description  = "Create height, slope and aspect material nodes setup for Cycles"
+	bl_label = "Terrain analysis"
 
 	def execute(self, context):
 		scn = context.scene

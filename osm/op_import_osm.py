@@ -476,7 +476,7 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 
 	bl_idname = "importgis.osm_query"
 	bl_description = 'Import, through overpass query, OSM data which cover view3d area'
-	bl_label = "Import OSM"
+	bl_label = "Get OSM"
 	bl_options = {"UNDO"}
 
 	def invoke(self, context, event):
@@ -548,21 +548,4 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		return {'FINISHED'}
 
 
-
-
-
-class OSM_PANEL(Panel):
-	bl_category = "GIS"
-	bl_label = "Get OSM"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "TOOLS"#"UI"
-
-	def draw(self, context):
-		layout = self.layout
-		scn = context.scene
-		addonPrefs = context.user_preferences.addons[PKG].preferences
-		row = layout.row(align=True)
-		row.operator("importgis.osm_query")
-		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 

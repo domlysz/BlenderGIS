@@ -30,17 +30,6 @@ def checkEqual(lst):
 	return lst[1:] == lst[:-1]
 
 
-class ToolsPanelDelaunay(bpy.types.Panel):
-	bl_category = "GIS"#Tab
-	bl_label = "Delaunay Voronoi"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "TOOLS"
-
-	def draw(self, context):
-		self.layout.operator("delaunay.triangulation")
-		self.layout.operator("voronoi.tesselation")
-
 class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 	bl_idname = "delaunay.triangulation" #name used to refer to this operator (button)
 	bl_label = "Triangulation" #operator's label

@@ -364,7 +364,7 @@ class MAP_START(bpy.types.Operator):
 
 	bl_idname = "view3d.map_start"
 	bl_description = 'Toggle 2d map navigation'
-	bl_label = "Map viewer"
+	bl_label = "Basemap"
 	bl_options = {'REGISTER'}
 
 	#special function to auto redraw an operator popup called through invoke_props_dialog
@@ -973,21 +973,3 @@ class MAP_SEARCH(bpy.types.Operator):
 		return {'FINISHED'}
 
 
-####################################
-
-class MAP_PANEL(Panel):
-	bl_category = "GIS"
-	bl_label = "Basemap"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "TOOLS"#"UI"
-
-
-	def draw(self, context):
-		layout = self.layout
-		scn = context.scene
-		addonPrefs = context.user_preferences.addons[PKG].preferences
-
-		row = layout.row(align=True)
-		row.operator("view3d.map_start")
-		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')

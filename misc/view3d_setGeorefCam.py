@@ -43,24 +43,13 @@ def listCams(self, context):
 
 
 
-class ToolsPanelSetGeorefCam(bpy.types.Panel):
-	bl_category = "GIS"
-	bl_label = "Georef cam"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "TOOLS"
-
-	def draw(self, context):
-		layout = self.layout
-		layout.operator("object.set_georef_cam")
-
-
 class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 	'''
-	Add a new georef camera or update existing camera
+	Add a new georef camera or update an existing one
 	'''
 	bl_idname = "object.set_georef_cam"
-	bl_label = "Create/update"
+	bl_label = "Georef cam"
+	bl_description  = "Create or update camera to produce georef render"
 	bl_options = {"REGISTER", "UNDO"}
 
 
