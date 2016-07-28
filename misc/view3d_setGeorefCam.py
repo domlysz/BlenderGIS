@@ -43,10 +43,6 @@ def listCams(self, context):
 
 
 
-#store property in window manager
-bpy.types.WindowManager.objLst = EnumProperty(attr="obj_list", name="Object", description="Choose an object", items=listObjects)
-bpy.types.WindowManager.camLst = EnumProperty(attr="cam_list", name="Camera", description="Choose a camera", items=listCams)
-
 class ToolsPanelSetGeorefCam(bpy.types.Panel):
 	bl_category = "GIS"
 	bl_label = "Georef cam"
@@ -56,18 +52,7 @@ class ToolsPanelSetGeorefCam(bpy.types.Panel):
 
 	def draw(self, context):
 		layout = self.layout
-		scn = context.scene
-		wm = context.window_manager
-		geoscn = GeoScene(scn)
-		if geoscn.isGeoref:
-			if len(wm.objLst) > 0:
-				layout.prop(wm, "objLst")
-				layout.prop(wm, "camLst")
-				layout.operator("object.set_georef_cam")
-			else:
-				layout.label("There isn't reference object to set camera on")
-		else:
-			layout.label("Scene isn't georef")
+		layout.operator("object.set_georef_cam")
 
 
 class OBJECT_OT_setGeorefCam(bpy.types.Operator):
@@ -77,14 +62,45 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 	bl_idname = "object.set_georef_cam"
 	bl_label = "Create/update"
 	bl_options = {"REGISTER", "UNDO"}
-	#Operator redo options
+
+
+	objLst = EnumProperty(attr="obj_list", name="Object", description="Choose an object", items=listObjects)
+	camLst = EnumProperty(attr="cam_list", name="Camera", description="Choose a camera", items=listCams)
+
 	name = bpy.props.StringProperty(name = "Camera name", default="Georef cam", description="")
 	target_res = bpy.props.FloatProperty(name = "Pixel size", default=5, description="Pixel size in map units/pixel", min=0.00001)
 	redo = 0
 
+	def check(self, context):
+		return True
+
+
+	def draw(self, context):
+		layout = self.layout
+		layout.prop(self, 'objLst')
+		layout.prop(self, 'camLst')
+		if self.camLst == 'NEW':
+			layout.prop(self, 'name')
+		layout.prop(self, 'target_res')
+
+
+	def invoke(self, context, event):
+		scn = context.scene
+		geoscn = GeoScene(scn)
+		if geoscn.isGeoref:
+			if len(self.objLst) > 0:
+				return context.window_manager.invoke_props_dialog(self)
+			else:
+				self.report({'ERROR'}, "There isn't reference object to set camera on")
+				return {'CANCELLED'}
+		else:
+			self.report({'ERROR'}, "Scene isn't georef")
+			return {'CANCELLED'}
+
+		
+
 	def execute(self, context):#every times operator redo options are modified
 
-		wm = bpy.context.window_manager
 		scn = context.scene
 
 		#general offset used to set cam z loc and clip end distance
@@ -106,7 +122,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		dx, dy = geoscn.getOriginPrj()
 
 		#Get object
-		objIdx = wm.objLst
+		objIdx = self.objLst
 		georefObj = scn.objects[int(objIdx)]
 
 		#Object properties
@@ -115,7 +131,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		dimx, dimy, dimz = bbox.dimensions
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
 
-		if wm.camLst == 'NEW':
+		if self.camLst == 'NEW':
 			#Add camera data
 			cam = bpy.data.cameras.new(name=self.name)
 			#Add camera obj
@@ -123,7 +139,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 			scn.objects.link(camObj)
 		else:
 			#Get camera obj
-			objIdx = wm.camLst
+			objIdx = self.camLst
 			camObj = scn.objects[int(objIdx)]
 			#Get data
 			cam = camObj.data
@@ -141,7 +157,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 		cam.clip_end = dimz + offset*2
 		cam.show_limits = True
 
-		if wm.camLst != 'NEW':
+		if self.camLst != 'NEW':
 			if self.redo == 1:#in update mode, we don't want overwrite initial camera name
 				self.name = camObj.name
 			else:#but user can change camera name in redo parameters
