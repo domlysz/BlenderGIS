@@ -63,18 +63,19 @@ class bgisPanel(bpy.types.Panel):
 		scn = context.scene
 
 		row = layout.row(align=True)
-		row.operator("view3d.map_start")
+		row.operator("view3d.map_start", icon='WORLD')
 		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
 		row = layout.row(align=True)
 		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
 		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
-		layout.operator("object.set_georef_cam")
-		layout.operator("imagereference.fromexif")
+		layout.operator("object.set_georef_cam", icon_value=icons_dict["georefCam"].icon_id)
+		layout.operator("imagereference.fromexif", icon_value=icons_dict["exifCam"].icon_id)
 
-		layout.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id)
-		layout.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id)
+		row = layout.row(align=True)
+		row.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
+		row.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
 		layout.operator("analysis.nodes")
 
