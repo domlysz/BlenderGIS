@@ -34,8 +34,7 @@ bl_info = {
 	'category': '3D View'
 	}
 
-import bpy
-
+import bpy, os
 
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
@@ -47,6 +46,38 @@ from .io_georaster import op_import_georaster
 from .io_shapefile import op_export_shp, op_import_shp
 from .osm import op_import_osm
 from .terrain_analysis import nodes_builder, reclassify
+
+
+import bpy.utils.previews as iconsLib
+icons_dict = {}
+
+class bgisPanel(bpy.types.Panel):
+	bl_category = "GIS"
+	bl_label = "BlenderGIS"
+	bl_space_type = "VIEW_3D"
+	bl_context = "objectmode"
+	bl_region_type = "TOOLS"
+
+	def draw(self, context):
+		layout = self.layout
+		scn = context.scene
+
+		row = layout.row(align=True)
+		row.operator("view3d.map_start")
+		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+
+		row = layout.row(align=True)
+		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
+		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+
+		layout.operator("object.set_georef_cam")
+		layout.operator("imagereference.fromexif")
+
+		layout.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id)
+		layout.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id)
+
+		layout.operator("analysis.nodes", text="Build node setup")
+
 
 
 # Register in File > Import menu
@@ -61,6 +92,13 @@ def menu_func_export(self, context):
 
 def register():
 
+	global icons_dict
+	icons_dict = iconsLib.new()
+	icons_dir = os.path.join(os.path.dirname(__file__), "icons")
+	for icon in os.listdir(icons_dir):
+		name, ext = os.path.splitext(icon)
+		icons_dict.load(name, os.path.join(icons_dir, icon), 'IMAGE')
+
 	reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
 	bpy.utils.register_module(__name__)
 
@@ -72,6 +110,9 @@ def register():
 	kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
 
 def unregister():
+
+	global icons_dict
+	iconsLib.remove(icons_dict)
 
 	bpy.types.INFO_MT_file_import.remove(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
