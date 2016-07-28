@@ -25,7 +25,7 @@ import bpy
 #import bmesh
 import numpy as np
 
-from . import Tyf #geotags reader
+from ..lib import Tyf #geotags reader
 from .utils import replace_nans #inpainting function (ie fill nodata)
 
 from ..utils.geom import XY as xy, BBOX
