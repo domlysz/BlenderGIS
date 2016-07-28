@@ -1,7 +1,6 @@
 # requires Tyf
 
 import os, bpy
-from bpy_extras.io_utils import ImportHelper
 from math import pi
 from bpy.props import StringProperty, CollectionProperty, EnumProperty
 from bpy.types import Panel, Operator, OperatorFileListElement, WindowManager
@@ -44,13 +43,7 @@ def newTargetCamera(scene, name, location, focalLength):
     constraint.target = target
     return cam, cam_obj
 
-WindowManager.exifMode = EnumProperty(
-                            attr="exif_mode", 
-                            name="Action", 
-                            description="Choose an action", 
-                            items=[('TARGET_CAMERA','Target Camera','Create a camera with target helper'),('CAMERA','Camera','Create a camera'),('EMPTY','Empty','Create an empty helper'),('CURSOR','Cursor','Move cursor')],
-                            default="TARGET_CAMERA"
-                            )    
+
     
 class ToolsPanelExif(Panel):
     bl_category = "GIS"#Tab
@@ -60,12 +53,10 @@ class ToolsPanelExif(Panel):
     bl_region_type = "TOOLS"
 
     def draw(self, context):
-        wm = context.window_manager
-        self.layout.prop(wm,"exifMode")
         self.layout.operator("imagereference.fromexif")
 
 
-class ImageReferenceFromExifButton(Operator, ImportHelper):
+class ImageReferenceFromExifButton(Operator):
     bl_idname = "imagereference.fromexif"
     bl_description  = "Move cursor / create camera to reference from exif"
     bl_label = "Exif"
@@ -83,14 +74,30 @@ class ImageReferenceFromExifButton(Operator, ImportHelper):
         options={'HIDDEN'},
         )
     filename_ext = ""
-    
-    def execute(self, context):
-        wm = context.window_manager
+
+
+    exifMode = EnumProperty(
+                            attr="exif_mode", 
+                            name="Action", 
+                            description="Choose an action", 
+                            items=[('TARGET_CAMERA','Target Camera','Create a camera with target helper'),('CAMERA','Camera','Create a camera'),('EMPTY','Empty','Create an empty helper'),('CURSOR','Cursor','Move cursor')],
+                            default="TARGET_CAMERA"
+                            )    
+
+
+    def invoke(self, context, event):
         scn = context.scene
         geoscn = GeoScene(scn)
         if not geoscn.isGeoref:
             self.report({'ERROR'},"The scene must be georeferenced.")
-            return {'FINISHED'}
+            return {'CANCELLED'}
+        #File browser
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+  
+    def execute(self, context):
+        scn = context.scene
+        geoscn = GeoScene(scn)
         directory = self.directory
         for file_elem in self.files:
             filepath = os.path.join(directory, file_elem.name)
@@ -125,11 +132,11 @@ class ImageReferenceFromExifButton(Operator, ImportHelper):
                     name = os.path.basename(filepath).split('.')
                     name.pop()
                     name = '.'.join(name)
-                    if wm.exifMode == "TARGET_CAMERA":
+                    if self.exifMode == "TARGET_CAMERA":
                         cam, cam_obj = newTargetCamera(scn,name,location,focalLength)
-                    elif wm.exifMode == "CAMERA":
+                    elif self.exifMode == "CAMERA":
                         cam, cam_obj = newCamera(scn,name,location,focalLength)
-                    elif wm.exifMode == "EMPTY":
+                    elif self.exifMode == "EMPTY":
                         newEmpty(scn,name,location)
                     else:
                         scn.cursor_location = location
@@ -138,7 +145,7 @@ class ImageReferenceFromExifButton(Operator, ImportHelper):
                     return {'FINISHED'}
                 #for future use    
                 try:
-                    if wm.exifMode in ["TARGET_CAMERA","CAMERA"]:
+                    if self.exifMode in ["TARGET_CAMERA","CAMERA"]:
                         cam['background']  = filepath
                         cam['orientation'] = exif["Orientation"]
                         cam['imageWidth']  = exif["ImageWidth"]
