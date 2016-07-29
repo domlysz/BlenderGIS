@@ -1,14 +1,37 @@
-# requires Tyf
+# -*- coding:utf-8 -*-
 
-import os, bpy
+#  ***** GPL LICENSE BLOCK *****
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#  All rights reserved.
+#  ***** GPL LICENSE BLOCK *****
+
+import os
 from math import pi
-from bpy.props import StringProperty, CollectionProperty, EnumProperty
-from bpy.types import Panel, Operator, OperatorFileListElement, WindowManager
-from ..geoscene import GeoScene
-from ..utils.proj import reprojPt, SRS
 
-#deps imports
+import bpy
+from bpy.props import StringProperty, CollectionProperty, EnumProperty
+from bpy.types import Panel, Operator, OperatorFileListElement
+
+#bgis
+from ..geoscene import GeoScene
+from ..utils.proj import reprojPt
+
+#deps
 from ..lib import Tyf
+
+
 
 def newEmpty(scene, name, location):
     """Create a new empty"""
@@ -55,15 +78,17 @@ class ImageReferenceFromExifButton(Operator):
             name="File Path",
             type=OperatorFileListElement,
             )
+
     directory = StringProperty(
             subtype='DIR_PATH',
             )
+
     filter_glob = StringProperty(
         default="*.jpg;*.jpeg;*.tif;*.tiff",
         options={'HIDDEN'},
         )
-    filename_ext = ""
 
+    filename_ext = ""
 
     exifMode = EnumProperty(
                             attr="exif_mode", 
@@ -137,8 +162,8 @@ class ImageReferenceFromExifButton(Operator):
                     if self.exifMode in ["TARGET_CAMERA","CAMERA"]:
                         cam['background']  = filepath
                         cam['orientation'] = exif["Orientation"]
-                        cam['imageWidth']  = exif["ImageWidth"]
-                        cam['imageLength'] = exif["ImageLength"]
+                        cam['imageWidth']  = exif["PixelXDimension"]
+                        cam['imageHeight'] = exif["PixelYDimension"]
                 except:
                     pass
         return {'FINISHED'}
