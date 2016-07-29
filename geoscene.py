@@ -410,8 +410,7 @@ class GEOSCENE_PANEL(Panel):
 		scn = context.scene
 		geoscn = GeoScene()
 
-		prefs = context.user_preferences.addons[PKG].preferences
-		layout.operator("bgis.pref_show")#, icon='PREFERENCES')
+		#layout.operator("bgis.pref_show", icon='PREFERENCES')
 
 		georefManagerLayout(self, context)
 

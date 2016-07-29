@@ -475,7 +475,7 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 	"""Import from Open Street Map"""
 
 	bl_idname = "importgis.osm_query"
-	bl_description = 'Import, through overpass query, OSM data which cover view3d area'
+	bl_description = 'Query for Open Street Map data covering the current view3d area'
 	bl_label = "Get OSM"
 	bl_options = {"UNDO"}
 

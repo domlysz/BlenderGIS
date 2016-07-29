@@ -32,7 +32,7 @@ OSM_TAGS = [
 class BGIS_PREFS_SHOW(bpy.types.Operator):
 
 	bl_idname = "bgis.pref_show"
-	bl_description = 'Display basemaps addon preferences'
+	bl_description = 'Display BlenderGIS addons preferences'
 	bl_label = "Preferences"
 	bl_options = {'INTERNAL'}
 

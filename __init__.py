@@ -62,22 +62,32 @@ class bgisPanel(bpy.types.Panel):
 		layout = self.layout
 		scn = context.scene
 
-		row = layout.row(align=True)
+		layout.operator("bgis.pref_show", icon='PREFERENCES')
+		
+		col = layout.column(align=True)
+		col.label('Geodata:')
+
+		row = col.row(align=True)
 		row.operator("view3d.map_start", icon='WORLD')
-		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
-		row = layout.row(align=True)
+		row = col.row(align=True)
 		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
-		row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
-		layout.operator("object.set_georef_cam", icon_value=icons_dict["georefCam"].icon_id)
-		layout.operator("imagereference.fromexif", icon_value=icons_dict["exifCam"].icon_id)
+		col = layout.column(align=True)
+		col.label('Camera creation:')
+		col.operator("object.set_georef_cam", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
+		col.operator("imagereference.fromexif", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
 
-		row = layout.row(align=True)
-		row.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
-		row.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
+		col = layout.column(align=True)
+		col.label('Mesh:')
+		col.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
+		col.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
-		layout.operator("analysis.nodes")
+		col = layout.column(align=True)
+		col.label('Analysis:')
+		layout.operator("analysis.nodes", text='Terrain')
 
 
 

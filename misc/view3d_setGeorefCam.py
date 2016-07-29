@@ -49,7 +49,7 @@ class OBJECT_OT_setGeorefCam(bpy.types.Operator):
 	'''
 	bl_idname = "object.set_georef_cam"
 	bl_label = "Georef cam"
-	bl_description  = "Create or update camera to produce georef render"
+	bl_description  = "Create or update a camera to render a georeferencing map"
 	bl_options = {"REGISTER", "UNDO"}
 
 
