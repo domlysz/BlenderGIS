@@ -483,20 +483,3 @@ def open(f):
 	except: raise Exception("file is not a valid JPEG nor TIFF image")
 
 
-# if PIL exists do some overridings
-try: from PIL import Image as _Image
-except ImportError: pass
-else:
-	def _getexif(im):
-		try:
-			data = im.info["exif"]
-		except KeyError:
-			return None
-		fileobj = io.BytesIO(data[6:])
-		exif = TiffFile(fileobj)
-		fileobj.close()
-		return exif
-
-	from PIL import JpegImagePlugin
-	JpegImagePlugin._getexif = _getexif
-	del _getexif
