@@ -68,8 +68,8 @@ def newTargetCamera(scene, name, location, focalLength):
 
 
 
-class ImageReferenceFromExifButton(Operator):
-    bl_idname = "imagereference.fromexif"
+class SetGeophotosCam(Operator):
+    bl_idname = "camera.geophotos"
     bl_description  = "Create cameras from geotagged photos"
     bl_label = "Exif cam"
     bl_options = {"REGISTER"}

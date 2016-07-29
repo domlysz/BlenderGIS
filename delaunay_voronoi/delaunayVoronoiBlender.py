@@ -31,7 +31,7 @@ def checkEqual(lst):
 
 
 class OBJECT_OT_TriangulateButton(bpy.types.Operator):
-	bl_idname = "delaunay.triangulation" #name used to refer to this operator (button)
+	bl_idname = "tesselation.delaunay" #name used to refer to this operator (button)
 	bl_label = "Triangulation" #operator's label
 	bl_description = "Terrain points cloud Delaunay triangulation in 2.5D" #tooltip
 	bl_options = {"UNDO"}
@@ -96,7 +96,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		return {'FINISHED'}
 
 class OBJECT_OT_VoronoiButton(bpy.types.Operator):
-	bl_idname = "voronoi.tesselation" #name used to refer to this operator (button)
+	bl_idname = "tesselation.voronoi" #name used to refer to this operator (button)
 	bl_label = "Diagram" #operator's label
 	bl_description = "Points cloud Voronoi diagram in 2D" #tooltip
 	bl_options = {"REGISTER","UNDO"}#need register to draw operator options/redo panel (F6)

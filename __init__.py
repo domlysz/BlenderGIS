@@ -77,13 +77,13 @@ class bgisPanel(bpy.types.Panel):
 
 		col = layout.column(align=True)
 		col.label('Camera creation:')
-		col.operator("object.set_georef_cam", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
-		col.operator("imagereference.fromexif", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
+		col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
+		col.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
 
 		col = layout.column(align=True)
 		col.label('Mesh:')
-		col.operator("delaunay.triangulation", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
-		col.operator("voronoi.tesselation", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
+		col.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
+		col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
 		col = layout.column(align=True)
 		col.label('Analysis:')

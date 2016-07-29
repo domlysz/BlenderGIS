@@ -43,11 +43,11 @@ def listCams(self, context):
 
 
 
-class OBJECT_OT_setGeorefCam(bpy.types.Operator):
+class SetGeorenderCam(bpy.types.Operator):
 	'''
 	Add a new georef camera or update an existing one
 	'''
-	bl_idname = "object.set_georef_cam"
+	bl_idname = "camera.georender"
 	bl_label = "Georef cam"
 	bl_description  = "Create or update a camera to render a georeferencing map"
 	bl_options = {"REGISTER", "UNDO"}
