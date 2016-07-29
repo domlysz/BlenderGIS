@@ -68,7 +68,7 @@ class bgisPanel(bpy.types.Panel):
 		col.label('Geodata:')
 
 		row = col.row(align=True)
-		row.operator("view3d.map_start", icon='WORLD')
+		row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
 		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
 		row = col.row(align=True)
@@ -87,7 +87,7 @@ class bgisPanel(bpy.types.Panel):
 
 		col = layout.column(align=True)
 		col.label('Analysis:')
-		layout.operator("analysis.nodes", text='Terrain')
+		col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
 
 
 
