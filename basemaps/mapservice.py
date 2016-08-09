@@ -50,10 +50,13 @@ else:
 #addon import
 from .servicesDefs import GRIDS, SOURCES
 
+
+from ..utils.img import NpImage, GeoImage, reprojImg
+
 #reproj functions
 from ..utils.geom import BBOX
 from ..utils.proj import reprojPt, reprojBbox, dd2meters, SRS
-#Constants
+
 
 
 
@@ -515,99 +518,6 @@ class TileMatrix():
 
 
 
-###################
-
-class GeoImage():
-	'''
-	A quick class to represent a georeferenced PIL image
-	Georef infos
-		-ul = upper left coord (true corner of the pixel)
-		-res = pixel resolution in map unit (no distinction between resx and resy)
-		-no rotation parameters
-	'''
-
-	def __init__(self, img, ul, res):
-
-		self.img = img #PIL Image
-		self.ul = ul #upper left geo coords (exact pixel ul corner)
-		self.res = res #map unit / pixel
-
-	#delegate all undefined attribute requests on GeoImage to the contained PIL image object
-	def __getattr__(self, attr):
-		return getattr(self.img, attr)
-
-	@property
-	def nbBands(self):
-		return len(self.img.getbands())
-
-	@property
-	def dtype(self):
-		m = self.img.mode
-		if m in ['L', 'P', 'RGB', 'RGBA', 'CMYK', 'YCbCr', 'LAB', 'HSV']:
-			return ('uint', 8)
-		elif m == 'I':
-			return ('int', 32)
-		elif m == 'F':
-			return ('float', 32)
-
-	@property
-	def origin(self):
-		'''(x,y) geo coordinates of image center'''
-		w, h = self.img.size
-		xmin, ymax = self.ul
-		ox = xmin + w/2 * self.res
-		oy = ymax - h/2 * self.res
-		return (ox, oy)
-
-	@property
-	def geoSize(self):
-		'''raster dimensions (width, height) in map units'''
-		w, h = self.img.size
-		return (w * self.res, h * self.res)
-
-	@property
-	def bbox(self):
-		'''Return a bbox class object'''
-		w, h = self.img.size
-		xmin, ymax = self.ul
-		xmax = xmin + w * self.res
-		ymin = ymax - h * self.res
-		return (xmin, ymin, xmax, ymax)
-
-	@property
-	def corners(self):
-		'''
-		(x,y) geo coordinates of image corners
-		(upper left, upper right, bottom right, bottom left)
-		'''
-		xmin, ymin, xmax, ymax = self.bbox
-		return ( (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin) )
-
-
-	def pxToGeo(self, xPx, yPx):
-		"""
-		Return geo coords of upper left corner of an given pixel
-		Number of pixels is range from 0 (not 1) and counting from top left
-		"""
-		xmin, ymax = self.ul
-		x = xmin + self.res * xPx
-		y = ymax - self.res * yPx
-		return (x, y)
-
-	def geoToPx(self, x, y, reverseY=False, round2Floor=False):
-		"""
-		Return pixel number of given geographic coords
-		Number of pixels is range from 0 (not 1) and counting from top left
-		"""
-		xmin, ymax = self.ul
-		xPx = (x - xmin) / self.res
-		yPx = (ymax - y) / self.res
-		return (math.floor(xPx), math.floor(yPx))
-
-
-###################
-
-
 class MapService():
 	"""
 	Represent a tile service from source
@@ -788,12 +698,6 @@ class MapService():
 		"""
 		Download bytes data of requested tile in source tile matrix space
 		Return None if unable to download a valid stream
-
-		Notes:
-		bytes object can be converted to bytesio (stream buffer) and opened with PIL
-			img = Image.open(io.BytesIO(data))
-		PIL image can be converted to numpy array [y,x,b]
-			a = np.asarray(img)
 		"""
 
 		url = self.buildUrl(laykey, col, row, zoom)
@@ -896,9 +800,7 @@ class MapService():
 			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, resamplAlg=self.RESAMP_ALG)
 
 			#Get BLOB
-			b = io.BytesIO()
-			img.save(b, format='PNG')
-			data = b.getvalue() #convert bytesio to bytes
+			data = img.toBLOB()
 
 		#put the tile in cache database
 		if useCache and data is not None:
@@ -1024,7 +926,8 @@ class MapService():
 
 		#Create PIL image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
-		mosaic = Image.new("RGBA", (img_w , img_h), None)
+		#mosaic = Image.new("RGBA", (img_w , img_h), None)
+		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255))
 
 		#Get tiles from www or cache
 		tiles = [ (c, r, zoom) for c in cols for r in rows]
@@ -1040,21 +943,25 @@ class MapService():
 			if data is None:
 				#create an empty tile
 				if allowEmptyTile:
-					img = Image.new("RGBA", (tileSize , tileSize), "lightgrey")
+					#img = Image.new("RGBA", (tileSize , tileSize), "lightgrey")
+					img = NpImage.new(tileSize, tileSize, bkgColor=(128,128,128,255))
 				else:
 					return None
 			else:
 				try:
-					img = Image.open(io.BytesIO(data))
-				except:
+					#img = Image.open(io.BytesIO(data))
+					img = NpImage(data)
+				except Exception as e:
+					print(str(e))
 					if allowEmptyTile:
 						#create an empty tile if we are unable to get a valid stream
-						img = Image.new("RGBA", (tileSize , tileSize), "pink")
+						#img = Image.new("RGBA", (tileSize , tileSize), "pink")
+						img = NpImage.new(tileSize, tileSize, bkgColor=(0,128,128,255))
 					else:
 						return None
 			posx = (col - firstCol) * tileSize
 			posy = abs((row - firstRow)) * tileSize
-			mosaic.paste(img, (posx, posy))
+			mosaic.paste(img, posx, posy)
 
 		geoimg = GeoImage(mosaic, (xmin, ymax), res)
 
@@ -1068,112 +975,3 @@ class MapService():
 
 
 
-
-def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None, resamplAlg='BL'):
-	'''
-	Use GDAL Python binding to reproject an image
-	crs1, crs2 >> epsg code
-	geoimg >> input GeoImage object (PIL image + georef infos)
-	out_ul >> output raster top left coords (same as input if None)
-	out_size >> output raster size (same as input is None)
-	out_res >> output raster resolution (same as input if None)
-	'''
-
-	if not GDAL:
-		raise NotImplementedError
-
-	#Create an in memory gdal raster and write data to it (PIL > Numpy > GDAL)
-	data = np.asarray(geoimg.img)
-	img_h, img_w, nbBands = data.shape
-	ds1 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
-	for bandIdx in range(nbBands):
-		bandArray = data[:,:,bandIdx]
-		ds1.GetRasterBand(bandIdx+1).WriteArray(bandArray)
-	"""
-	# Alternative : Use a virtual memory file to create gdal dataset from buffer
-	buff = io.BytesIO()
-	geoimg.img.save(buff, format='PNG')
-	vsipath = '/vsimem/mosaic'
-	gdal.FileFromMemBuffer(vsipath, buff.getvalue())
-	ds1 = gdal.Open(vsipath)
-	img_h, img_w = ds1.RasterXSize, ds1.RasterYSize
-	nbBands = ds1.RasterCount
-	"""
-
-	#Assign georef infos
-	xmin, ymax = geoimg.ul
-	res = geoimg.res
-	geoTrans = (xmin, res, 0, ymax, 0, -res)
-	ds1.SetGeoTransform(geoTrans)
-	prj1 = SRS(crs1).getOgrSpatialRef()
-	wkt1 = prj1.ExportToWkt()
-	ds1.SetProjection(wkt1)
-
-	#Build destination dataset
-	# ds2 will be a template empty raster to reproject the data into
-	# we can directly set its size, res and top left coord as expected
-	# reproject funtion will match the template (clip and resampling)
-
-	if out_ul is not None:
-		xmin, ymax = out_ul
-	else:
-		xmin, ymax = reprojPt(crs1, crs2, xmin, ymax)
-
-	#submit resolution and size
-	if out_res is not None and out_size is not None:
-		res = out_res
-		img_w, img_h = out_size
-
-	#submit resolution and auto compute the best image size
-	if out_res is not None and out_size is None:
-		res = out_res
-		#reprojected image size depend on final bbox and expected resolution
-		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, geoimg.bbox)
-		img_w = int( (xmax - xmin) / res )
-		img_h = int( (ymax - ymin) / res )
-
-	#submit image size and ...
-	if out_res is None and out_size is not None:
-		img_w, img_h = out_size
-		#...let's res as source value ? (image will be croped)
-
-	#Keep original image px size and compute resolution to approximately preserve geosize
-	if out_res is None and out_size is None:
-		#find the res that match source diagolal size
-		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, geoimg.bbox)
-		dst_diag = math.sqrt( (xmax - xmin)**2 + (ymax - ymin)**2)
-		px_diag = math.sqrt(img_w**2 + img_h**2)
-		res = dst_diag / px_diag
-
-	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
-	geoTrans = (xmin, res, 0, ymax, 0, -res)
-	ds2.SetGeoTransform(geoTrans)
-	prj2 = SRS(crs2).getOgrSpatialRef()
-	wkt2 = prj2.ExportToWkt()
-	ds2.SetProjection(wkt2)
-
-	#Perform the projection/resampling
-	# Resample algo
-	if resamplAlg == 'NN' : alg = gdal.GRA_NearestNeighbour
-	elif resamplAlg == 'BL' : alg = gdal.GRA_Bilinear
-	elif resamplAlg == 'CB' : alg = gdal.GRA_Cubic
-	elif resamplAlg == 'CBS' : alg = gdal.GRA_CubicSpline
-	elif resamplAlg == 'LCZ' : alg = gdal.GRA_Lanczos
-	# Memory limit (0 = no limit)
-	memLimit = 0
-	# Error in pixels (0 will use the exact transformer)
-	threshold = 0.25
-	# Warp options (http://www.gdal.org/structGDALWarpOptions.html)
-	opt = ['NUM_THREADS=ALL_CPUS, SAMPLE_GRID=YES']
-	gdal.ReprojectImage( ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt) #option parameter start with gdal 2.1
-
-	#Convert to PIL image
-	data = ds2.ReadAsArray()
-	data = np.rollaxis(data, 0, 3) # because first axis is band index
-	img = Image.fromarray(data, 'RGBA')
-
-	#Close gdal datasets
-	ds1 = None
-	ds2 = None
-
-	return GeoImage(img, (xmin, ymax), res)

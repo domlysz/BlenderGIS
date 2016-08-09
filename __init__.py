@@ -36,6 +36,9 @@ bl_info = {
 
 import bpy, os
 
+from .lib import imageio
+imageio.plugins._freeimage.get_freeimage_lib()
+
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
 from . import geoscene
