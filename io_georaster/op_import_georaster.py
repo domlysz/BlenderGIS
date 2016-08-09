@@ -55,9 +55,9 @@ def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
 	#create mesh
 	bm = bmesh.new()
 	if pxLoc == 'CORNER':
-		pts = [(pt.x-dx, pt.y-dy) for pt in rast.corners]#shift coords
+		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.corners]#shift coords
 	elif pxLoc == 'CENTER':
-		pts = [(pt.x-dx, pt.y-dy) for pt in rast.cornersCenter]
+		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.cornersCenter]
 	z = 0
 	pts = [bm.verts.new((pt[0], pt[1], z)) for pt in pts]#upper left to botton left (clockwise)
 	pts.reverse()#bottom left to upper left (anticlockwise --> face up)

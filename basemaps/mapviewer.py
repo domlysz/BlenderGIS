@@ -95,7 +95,9 @@ class BaseMap(GeoScene):
 			self.zoom = 0
 
 		#Set path to tiles mosaic used as background image in Blender
-		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".png"
+		#We need a format that support transparency so jpg is exclude
+		#Writing to tif is generally faster than writing to png
+		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".tif"
 
 		#Get layer def obj
 		self.layer = self.srv.layers[laykey]
@@ -909,6 +911,41 @@ class MAP_VIEWER(bpy.types.Operator):
 			self.zb_xmax, self.zb_ymax = event.mouse_region_x, event.mouse_region_y
 			context.window.cursor_set('CROSSHAIR')
 
+		#EXPORT
+		if event.type == 'E' and event.value == 'PRESS':
+		
+			from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geoRastUVmap, addTexture
+		
+			self.map.stop()
+			
+			#Get geoimage and bpyimage
+			rast = self.map.mosaic
+			bpyImg = self.map.img #TODO copy bpy img before using it as texture...
+			setattr(rast, 'bpyImg', bpyImg)
+
+			#Create Mesh
+			name = 'map_export' #TODO Better name with reference to service and layer
+			dx, dy = self.map.getOriginPrj()
+			mesh = rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER')
+			
+			#Create object
+			obj = placeObj(mesh, name)
+			
+			#UV mapping
+			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
+			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
+				
+			# Create material
+			mat = bpy.data.materials.new('rastMat')
+			obj.data.materials.append(mat)
+			addTexture(mat, self.map.img, uvTxtLayer)
+			
+			#TODO
+			#switch material texture view mode
+			#update 3d view
+			
+			return {'FINISHED'}
+			
 		#EXIT
 		if event.type == 'ESC' and event.value == 'PRESS':
 			if self.zoomBoxMode:
