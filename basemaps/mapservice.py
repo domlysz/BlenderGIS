@@ -926,7 +926,6 @@ class MapService():
 
 		#Create PIL image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
-		#mosaic = Image.new("RGBA", (img_w , img_h), None)
 		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255))
 
 		#Get tiles from www or cache
@@ -943,7 +942,6 @@ class MapService():
 			if data is None:
 				#create an empty tile
 				if allowEmptyTile:
-					#img = Image.new("RGBA", (tileSize , tileSize), "lightgrey")
 					img = NpImage.new(tileSize, tileSize, bkgColor=(128,128,128,255))
 				else:
 					return None
@@ -955,8 +953,7 @@ class MapService():
 					print(str(e))
 					if allowEmptyTile:
 						#create an empty tile if we are unable to get a valid stream
-						#img = Image.new("RGBA", (tileSize , tileSize), "pink")
-						img = NpImage.new(tileSize, tileSize, bkgColor=(0,128,128,255))
+						img = NpImage.new(tileSize, tileSize, bkgColor=(255,192,203,255))
 					else:
 						return None
 			posx = (col - firstCol) * tileSize

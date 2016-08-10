@@ -119,9 +119,11 @@ def getImgDim(filepath):
 
 #####################################
 
+import os
 import io
 import numpy as np
 import imghdr
+import random
 
 try:
 	from PIL import Image
@@ -150,9 +152,9 @@ class NpImage():
 	'''Represent an image as Numpy array'''
 
 	#Default interface
-	#IFACE = 'IMGIO' # PIL, IMGIO, GDAL
+	IFACE = 'IMGIO' # PIL, IMGIO, GDAL
 	#IFACE = 'PIL'
-	IFACE = 'GDAL'
+	#IFACE = 'GDAL'
 
 	def __init__(self, data):
 	
@@ -164,6 +166,11 @@ class NpImage():
 		elif isinstance(data, bytes):
 			self.data = self.npFromBLOB(data)
 		
+		#init from file path
+		elif isinstance(data, str):
+			if os.path.exists(data):
+				self.data = self.open(data) #TODO
+	
 		#init from another NpImage instance
 		elif isinstance(data, NpImage):
 			self.data = data.data
@@ -191,6 +198,26 @@ class NpImage():
 	#@property
 	#def size(self):
 		
+
+	"""
+	@classmethod
+	def open(cls, path):
+		if NpImage.IFACE == 'PIL':
+			img = Image.open(data)
+			if img.mode == 'P':
+				img = img.convert('RGB')
+			#pil img to np
+			data = np.asarray(img)
+		
+		elif NpImage.IFACE == 'IMGIO':
+			data = imageio.imread(data)
+			
+		elif NpImage.IFACE == 'GDAL':
+
+		
+		return cls(data)
+	"""
+
 
 
 	@classmethod
@@ -240,6 +267,8 @@ class NpImage():
 				sortIdx = np.argsort(keys)
 				idx = np.searchsorted(keys, data, sorter=sortIdx)
 				data = values[sortIdx][idx]
+			ds = None
+			gdal.Unlink(vsipath)
 							
 		return data
 
@@ -264,15 +293,22 @@ class NpImage():
 			img.save(b, format='PNG')
 			data = b.getvalue() #convert bytesio to bytes	
 		elif self.IFACE == 'IMGIO':
-			b = io.BytesIO()
-			imageio.imwrite(b, self.data) #what is the format here ?
-			data = b.getvalue()
+			data = imageio.imwrite(imageio.RETURN_BYTES, self.data, format='PNG')
 		elif self.IFACE == 'GDAL':
-			b = io.BytesIO()
 			mem = self.toGDAL()
-			out = gdal.GetDriverByName('PNG').CreateCopy(b, mem) #DO NOT WORK
-			mem, out = None, None
-			data = b.getvalue()
+			name = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for i in range(5))
+			vsiname = '/vsimem/' + name + '.png'
+			out = gdal.GetDriverByName('PNG').CreateCopy(vsiname, mem)
+			# Read /vsimem/output.png
+			f = gdal.VSIFOpenL(vsiname, 'rb')
+			gdal.VSIFSeekL(f, 0, 2) # seek to end
+			size = gdal.VSIFTellL(f)
+			gdal.VSIFSeekL(f, 0, 0) # seek to beginning
+			data = gdal.VSIFReadL(1, size, f)
+			gdal.VSIFCloseL(f)
+			# Cleanup
+			gdal.Unlink(vsiname) 
+			mem = None
 		
 		return data
 		
@@ -340,7 +376,7 @@ class GeoImage(NpImage):
 	'''
 	A quick class to represent a georeferenced image
 	data is used to init NpImage parent class
-	it can be bytes data, Numpy array, NpImage or PIL image
+	it can be bytes data, Numpy array, NpImage, PIL image or GDAL dataset
 	Georef infos
 		-ul = upper left coord (true corner of the pixel)
 		-res = pixel resolution in map unit (no distinction between resx and resy)
