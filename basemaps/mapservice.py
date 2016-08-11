@@ -51,7 +51,7 @@ else:
 from .servicesDefs import GRIDS, SOURCES
 
 
-from ..utils.img import NpImage, GeoImage, reprojImg
+from .img import NpImage, GeoImage, reprojImg
 
 #reproj functions
 from ..utils.geom import BBOX
@@ -947,7 +947,6 @@ class MapService():
 					return None
 			else:
 				try:
-					#img = Image.open(io.BytesIO(data))
 					img = NpImage(data)
 				except Exception as e:
 					print(str(e))

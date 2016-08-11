@@ -36,8 +36,7 @@ bl_info = {
 
 import bpy, os
 
-from .lib import imageio
-imageio.plugins._freeimage.get_freeimage_lib()
+from .checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
