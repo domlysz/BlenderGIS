@@ -332,11 +332,13 @@ class GeoImage(NpImage):
 	'''
 	A quick class to represent a georeferenced image
 	data is used to init NpImage parent class
-	it can be bytes data, Numpy array, NpImage, PIL image or GDAL dataset
+	it can be a file path, bytes data, Numpy array, NpImage, PIL Image or GDAL Dataset
 	Georef infos
 		-ul = upper left coord (true corner of the pixel)
-		-res = pixel resolution in map unit (no distinction between resx and resy)
-		-no rotation parameters
+		-res = pixel resolution in map unit (no distinction between resx and resy)	
+	Note that instead of GeoRaster class: 
+	- pixel coords refers to upper left corner of the pixel and not pixel center
+	- there is no support for rotation parameters
 	'''
 
 	def __init__(self, data, ul, res):
@@ -371,19 +373,19 @@ class GeoImage(NpImage):
 	@property
 	def corners(self):
 		'''
-		(x,y) geo coordinates of image corners
+		(x,y) geo coordinates of image corners (true corner, not pixel center)
 		(upper left, upper right, bottom right, bottom left)
 		'''
 		xmin, ymin, xmax, ymax = self.bbox
 		return ( (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin) )
 
 	#Alias
-	def geoFromPx(self, xPx, yPx):#, reverseY=False):
+	def geoFromPx(self, xPx, yPx, reverseY=False):
 		return self.pxToGeo(xPx, yPx)
 	def pxFromGeo(self, x, y, reverseY=False, round2Floor=False):
 		return self.geoToPx(x, y, reverseY, round2Floor)
 
-	def pxToGeo(self, xPx, yPx):
+	def pxToGeo(self, xPx, yPx, reverseY=False):
 		"""
 		Return geo coords of upper left corner of an given pixel
 		Number of pixels is range from 0 (not 1) and counting from top left

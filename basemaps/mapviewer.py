@@ -40,6 +40,9 @@ from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
 from ..utils.proj import reprojBbox, GDAL
 from ..utils.geom import BBOX
+#for export to mesh tool
+from ..utils.bpu import adjust3Dview, showTextures
+from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geoRastUVmap, addTexture
 
 #OSM Nominatim API module
 #https://github.com/damianbraun/nominatim
@@ -913,18 +916,24 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		#EXPORT
 		if event.type == 'E' and event.value == 'PRESS':
-		
-			from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geoRastUVmap, addTexture
-		
 			self.map.stop()
-			
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+		
 			#Get geoimage and bpyimage
 			rast = self.map.mosaic
-			bpyImg = self.map.img #TODO copy bpy img before using it as texture...
+			bpyImg = self.map.img
+			
+			#Copy image to new datablock
+			bpyImg = bpy.data.images.load(bpyImg.filepath)
+			name = 'EXPORT_' + self.map.srckey + '_' + self.map.laykey + '_' + self.map.grdkey
+			bpyImg.name = name
+			bpyImg.pack()
+			
+			#Add new attribute to geoImg class (like GeoRaster class)
 			setattr(rast, 'bpyImg', bpyImg)
 
 			#Create Mesh
-			name = 'map_export' #TODO Better name with reference to service and layer
 			dx, dy = self.map.getOriginPrj()
 			mesh = rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER')
 			
@@ -935,14 +944,14 @@ class MAP_VIEWER(bpy.types.Operator):
 			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
 			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
 				
-			# Create material
+			#Create material
 			mat = bpy.data.materials.new('rastMat')
 			obj.data.materials.append(mat)
 			addTexture(mat, self.map.img, uvTxtLayer)
 			
-			#TODO
-			#switch material texture view mode
-			#update 3d view
+			#Adjust 3d view and display textures
+			adjust3Dview(context, BBOX.fromObj(obj))
+			showTextures(context)
 			
 			return {'FINISHED'}
 			

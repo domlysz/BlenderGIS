@@ -41,7 +41,7 @@ from ..utils.geom import XY as xy, BBOX
 from ..utils.errors import OverlapError
 from ..utils.interpo import scale
 from ..utils.img import getImgFormat, getImgDim
-from ..utils.bpu import adjust3Dview
+from ..utils.bpu import adjust3Dview, showTextures
 #from ..utils.proj import Reproj
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
@@ -552,14 +552,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			adjust3Dview(context, bb)
 
 		#Force view mode with textures
-		for area in context.screen.areas:
-			if area.type == 'VIEW_3D':
-				space = area.spaces.active
-				space.show_textured_solid = True
-				if scn.render.engine == 'CYCLES':
-					area.spaces.active.viewport_shade = 'TEXTURED'
-				elif scn.render.engine == 'BLENDER_RENDER':
-					area.spaces.active.viewport_shade = 'SOLID'
+		showTextures(context)
 
 
 		return {'FINISHED'}
