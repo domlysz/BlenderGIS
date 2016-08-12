@@ -50,13 +50,15 @@ def isValidStream(data):
 	return True
 
 
+
+
 class NpImage():
 	'''Represent an image as Numpy array'''
 
 	#Default interface
 	@property
 	def IFACE(self):
-		#return 'IMGIO' #for debug
+		#return 'PIL' #for debug
 		if HAS_GDAL:
 			return 'GDAL'
 		elif HAS_PIL:
@@ -72,37 +74,40 @@ class NpImage():
 
 		if self.IFACE is None:
 			raise ImportError("No image lib available")
+		
+		self.data = None
 
-		#init from np array
+		#init from numpy array
 		if isinstance(data, np.ndarray):
 			self.data = data
 		
 		#init from bytes data
-		elif isinstance(data, bytes):
+		if isinstance(data, bytes):
 			self.data = self._npFromBLOB(data)
 		
 		#init from file path
-		elif isinstance(data, str):
+		if isinstance(data, str):
 			if os.path.exists(data):
 				self.data = self._npFromPath(data)
+			else:
+				raise ValueError('Unable to load image data')
 	
 		#init from another NpImage instance
-		elif isinstance(data, NpImage):
+		if isinstance(data, NpImage):
 			self.data = data.data
 
 		#init from GDAL dataset instance
-		elif HAS_GDAL:
+		if HAS_GDAL:
 			if isinstance(data, gdal.Dataset):
 				self.data = self._npFromGDAL(data)
 
 		#init from PIL Image instance
-		elif HAS_PIL:
-			if isinstance(data, Image):
+		if HAS_PIL:
+			if Image.isImageType(data):
 				self.data = self._npFromPIL(data)
-					
-		else:
+	
+		if self.data is None:
 			raise ValueError('Unable to load image data')
-
 
 
 	@property
@@ -115,6 +120,14 @@ class NpImage():
 			return 1
 		elif len(self.data.shape) == 3:
 			return self.data.shape[2]
+
+	@property
+	def hasAlpha(self):
+		return self.nbBands == 4
+
+	@property
+	def isOneBand(self):
+		return self.nbBands == 1
 			
 	@property
 	def dtype(self):
@@ -124,7 +137,6 @@ class NpImage():
 	@classmethod
 	def new(cls, w, h, bkgColor=(255,255,255,255)):
 		r, g, b, a = bkgColor
-		#return cls(np.zeros((h, w, 4), np.uint8))
 		data = np.empty((h, w, 4), np.uint8)
 		data[:,:,0] = r
 		data[:,:,1] = g
@@ -133,40 +145,36 @@ class NpImage():
 		return cls(data)
 
 
+	def _npFromPath(self, path):
+		'''Get Numpy array from a file path'''
+		if self.IFACE == 'PIL':
+			img = Image.open(path)
+			return self._npFromPIL(img)
+		elif self.IFACE == 'IMGIO':
+			return imageio.imread(path)
+		elif self.IFACE == 'GDAL':
+			ds = gdal.Open(path)
+			return self._npFromGDAL(ds)
+
+
 	def _npFromBLOB(self, data):
 		'''Get Numpy array from Bytes data'''
-
-		if not isinstance(data, bytes):
-			raise ValueError('Not a valid stream')
 
 		if self.IFACE == 'PIL':
 			#convert bytes object to bytesio (stream buffer) and open it with PIL
 			img = Image.open(io.BytesIO(data))
-			if img.mode == 'P':
-				img = img.convert('RGB')
-			#pil img to np
-			data = np.asarray(img)
+			data = self._npFromPIL(img)
 		
 		elif self.IFACE == 'IMGIO':
 			data = imageio.imread(io.BytesIO(data))
 			
 		elif self.IFACE == 'GDAL':
 			#Use a virtual memory file to create gdal dataset from buffer
-			vsipath = '/vsimem/img'
+			#build a random name to make the function thread safe
+			vsipath = '/vsimem/' + ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for i in range(5))
 			gdal.FileFromMemBuffer(vsipath, data)
 			ds = gdal.Open(vsipath)
-			data = ds.ReadAsArray()
-			if len(data.shape) == 3:
-				data = np.rollaxis(data, 0, 3) # because first axis is band index
-			else: #one band indexed color = palette = pseudo color table (pct)
-				ctable = ds.GetRasterBand(1).GetColorTable()
-				nbColors = ctable.GetCount()
-				#Swap index values to their corresponding color (rgba)
-				keys = np.array( [i for i in range(nbColors)] )
-				values = np.array( [ctable.GetColorEntry(i) for i in range(nbColors)] )
-				sortIdx = np.argsort(keys)
-				idx = np.searchsorted(keys, data, sorter=sortIdx)
-				data = values[sortIdx][idx]
+			data = self._npFromGDAL(ds)
 			ds = None
 			gdal.Unlink(vsipath)
 							
@@ -175,42 +183,54 @@ class NpImage():
 
 	def _npFromPIL(self, img):
 		'''Get Numpy array from PIL Image instance'''
-		if img.mode == 'P':
+		if img.mode == 'P': #palette (indexed color)
 			img = img.convert('RGBA')
-		return np.asarray(img)
+		data = np.asarray(img)
+		data.setflags(write=True) #PIL return a non writable array
+		return data
 		
 	def _npFromGDAL(self, ds):
 		'''Get Numpy array from GDAL dataset instance'''
 		data = ds.ReadAsArray()
-		data = np.rollaxis(data, 0, 3) # because first axis is band index
+		if len(data.shape) == 3: #multiband
+			data = np.rollaxis(data, 0, 3) # because first axis is band index
+		else: #one band raster or indexed color (= palette = pseudo color table (pct))
+			ctable = ds.GetRasterBand(1).GetColorTable()
+			if ctable is not None:
+				#Swap index values to their corresponding color (rgba)
+				nbColors = ctable.GetCount()
+				keys = np.array( [i for i in range(nbColors)] )
+				values = np.array( [ctable.GetColorEntry(i) for i in range(nbColors)] )
+				sortIdx = np.argsort(keys)
+				idx = np.searchsorted(keys, data, sorter=sortIdx)
+				data = values[sortIdx][idx]
 		return data
 
-	def _npFromPath(cls, path):
-		'''Get Numpy array from a file path'''
-		if NpImage.IFACE == 'PIL':
-			img = Image.open(path)
-			return self._npFromPIL(img)
-		elif NpImage.IFACE == 'IMGIO':
-			return imageio.imread(data)
-		elif NpImage.IFACE == 'GDAL':
-			ds = gdal.Open(path)
-			return self._npFromGDAL(ds)
 
 
 
-	def toBLOB(self, ext='PNG'): #TODO support of PNG or JPEG
+	def toBLOB(self, ext='PNG'):
+		'''Get bytes raw data'''
+		if ext == 'JPG':
+			ext = 'JPEG'
+		
 		if self.IFACE == 'PIL':
 			b = io.BytesIO()
 			img = Image.fromarray(self.data)
-			img.save(b, format='PNG')
-			data = b.getvalue() #convert bytesio to bytes	
+			img.save(b, format=ext)
+			data = b.getvalue() #convert bytesio to bytes
+			
 		elif self.IFACE == 'IMGIO':
-			data = imageio.imwrite(imageio.RETURN_BYTES, self.data, format='PNG')
+			if ext == 'JPEG' and self.hasAlpha:
+				self.removeAlpha()
+			data = imageio.imwrite(imageio.RETURN_BYTES, self.data, format=ext)
+		
 		elif self.IFACE == 'GDAL':
 			mem = self.toGDAL()
+			#build a random name to make the function thread safe
 			name = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for i in range(5))
 			vsiname = '/vsimem/' + name + '.png'
-			out = gdal.GetDriverByName('PNG').CreateCopy(vsiname, mem)
+			out = gdal.GetDriverByName(ext).CreateCopy(vsiname, mem)
 			# Read /vsimem/output.png
 			f = gdal.VSIFOpenL(vsiname, 'rb')
 			gdal.VSIFSeekL(f, 0, 2) # seek to end
@@ -227,17 +247,32 @@ class NpImage():
 
 
 	def toPIL(self):
+		'''Get PIL Image instance'''
 		return Image.fromarray(self.data)
 
 
 	def toGDAL(self):
 		'''Get GDAL memory driver dataset'''
-		img_h, img_w, nbBands = self.data.shape
-		mem = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GDT_Byte)
-		for bandIdx in range(nbBands):
+		w, h = self.size
+		n = self.nbBands
+		mem = gdal.GetDriverByName('MEM').Create('', w, h, n, gdal.GDT_Byte)
+		for bandIdx in range(n):
 			bandArray = self.data[:,:,bandIdx]
 			mem.GetRasterBand(bandIdx+1).WriteArray(bandArray)
 		return mem
+
+
+	def removeAlpha(self):
+		if self.hasAlpha:
+			self.data = self.data[:, :, 0:3]
+
+	def addAlpha(self, opacity=255):
+		if self.nbBands == 3:
+			w, h = self.size
+			alpha = np.empty((h,w), dtype=self.dtype)
+			alpha.fill(opacity)
+			alpha = np.expand_dims(alpha, axis=2)
+			self.data = np.append(self.data, alpha, axis=2)
 
 
 	def save(self, path):
@@ -245,40 +280,50 @@ class NpImage():
 		save the numpy array to a new image file
 		output format is defined by path extension
 		'''
+		
+		imgFormat = path[-3:]	
+		
 		if self.IFACE == 'PIL':
 			self.toPIL().save(path)
 		elif self.IFACE == 'IMGIO':
-			imageio.imwrite(path, self.data)
-			#warn can't write alpha channel to jpg
+			if imgFormat == 'jpg' and self.hasAlpha:
+				self.removeAlpha()
+			imageio.imwrite(path, self.data)		
 		elif self.IFACE == 'GDAL':
-			imgFormat = path[-3:]
-			#_, imgFormat = os.path.splitext(path)
 			if imgFormat == 'png':
 				driver = 'PNG'
-			elif imgFormat in ['jpg', 'jpeg']:
+			elif imgFormat == 'jpg':
 				driver = 'JPEG'
-			elif imgFormat in ['tif', 'tiff']:
+			elif imgFormat == 'tif':
 				driver = 'Gtiff'
 			else:
-				raise ValueError('Cannot write to '+ driver + ' image format')
+				raise ValueError('Cannot write to '+ imgFormat + ' image format')
 			#Some format like jpg or png has no create method implemented
 			#because we can't write data at random with these formats
 			#so we must use an intermediate memory driver, write data to it 
 			#and then write the output file with the createcopy method
 			mem = self.toGDAL()
 			out = gdal.GetDriverByName(driver).CreateCopy(path, mem)
-			mem, out = None, None
+			mem = out = None
 
 
 	def paste(self, data, x, y):
-		if isinstance(data, NpImage):
-			data = data.data
-		elif not isinstance(data, np.ndarray):
-			raise		
-		h, w, n = data.shape
-		
-		self.data[y:y+h, x:x+w, 0:n] = data
 
+		img = NpImage(data)
+		data = img.data
+		w, h = img.size
+		
+		if img.isOneBand and self.isOneBand:
+			self.data[y:y+h, x:x+w] = data
+		elif (not img.isOneBand and self.isOneBand) or (img.isOneBand and not self.isOneBand):
+			raise ValueError('Paste error, cannot mix one band with multiband')	
+
+		if self.hasAlpha:
+			n = img.nbBands
+			self.data[y:y+h, x:x+w, 0:n] = data
+		else:
+			n = self.nbBands		
+			self.data[y:y+h, x:x+w, :] = data[:, :, 0:n]
 
 ###
 
@@ -383,7 +428,8 @@ def reprojImg(crs1, crs2, geoimg, out_ul=None, out_size=None, out_res=None, resa
 	if not HAS_GDAL:
 		raise NotImplementedError
 	
-	img_h, img_w, nbBands = geoimg.data.shape
+	img_w, img_h = geoimg.size
+	nbBands = geoimg.nbBands
 	ds1 = geoimg.toGDAL()
 
 	#Assign georef infos
