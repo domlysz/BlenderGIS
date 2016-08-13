@@ -114,25 +114,78 @@ class GeoScene():
 			self.delOriginPrj()
 
 	def setOriginPrj(self, x, y):
-		self.crsx, self.crsy = x, y
+		self.crsx, self.crsy = x, y		
 		try:
 			self.lon, self.lat = reprojPt(self.crs, 4326, x, y)
 		except Exception as e:
 			print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
 			self.delOriginGeo()
 
-	#WIP
-	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True):
-		'''Move scene origin and update props'''
+	def updOriginPrj(self, x, y, updObjLoc=True, updBkgImg=True):
+		'''Update/move scene origin passing absolute coordinates'''
+		if not self.hasOriginPrj:
+			raise Exception("Cannot update an unset origin.")
+		dx = x - self.crsx
+		dy = y - self.crsy
+		self.setOriginPrj(x, y)
+		if updObjLoc:
+			self._moveObjLoc(dx, dy)
+		if updBkgImg:
+			self._moveBkgImg(dx, dy)
+
+	def updOriginGeo(self, lon, lat, updObjLoc=True, updBkgImg=True):
+		if not self.isGeoref:
+			raise Exception("Cannot update geo origin of an ungeoref scene.")
+		x, y = reprojPt(4326, self.crs, lon, lat)
+		self.updOriginPrj(x, y)
+		dx = x - self.crsx
+		dy = y - self.crsy
+		self.crsx, self.crsy = x, y
+		self.lon, self.lat = lon ,lat
+		if updObjLoc:
+			self._moveObjLoc(dx, dy)
+		if updBkgImg:
+			self._moveBkgImg(dx, dy)
+
+	def moveOriginGeo(self, dx, dy, updObjLoc=True, updBkgImg=True):
+		if not self.hasOriginGeo:
+			raise Exception("Cannot move an unset origin.")
+		x = self.lon + dx
+		y = self.lat + dy
+		self.updOriginGeo(x, y, updObjLoc=updObjLoc, updBkgImg=updBkgImg)
+		
+
+	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
+		'''Move scene origin passing relative deltas'''
+		if not self.hasOriginPrj:
+			raise Exception("Cannot move an unset origin.")
+			
 		if useScale:
-			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
+			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)	
 		else:
 			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
+		
 		if updObjLoc:
-			topParents = [obj for obj in self.scn.objects if not obj.parent]
-			for obj in topParents:
-				obj.location.x -= dx #objs are already scaled
-				obj.location.y -= dy
+			self._moveObjLoc(dx, dy)
+		if updBkgImg:
+			self._moveBkgImg(dx, dy)		
+		
+		
+	def _moveObjLoc(self, dx, dy):
+		topParents = [obj for obj in self.scn.objects if not obj.parent]
+		for obj in topParents:
+			obj.location.x -= dx
+			obj.location.y -= dy
+	
+	def _moveBkgImg(self, dx, dy):
+		space = bpy.context.area.spaces.active
+		if space.type == 'VIEW_3D':
+			for bkg in space.background_images:
+				img = bkg.image
+				if img is not None and bkg.view_axis == 'TOP':
+					ratio = img.size[0] / img.size[1]
+					bkg.offset_x -= dx
+					bkg.offset_y -= dy * ratio
 
 	def getOriginGeo(self):
 		return self.lon, self.lat

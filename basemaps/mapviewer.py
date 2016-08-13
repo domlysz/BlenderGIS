@@ -39,7 +39,7 @@ from .mapservice import MapService
 from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
-from ..utils.proj import reprojBbox
+from ..utils.proj import reprojPt, reprojBbox
 from ..utils.geom import BBOX
 #for export to mesh tool
 from ..utils.bpu import adjust3Dview, showTextures
@@ -156,21 +156,7 @@ class BaseMap(GeoScene):
 
 	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
 		'''Move scene origin and update props'''
-		if useScale:
-			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
-		else:
-			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
-		#Objects and background image are already scaled
-		if updObjLoc:
-			topParents = [obj for obj in self.scn.objects if not obj.parent]
-			for obj in topParents:
-				obj.location.x -= dx
-				obj.location.y -= dy
-		if updBkgImg and self.bkg is not None:
-			ratio = self.img.size[0] / self.img.size[1]
-			self.bkg.offset_x -= dx
-			self.bkg.offset_y -= dy * ratio
-
+		self.moveOriginPrj(dx, dy, useScale, updObjLoc, updBkgImg) #geoscene function
 
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
@@ -993,30 +979,23 @@ class MAP_SEARCH(bpy.types.Operator):
 	query = StringProperty(name="Go to")
 
 	def invoke(self, context, event):
+		geoscn = GeoScene(context.scene)
+		if geoscn.isBroken:
+			self.report({'ERROR'}, "Scene georef is broken")
+			return {'CANCELLED'}		
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
-		if geoscn.hasOriginPrj:
-			x1, y1 = geoscn.getOriginPrj()
-
 		geocoder = Nominatim(base_url="http://nominatim.openstreetmap.org", referer="bgis")
 		results = geocoder.query(self.query)
 		if len(results) >= 1:
 			result = results[0]
 			lat, lon = float(result['lat']), float(result['lon'])
-			geoscn.setOriginGeo(lon, lat)
-
-			#move existing objects
-			#TODO move preview (bkg image offset)...
-			if geoscn.hasOriginPrj:
-				x2, y2 = geoscn.getOriginPrj()
-				dx = x2 - x1
-				dy = y2 - y1
-				for obj in context.scene.objects:
-					obj.location.x -= dx
-					obj.location.y -= dy
-
+			if geoscn.isGeoref:
+				geoscn.updOriginGeo(lon, lat)
+			else:
+				geoscn.setOriginGeo(lon, lat)
 		return {'FINISHED'}
 
 
