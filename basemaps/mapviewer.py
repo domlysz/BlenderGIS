@@ -33,12 +33,13 @@ import blf, bgl
 
 #addon import
 from .servicesDefs import GRIDS, SOURCES
-from .mapservice import MapService, PILLOW
+from .mapservice import MapService
 
 #bgis imports
+from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
-from ..utils.proj import reprojBbox, GDAL
+from ..utils.proj import reprojBbox
 from ..utils.geom import BBOX
 #for export to mesh tool
 from ..utils.bpu import adjust3Dview, showTextures
@@ -451,7 +452,7 @@ class MAP_START(bpy.types.Operator):
 			layout.prop(self, 'src', text='Source')
 			layout.prop(self, 'lay', text='Layer')
 			col = layout.column()
-			if not GDAL:
+			if not HAS_GDAL:
 				col.enabled = False
 				col.label('(No raster reprojection support)')
 			col.prop(self, 'grd', text='Tile matrix set')
@@ -481,8 +482,8 @@ class MAP_START(bpy.types.Operator):
 
 	def invoke(self, context, event):
 
-		if not PILLOW:
-			self.report({'ERROR'}, "Please install Python Pillow module")
+		if not HAS_PIL and not HAS_GDAL and not HAS_IMGIO:
+			self.report({'ERROR'}, "No imaging library available. Please install Python GDAL or Pillow module")
 			return {'CANCELLED'}
 
 		if not context.area.type == 'VIEW_3D':
@@ -517,7 +518,7 @@ class MAP_START(bpy.types.Operator):
 			#if not geoscn.hasCRS:
 				#geoscn.crs = grdCRS
 			#Check if raster reproj is needed
-			if geoscn.hasCRS and geoscn.crs != grdCRS and not GDAL:
+			if geoscn.hasCRS and geoscn.crs != grdCRS and not HAS_GDAL:
 				self.report({'ERROR'}, "Please install gdal to enable raster reprojection support")
 				return {'FINISHED'}
 

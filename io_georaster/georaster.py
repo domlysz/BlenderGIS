@@ -32,11 +32,9 @@ from ..utils.geom import XY as xy, BBOX
 from ..utils.errors import OverlapError
 from ..utils.img import getImgFormat, getImgDim
 
-try:
+from ..checkdeps import HAS_GDAL
+if HAS_GDAL:
 	from osgeo import gdal
-	GDAL_PY = True
-except:
-	GDAL_PY = False
 
 
 class GeoRaster():
@@ -787,7 +785,7 @@ class GeoRasterGDAL(GeoRaster):
 
 	def __init__(self, path, subBox=None, clip=False, fillNodata=False):
 
-		if not GDAL_PY:
+		if not HAS_GDAL:
 			raise ImportError('GDAL Python binding is not installed')
 
 		# Init properties model

@@ -28,29 +28,11 @@ import sqlite3
 import urllib.request
 import imghdr
 
-
 #deps imports
-try:
-	from PIL import Image
-except:
-	PILLOW = False
-else:
-	PILLOW = True
-
-
-import numpy as np
-
-try:
-	from osgeo import gdal, osr
-except:
-	GDAL = False
-else:
-	GDAL = True
+#import numpy as np
 
 #addon import
 from .servicesDefs import GRIDS, SOURCES
-
-
 from .img import NpImage, GeoImage, reprojImg
 
 #reproj functions

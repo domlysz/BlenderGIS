@@ -26,14 +26,12 @@ import math
 from mathutils import Vector
 import numpy as np#Ship with Blender since 2.70
 
-try:
+from ..checkdeps import HAS_GDAL
+if HAS_GDAL:
 	from osgeo import gdal
-	GDAL = True
-except:
-	GDAL = False
 
 #For debug
-#GDAL = False
+#HAS_GDAL = False
 
 from .georaster import GeoRaster, GeoRasterGDAL
 
@@ -462,7 +460,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = None
 
 			# Load raster
-			if not GDAL:
+			if not HAS_GDAL:
 				try:
 					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
 				except (IOError, OverlapError) as e:
@@ -521,7 +519,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = BBOX.fromObj(obj).toGeo(geoscn)
 
 			# Load raster
-			if not GDAL:
+			if not HAS_GDAL:
 				try:
 					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip)
 				except (IOError, OverlapError) as e:

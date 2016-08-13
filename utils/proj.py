@@ -26,19 +26,13 @@ from .utm import UTM, UTM_EPSG_CODES
 from .errors import ReprojError
 from .geom import BBOX
 
-try:
+from ..checkdeps import HAS_GDAL, HAS_PYPROJ
+	
+if HAS_GDAL:
 	from osgeo import osr
-except:
-	GDAL = False
-else:
-	GDAL = True
 
-try:
+if HAS_PYPROJ:
 	import pyproj
-except:
-	PYPROJ = False
-else:
-	PYPROJ = True
 
 
 ##############
@@ -80,9 +74,9 @@ class Reproj():
 			raise ReprojError(str(e))
 
 		# Init proj4 interface for this instance
-		if GDAL:
+		if HAS_GDAL:
 			self.iproj = 'GDAL'
-		elif PYPROJ:
+		elif HAS_PYPROJ:
 			 self.iproj = 'PYPROJ'
 		elif ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)):
 			self.iproj = 'BUILTIN'
@@ -299,7 +293,7 @@ class SRS():
 
 	def getOgrSpatialRef(self):
 		'''Build gdal osr spatial ref object'''
-		if not GDAL:
+		if not HAS_GDAL:
 			raise ImportError('GDAL not available')
 
 		prj = osr.SpatialReference()
@@ -319,7 +313,7 @@ class SRS():
 
 	def getPyProj(self):
 		'''Build pyproj object'''
-		if not PYPROJ:
+		if not HAS_PYPROJ:
 			raise ImportError('PYPROJ not available')
 		try:
 			return pyproj.Proj(self.proj4)
@@ -349,14 +343,14 @@ class SRS():
 	def isGeo(self):
 		if self.code == 4326:
 			return True
-		elif GDAL:
+		elif HAS_GDAL:
 			prj = self.getOgrSpatialRef()
 			isGeo = prj.IsGeographic()
 			if isGeo == 1:
 				return True
 			else:
 				return False
-		elif PYPROJ:
+		elif HAS_PYPROJ:
 			prj = self.getPyProj()
 			return prj.is_latlong()
 		else:

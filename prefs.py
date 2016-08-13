@@ -7,7 +7,7 @@ import addon_utils
 
 from . import bl_info
 from .utils.proj import SRS, EPSGIO #classes
-from .utils.proj import GDAL, PYPROJ #constants to check module availibility
+from .checkdeps import HAS_GDAL, HAS_PYPROJ
 
 PKG = __package__
 
@@ -127,9 +127,9 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_predef_crs", icon='SCRIPTWIN')
 		row.operator("bgis.rmv_predef_crs", icon='ZOOMOUT')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
-		if GDAL:
+		if HAS_GDAL:
 			projEngine = 'GDAL'
-		elif PYPROJ:
+		elif HAS_PYPROJ:
 			projEngine = 'PYPROJ'
 		else:
 			projEngine = 'BUILTIN / EPSG.IO'
