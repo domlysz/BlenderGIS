@@ -204,7 +204,7 @@ class BaseMap(GeoScene):
 
 		#Get or load bpy image
 		try:
-			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath][0]
+			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
 		except:
 			self.img = bpy.data.images.load(self.imgPath)
 
@@ -218,7 +218,7 @@ class BaseMap(GeoScene):
 		#Get or load background image
 		bkgs = [bkg for bkg in self.view3d.background_images if bkg.image is not None]
 		try:
-			self.bkg = [bkg for bkg in bkgs if bkg.image.filepath == self.imgPath][0]
+			self.bkg = [bkg for bkg in bkgs if bkg.image.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
 		except:
 			self.bkg = self.view3d.background_images.new()
 			self.bkg.image = self.img
