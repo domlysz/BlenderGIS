@@ -70,13 +70,13 @@ class BaseMap(GeoScene):
 
 		#Get cache destination folder in addon preferences
 		prefs = context.user_preferences.addons[PKG].preferences
-		folder = prefs.cacheFolder
+		cacheFolder = prefs.cacheFolder
 
 		#Get resampling algo preference and set the constant
 		MapService.RESAMP_ALG = prefs.resamplAlg
 
 		#Init MapService class
-		self.srv = MapService(srckey, folder)
+		self.srv = MapService(srckey, cacheFolder)
 
 		#Set destination tile matrix
 		if grdkey is None:
@@ -101,6 +101,13 @@ class BaseMap(GeoScene):
 		#Set path to tiles mosaic used as background image in Blender
 		#We need a format that support transparency so jpg is exclude
 		#Writing to tif is generally faster than writing to png
+		if bpy.data.is_saved:
+			folder = os.path.dirname(bpy.data.filepath) + os.sep
+			##folder = bpy.path.abspath("//"))
+		else:
+			##folder = bpy.context.user_preferences.filepaths.temporary_directory
+			#Blender crease a sub-directory within the temp directory, for each session, which is cleared on exit
+			folder = bpy.app.tempdir
 		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".tif"
 
 		#Get layer def obj
@@ -906,42 +913,42 @@ class MAP_VIEWER(bpy.types.Operator):
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
-		
+
 			#Get geoimage and bpyimage
 			rast = self.map.mosaic
 			bpyImg = self.map.img
-			
+
 			#Copy image to new datablock
 			bpyImg = bpy.data.images.load(bpyImg.filepath)
 			name = 'EXPORT_' + self.map.srckey + '_' + self.map.laykey + '_' + self.map.grdkey
 			bpyImg.name = name
 			bpyImg.pack()
-			
+
 			#Add new attribute to geoImg class (like GeoRaster class)
 			setattr(rast, 'bpyImg', bpyImg)
 
 			#Create Mesh
 			dx, dy = self.map.getOriginPrj()
 			mesh = rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER')
-			
+
 			#Create object
 			obj = placeObj(mesh, name)
-			
+
 			#UV mapping
 			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
 			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
-				
+
 			#Create material
 			mat = bpy.data.materials.new('rastMat')
 			obj.data.materials.append(mat)
 			addTexture(mat, self.map.img, uvTxtLayer)
-			
+
 			#Adjust 3d view and display textures
 			adjust3Dview(context, BBOX.fromObj(obj))
 			showTextures(context)
-			
+
 			return {'FINISHED'}
-			
+
 		#EXIT
 		if event.type == 'ESC' and event.value == 'PRESS':
 			if self.zoomBoxMode:
@@ -982,7 +989,7 @@ class MAP_SEARCH(bpy.types.Operator):
 		geoscn = GeoScene(context.scene)
 		if geoscn.isBroken:
 			self.report({'ERROR'}, "Scene georef is broken")
-			return {'CANCELLED'}		
+			return {'CANCELLED'}
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
@@ -997,5 +1004,3 @@ class MAP_SEARCH(bpy.types.Operator):
 			else:
 				geoscn.setOriginGeo(lon, lat)
 		return {'FINISHED'}
-
-

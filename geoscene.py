@@ -183,9 +183,14 @@ class GeoScene():
 			for bkg in space.background_images:
 				img = bkg.image
 				if img is not None and bkg.view_axis == 'TOP':
-					ratio = img.size[0] / img.size[1]
-					bkg.offset_x -= dx
-					bkg.offset_y -= dy * ratio
+					try:
+						#this statement can fails if source image is not readable (e.g. deleted file)
+						ratio = img.size[0] / img.size[1]
+					except:
+						pass
+					else:
+						bkg.offset_x -= dx
+						bkg.offset_y -= dy * ratio
 
 	def getOriginGeo(self):
 		return self.lon, self.lat
