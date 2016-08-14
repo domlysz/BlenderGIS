@@ -110,16 +110,18 @@ class GeoScene():
 		try:
 			self.crsx, self.crsy = reprojPt(4326, self.crs, lon, lat)
 		except Exception as e:
-			print('Warning, origin proj has been deleted because the property could not be updated. ' + str(e))
-			self.delOriginPrj()
+			if self.hasOriginPrj:
+				self.delOriginPrj()
+				print('Warning, origin proj has been deleted because the property could not be updated. ' + str(e))
 
 	def setOriginPrj(self, x, y):
 		self.crsx, self.crsy = x, y
 		try:
 			self.lon, self.lat = reprojPt(self.crs, 4326, x, y)
 		except Exception as e:
-			print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
-			self.delOriginGeo()
+			if self.hasOriginGeo:
+				self.delOriginGeo()
+				print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
 
 	def updOriginPrj(self, x, y, updObjLoc=True, updBkgImg=True):
 		'''Update/move scene origin passing absolute coordinates'''
@@ -221,7 +223,7 @@ class GeoScene():
 		# try first to reproj from origin geo because self.crs can be empty or broken
 		if self.hasOriginGeo:
 			self.crsx, self.crsy = reprojPt(4326, crs, self.lon, self.lat)
-		elif self.hasOriginPrj:
+		elif self.hasOriginPrj and self.hasCRS:
 			if self.hasValidCRS:
 				# will raise an error is current crs is empty or invalid
 				self.crsx, self.crsy = reprojPt(self.crs, crs, self.crsx, self.crsy)
@@ -389,6 +391,22 @@ class GEOSCENE_SET_CRS(Operator):
 		bpy.context.window_manager.toogleCrsEdit = False
 		return {'FINISHED'}
 
+class GEOSCENE_INIT_ORG(Operator):
+
+	bl_idname = "geoscene.init_org"
+	bl_description = 'Init scene origin custom props at location 0,0'
+	bl_label = "Init origin"
+	bl_options = {'INTERNAL', 'UNDO'}
+
+	def execute(self, context):
+		geoscn = GeoScene(context.scene)
+		if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
+			print('Warning, cannot init scene origin because it already exist')
+			return {'FINISHED'}
+		else:
+			geoscn.lon, geoscn.lat = 0, 0
+			geoscn.crsx, geoscn.crsy = 0, 0
+		return {'FINISHED'}
 
 class GEOSCENE_EDIT_ORG_GEO(Operator):
 
@@ -663,6 +681,9 @@ def georefManagerLayout(self, context):
 		if geoscn.hasCRS and not geoscn.hasOriginGeo:
 			row.operator("geoscene.link_org_geo", text="", icon='CONSTRAINT')
 		row.operator("geoscene.clear_org", text="", icon='ZOOMOUT')
+
+	if not geoscn.hasOriginGeo and not geoscn.hasOriginPrj:
+		row.operator("geoscene.init_org", text="", icon='ZOOMIN')
 
 	if geoscn.hasOriginGeo and wm.displayOriginGeo:
 		row = layout.row()
