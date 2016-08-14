@@ -114,7 +114,7 @@ class GeoScene():
 			self.delOriginPrj()
 
 	def setOriginPrj(self, x, y):
-		self.crsx, self.crsy = x, y		
+		self.crsx, self.crsy = x, y
 		try:
 			self.lon, self.lat = reprojPt(self.crs, 4326, x, y)
 		except Exception as e:
@@ -153,30 +153,30 @@ class GeoScene():
 		x = self.lon + dx
 		y = self.lat + dy
 		self.updOriginGeo(x, y, updObjLoc=updObjLoc, updBkgImg=updBkgImg)
-		
+
 
 	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
 		'''Move scene origin passing relative deltas'''
 		if not self.hasOriginPrj:
 			raise Exception("Cannot move an unset origin.")
-			
+
 		if useScale:
-			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)	
+			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
 		else:
 			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
-		
+
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
 		if updBkgImg:
-			self._moveBkgImg(dx, dy)		
-		
-		
+			self._moveBkgImg(dx, dy)
+
+
 	def _moveObjLoc(self, dx, dy):
 		topParents = [obj for obj in self.scn.objects if not obj.parent]
 		for obj in topParents:
 			obj.location.x -= dx
 			obj.location.y -= dy
-	
+
 	def _moveBkgImg(self, dx, dy):
 		space = bpy.context.area.spaces.active
 		if space.type == 'VIEW_3D':
@@ -373,7 +373,7 @@ class GEOSCENE_SET_CRS(Operator):
 		return context.window_manager.invoke_props_dialog(self, width=200)
 
 	def execute(self, context):
-		geoscn = GeoScene()
+		geoscn = GeoScene(context.scene)
 		prefs = context.user_preferences.addons[PKG].preferences
 		try:
 			geoscn.crs = prefs.predefCrs
@@ -385,15 +385,67 @@ class GEOSCENE_SET_CRS(Operator):
 		return {'FINISHED'}
 
 
-class GEOSCENE_UPD_ORG_GEO(Operator):
+class GEOSCENE_EDIT_ORG_GEO(Operator):
 
-	bl_idname = "geoscene.upd_org_geo"
-	bl_description = 'Update scene origin lat long'
-	bl_label = "Update geo"
+	bl_idname = "geoscene.edit_org_geo"
+	bl_description = 'Edit scene origin longitude/latitude'
+	bl_label = "Edit origin geo"
+	bl_options = {'INTERNAL', 'UNDO'}
+
+	lon = FloatProperty()
+	lat = FloatProperty()
+
+	def invoke(self, context, event):
+		geoscn = GeoScene(context.scene)
+		if geoscn.isBroken:
+			self.report({'ERROR'}, "Scene georef is broken")
+			return {'CANCELLED'}
+		self.lon, self.lat = geoscn.getOriginGeo()
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		geoscn = GeoScene(context.scene)
+		if geoscn.hasOriginGeo:
+			geoscn.updOriginGeo(self.lon, self.lat)
+		else:
+			geoscn.setOriginGeo(self.lon, self.lat)
+		return {'FINISHED'}
+
+class GEOSCENE_EDIT_ORG_PRJ(Operator):
+
+	bl_idname = "geoscene.edit_org_prj"
+	bl_description = 'Edit scene origin in projected system'
+	bl_label = "Edit origin proj"
+	bl_options = {'INTERNAL', 'UNDO'}
+
+	x = FloatProperty()
+	y = FloatProperty()
+
+	def invoke(self, context, event):
+		geoscn = GeoScene(context.scene)
+		if geoscn.isBroken:
+			self.report({'ERROR'}, "Scene georef is broken")
+			return {'CANCELLED'}
+		self.x, self.y = geoscn.getOriginPrj()
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		geoscn = GeoScene(context.scene)
+		if geoscn.hasOriginPrj:
+			geoscn.updOriginPrj(self.x, self.y)
+		else:
+			geoscn.setOriginPrj(self.x, self.y)
+		return {'FINISHED'}
+
+class GEOSCENE_LINK_ORG_GEO(Operator):
+
+	bl_idname = "geoscene.link_org_geo"
+	bl_description = 'Link scene origin lat long'
+	bl_label = "Link geo"
 	bl_options = {'INTERNAL', 'UNDO'}
 
 	def execute(self, context):
-		geoscn = GeoScene()
+		geoscn = GeoScene(context.scene)
 		if geoscn.hasOriginPrj and geoscn.hasCRS:
 			try:
 				geoscn.lon, geoscn.lat = reprojPt(geoscn.crs, 4326, geoscn.crsx, geoscn.crsy)
@@ -404,15 +456,15 @@ class GEOSCENE_UPD_ORG_GEO(Operator):
 		return {'FINISHED'}
 
 
-class GEOSCENE_UPD_ORG_PRJ(Operator):
+class GEOSCENE_LINK_ORG_PRJ(Operator):
 
-	bl_idname = "geoscene.upd_org_prj"
-	bl_description = 'Update scene origin in crs space'
-	bl_label = "Update prj"
+	bl_idname = "geoscene.link_org_prj"
+	bl_description = 'Link scene origin in crs space'
+	bl_label = "Link prj"
 	bl_options = {'INTERNAL', 'UNDO'}
 
 	def execute(self, context):
-		geoscn = GeoScene()
+		geoscn = GeoScene(context.scene)
 		if geoscn.hasOriginGeo and geoscn.hasCRS:
 			try:
 				geoscn.crsx, geoscn.crsy = reprojPt(4326, geoscn.crs, geoscn.lon, geoscn.lat)
@@ -431,7 +483,7 @@ class GEOSCENE_CLEAR_ORG(Operator):
 	bl_options = {'INTERNAL', 'UNDO'}
 
 	def execute(self, context):
-		geoscn = GeoScene()
+		geoscn = GeoScene(context.scene)
 		geoscn.delOrigin()
 		return {'FINISHED'}
 
@@ -443,7 +495,7 @@ class GEOSCENE_CLEAR_GEOREF(Operator):
 	bl_options = {'INTERNAL', 'UNDO'}
 
 	def execute(self, context):
-		geoscn = GeoScene()
+		geoscn = GeoScene(context.scene)
 		geoscn.delOrigin()
 		del geoscn.crs
 		return {'FINISHED'}
@@ -461,7 +513,7 @@ class GEOSCENE_PANEL(Panel):
 	def draw(self, context):
 		layout = self.layout
 		scn = context.scene
-		geoscn = GeoScene()
+		geoscn = GeoScene(scn)
 
 		#layout.operator("bgis.pref_show", icon='PREFERENCES')
 
@@ -473,12 +525,63 @@ bpy.types.WindowManager.displayOriginGeo = BoolProperty(name='Geo', description=
 bpy.types.WindowManager.displayOriginPrj = BoolProperty(name='Proj', description='Display coordinates of scene origin in CRS space')
 bpy.types.WindowManager.toogleCrsEdit = BoolProperty(name='Switch scene CRS', description='Enable scene CRS selection', default=False)
 
+def getLon(self):
+	geoscn = GeoScene()
+	return geoscn.lon
+
+def getLat(self):
+	geoscn = GeoScene()
+	return geoscn.lat
+
+def setLon(self, lon):
+	geoscn = GeoScene()
+	if geoscn.hasOriginGeo:
+		geoscn.updOriginGeo(lon, geoscn.lat)
+	else:
+		geoscn.setOriginGeo(lon, geoscn.lat)
+
+def setLat(self, lat):
+	geoscn = GeoScene()
+	if geoscn.hasOriginGeo:
+		geoscn.updOriginGeo(geoscn.lon, lat)
+	else:
+		geoscn.setOriginGeo(geoscn.lon, lat)
+
+bpy.types.WindowManager.lon = FloatProperty(get=getLon, set=setLon)
+bpy.types.WindowManager.lat = FloatProperty(get=getLat, set=setLat)
+
+def getCrsx(self):
+	geoscn = GeoScene()
+	return geoscn.crsx
+
+def getCrsy(self):
+	geoscn = GeoScene()
+	return geoscn.crsy
+
+def setCrsx(self, x):
+	geoscn = GeoScene()
+	if geoscn.hasOriginPrj:
+		geoscn.updOriginPrj(x, geoscn.crsy)
+	else:
+		geoscn.setOriginPrj(x, geoscn.crsy)
+
+def setCrsy(self, y):
+	geoscn = GeoScene()
+	if geoscn.hasOriginPrj:
+		geoscn.updOriginPrj(geoscn.crsx, y)
+	else:
+		geoscn.setOriginPrj(geoscn.crsx, y)
+
+bpy.types.WindowManager.crsx = FloatProperty(get=getCrsx, set=setCrsx)
+bpy.types.WindowManager.crsy = FloatProperty(get=getCrsy, set=setCrsy)
+
+
 def georefManagerLayout(self, context):
 	'''Use this method to extend a panel with georef managment tools'''
 	layout = self.layout
 	scn = context.scene
 	wm = bpy.context.window_manager
-	geoscn = GeoScene()
+	geoscn = GeoScene(scn)
 
 	prefs = context.user_preferences.addons[PKG].preferences
 
@@ -551,22 +654,30 @@ def georefManagerLayout(self, context):
 
 	if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
 		if geoscn.hasCRS and not geoscn.hasOriginPrj:
-			row.operator("geoscene.upd_org_prj", text="", icon='CONSTRAINT')
+			row.operator("geoscene.link_org_prj", text="", icon='CONSTRAINT')
 		if geoscn.hasCRS and not geoscn.hasOriginGeo:
-			row.operator("geoscene.upd_org_geo", text="", icon='CONSTRAINT')
+			row.operator("geoscene.link_org_geo", text="", icon='CONSTRAINT')
 		row.operator("geoscene.clear_org", text="", icon='ZOOMOUT')
 
 	if geoscn.hasOriginGeo and wm.displayOriginGeo:
 		row = layout.row()
+		row.prop(wm, 'lon', text='Lon')
+		row.prop(wm, 'lat', text='Lat')
+		'''
 		row.enabled = False
 		row.prop(scn, '["'+SK.LON+'"]', text='Lon')
 		row.prop(scn, '["'+SK.LAT+'"]', text='Lat')
+		'''
 
 	if  geoscn.hasOriginPrj and wm.displayOriginPrj:
 		row = layout.row()
+		row.prop(wm, 'crsx', text='X')
+		row.prop(wm, 'crsy', text='Y')
+		'''
 		row.enabled = False
 		row.prop(scn, '["'+SK.CRSX+'"]', text='X')
 		row.prop(scn, '["'+SK.CRSY+'"]', text='Y')
+		'''
 
 	if geoscn.hasScale:
 		row = layout.row()
