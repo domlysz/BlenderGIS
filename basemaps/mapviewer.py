@@ -204,7 +204,7 @@ class BaseMap(GeoScene):
 
 		#Get or load bpy image
 		try:
-			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
+			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath and len(img.packed_files) == 0][0]
 		except:
 			self.img = bpy.data.images.load(self.imgPath)
 
