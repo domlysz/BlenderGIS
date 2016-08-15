@@ -213,7 +213,8 @@ class BaseMap(GeoScene):
 
 		#Hide all existing background
 		for bkg in self.view3d.background_images:
-			bkg.show_background_image = False
+			if bkg.view_axis == 'TOP':
+				bkg.show_background_image = False
 
 		#Get or load background image
 		bkgs = [bkg for bkg in self.view3d.background_images if bkg.image is not None]

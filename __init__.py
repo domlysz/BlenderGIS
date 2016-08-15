@@ -65,7 +65,7 @@ class bgisPanel(bpy.types.Panel):
 		scn = context.scene
 
 		layout.operator("bgis.pref_show", icon='PREFERENCES')
-		
+
 		col = layout.column(align=True)
 		col.label('Geodata:')
 
@@ -80,7 +80,9 @@ class bgisPanel(bpy.types.Panel):
 		col = layout.column(align=True)
 		col.label('Camera creation:')
 		col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
-		col.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
+		row = col.row(align=True)
+		row.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
+		row.operator("camera.geophotos_setactive", icon='FILE_REFRESH', text='')
 
 		col = layout.column(align=True)
 		col.label('Mesh:')
