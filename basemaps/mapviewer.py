@@ -151,10 +151,6 @@ class BaseMap(GeoScene):
 			#Place background image
 			self.place()
 
-	def progress(self):
-		'''Report thread download progress'''
-		return self.srv.cptTiles, self.srv.nbTiles
-
 	def view3dToProj(self, dx, dy):
 		'''Convert view3d coords to crs coords'''
 		x = self.crsx + dx * self.scale
@@ -295,10 +291,9 @@ def drawInfosText(self, context):
 
 	#Draw other texts
 	blf.size(font_id, 12, 72)
-	# thread progress
+	# thread progress and service status
 	blf.position(font_id, cx-45, 90, 0)
-	if self.nbTotal > 0:
-		blf.draw(font_id, '(Downloading... ' + str(self.nb)+'/'+str(self.nbTotal) + ')')
+	blf.draw(font_id, self.progress)
 	# zoom and scale values
 	blf.position(font_id, cx-50, 50, 0)
 	blf.draw(font_id, "Zoom " + str(zoom) + " - Scale 1:" + str(int(scale)))
@@ -592,7 +587,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		# mouse crs coordinates reported in draw callback
 		self.posx, self.posy = 0, 0
 		# thread progress infos reported in draw callback
-		self.nb, self.nbTotal = 0, 0
+		self.progress = ''
 		# Zoom box
 		self.zoomBoxMode = False
 		self.zoomBoxDrag = False
@@ -641,7 +636,7 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		if event.type == 'TIMER':
 			#report thread progression
-			self.nb, self.nbTotal = self.map.progress()
+			self.progress = self.map.srv.report
 			return {'PASS_THROUGH'}
 
 

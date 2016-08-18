@@ -23,7 +23,7 @@ import os
 import io
 import threading
 import queue
-import datetime
+import time, datetime
 import sqlite3
 import urllib.request
 import imghdr
@@ -567,10 +567,30 @@ class MapService():
 			'Referer' : self.referer}
 
 		#Downloading progress
-		self.running = False
+		self.running = False #flag using to stop getTiles() / getImage() process
 		self.nbTiles = 0
 		self.cptTiles = 0
-		self.report = None
+
+		#codes that indicate the current status of the service
+		# 0 = no running tasks
+		# 1 = getting cache (create a new db if needed)
+		# 2 = downloading
+		# 3 = building mosaic
+		# 4 = reprojecting
+		self.status = 0
+
+	@property
+	def report(self):
+		if self.status == 0:
+			return ''
+		if self.status == 1:
+			return 'Get cache database...'
+		if self.status == 2:
+			return 'Downloading... ' + str(self.cptTiles)+'/'+str(self.nbTiles)
+		if self.status == 3:
+			return 'Building mosaic...'
+		if self.status == 4:
+			return 'Reprojecting...'
 
 
 	def setDstGrid(self, grdkey):
@@ -823,6 +843,8 @@ class MapService():
 			self.nbTiles = len(tiles)
 			self.cptTiles = 0
 
+		#Get cache db
+		self.status = 1
 		if useCache:
 			cache = self.getCache(laykey, toDstGrid)
 			result = cache.getTiles(tiles) #return [(x,y,z,data)]
@@ -833,6 +855,8 @@ class MapService():
 		else:
 			missing = tiles
 
+		#Downloading tiles
+		self.status = 2
 		if len(missing) > 0:
 
 			#Seed the queue
@@ -857,13 +881,14 @@ class MapService():
 			if useCache:
 				cache.putTiles( [t for t in tilesData if t[3] is not None] )
 
-		#Reinit cpt progress
-		if cpt:
-			self.nbTiles, self.cptTiles = 0, 0
-
 		#Add existing tiles to final list
 		if useCache:
 			tilesData.extend(result)
+
+		#Reinit status and cpt progress
+		self.status = 0
+		if cpt:
+			self.nbTiles, self.cptTiles = 0, 0
 
 		return tilesData
 
@@ -912,12 +937,14 @@ class MapService():
 
 		#Get tiles from www or cache
 		tiles = [ (c, r, zoom) for c in cols for r in rows]
-
 		tiles = self.getTiles(laykey, tiles, [], toDstGrid, useCache, nbThread, cpt)
 
+		#Build mosaic
+		self.status = 3
 		for tile in tiles:
 
 			if not self.running:
+				self.status = 0
 				return None
 
 			col, row, z, data = tile
@@ -943,13 +970,15 @@ class MapService():
 
 		geoimg = GeoImage(mosaic, (xmin, ymax), res)
 
+		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
+			self.status = 4
+			time.sleep(0.1) #make sure client have enough time to get the new status...
 			geoimg = reprojImg(tm.CRS, outCRS, geoimg, resamplAlg=self.RESAMP_ALG)
 
+		#Finish
+		self.status = 0
 		if self.running:
 			return geoimg
 		else:
 			return None
-
-
-
