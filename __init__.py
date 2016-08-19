@@ -77,6 +77,13 @@ class bgisPanel(bpy.types.Panel):
 		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
 		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
+		row = layout.row(align=True)
+		row.label('Import:')#, icon='LIBRARY_DATA_DIRECT')
+		row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
+		row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
+		row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
+		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
+
 		col = layout.column(align=True)
 		col.label('Camera creation:')
 		col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')

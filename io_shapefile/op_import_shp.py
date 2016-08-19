@@ -47,6 +47,7 @@ class IMPORT_SHP_FILE_DIALOG(Operator):
 	"""Select shp file, loads the fields and start importgis.shapefile_props_dialog operator"""
 
 	bl_idname = "importgis.shapefile_file_dialog"
+	bl_description = 'Import ESRI shapefile (.shp)'
 	bl_label = "Import SHP"
 	bl_options = {'INTERNAL'}
 
@@ -85,7 +86,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	"""Shapefile importer properties dialog"""
 
 	bl_idname = "importgis.shapefile_props_dialog"
-	bl_description = 'Import from ESRI shapefile file format (.shp)'
+	bl_description = 'Import ESRI shapefile (.shp)'
 	bl_label = "Import SHP"
 	bl_options = {"INTERNAL"}
 
@@ -225,7 +226,7 @@ class IMPORT_SHP(Operator):
 
 	bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
 	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
-	bl_description = 'Import from ESRI shapefile file format (.shp)'
+	bl_description = 'Import ESRI shapefile (.shp)'
 	bl_label = "Import SHP"
 	bl_options = {"UNDO"}
 
