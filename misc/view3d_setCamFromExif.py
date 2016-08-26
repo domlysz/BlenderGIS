@@ -159,9 +159,7 @@ class SetGeophotosCam(Operator):
 
             try:
                 location = (x-geoscn.crsx, y-geoscn.crsy, alt)
-                name = os.path.basename(filepath).split('.')
-                name.pop()
-                name = '.'.join(name)
+                name = bpy.path.display_name_from_filepath(filepath)
                 if self.exifMode == "TARGET_CAMERA":
                     cam, cam_obj = newTargetCamera(scn, name, location, focalLength)
                 elif self.exifMode == "CAMERA":
