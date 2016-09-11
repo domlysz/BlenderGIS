@@ -129,6 +129,8 @@ class OSM_IMPORT():
 
 	separate = BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features')
 
+	defaultHeight = FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
+	levelHeight = FloatProperty(name='Level height', description='Set a height for a building level, using for compute extrude height based on number of levels', default=3)
 
 	def draw(self, context):
 		layout = self.layout
@@ -137,6 +139,8 @@ class OSM_IMPORT():
 		row = layout.row()
 		col = row.column()
 		col.prop(self, "filterTags", expand=True)
+		layout.prop(self, 'defaultHeight')
+		layout.prop(self, 'levelHeight')
 		layout.prop(self, 'separate')
 
 
@@ -195,6 +199,35 @@ class OSM_IMPORT():
 				face.normal_update()
 				if face.normal.z < 0:
 					face.normal_flip()
+
+				if "height" in tags:
+						htag = tags["height"]
+						try:
+							offset = int(htag)
+						except:
+							try:
+								offset = float(htag)
+							except:
+								for i, c in enumerate(htag):
+									if not c.isdigit():
+										offset, unit = int(htag[:i]), htag[i:].strip()
+										#todo : parse unit  25, 25m, 25 ft, etc.
+				elif "building:levels" in tags:
+					offset = int(tags["building:levels"]) * self.levelHeight
+				else:
+					offset = self.defaultHeight
+
+				#Extrude
+				"""
+				if self.extrusionAxis == 'NORMAL':
+					normal = face.normal
+					vect = normal * offset
+				elif self.extrusionAxis == 'Z':
+				"""
+				vect = (0, 0, offset)
+				faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
+				verts = faces['faces'][0].verts
+				bmesh.ops.translate(bm, verts=verts, vec=vect)
 
 			elif len(pts) > 1: #edge
 				#Split polyline to lines
@@ -546,6 +579,3 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}
-
-
-
