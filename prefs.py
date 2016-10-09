@@ -68,6 +68,23 @@ class BGIS_PREFS(AddonPreferences):
 		items = listPredefCRS
 		)
 
+	def getProjEngine(self, context):
+		items = [ ('AUTO', 'Auto detect', '') ]
+		if HAS_GDAL:
+			items.append( ('GDAL', 'GDAL', '') )
+		if HAS_PYPROJ:
+			items.append( ('PYPROJ', 'pyProj', '') )
+		if EPSGIO.ping():
+			items.append( ('EPSGIO', 'epsg.io', '') )
+		items.append( ('BUILTIN', 'Built in', '') )
+		return items
+
+	projEngine = EnumProperty(
+		name = "Projection engine",
+		description = "Select projection engine",
+		items = getProjEngine
+		)
+
 	################
 	#OSM
 
@@ -127,13 +144,7 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_predef_crs", icon='SCRIPTWIN')
 		row.operator("bgis.rmv_predef_crs", icon='ZOOMOUT')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
-		if HAS_GDAL:
-			projEngine = 'GDAL'
-		elif HAS_PYPROJ:
-			projEngine = 'PYPROJ'
-		else:
-			projEngine = 'BUILTIN / EPSG.IO'
-		box.label('Reprojection engine : ' + projEngine)
+		box.prop(self, "projEngine")
 
 		#Basemaps
 		box = layout.box()
