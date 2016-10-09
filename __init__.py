@@ -24,7 +24,7 @@ bl_info = {
 	'license': 'GPL',
 	'deps': '',
 	'version': (1, 0),
-	'blender': (2, 7, 7),
+	'blender': (2, 7, 8),
 	'location': 'View3D > Tools > GIS',
 	'warning': '',
 	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
