@@ -350,7 +350,7 @@ class GEOSCENE_SET_CRS(Operator):
 
 	bl_idname = "geoscene.set_crs"
 	bl_description = 'Switch scene crs'
-	bl_label = "Switch"
+	bl_label = "Switch to"
 	bl_options = {'INTERNAL', 'UNDO'}
 
 	"""
@@ -387,8 +387,7 @@ class GEOSCENE_SET_CRS(Operator):
 		except Exception as err:
 			self.report({'ERROR'}, 'Cannot update crs. '+str(err))
 		#
-		context.area.tag_redraw() #does not work if context is a popup...
-		bpy.context.window_manager.toogleCrsEdit = False
+		context.area.tag_redraw()
 		return {'FINISHED'}
 
 class GEOSCENE_INIT_ORG(Operator):
@@ -546,7 +545,6 @@ class GEOSCENE_PANEL(Panel):
 #hidden props used as display options in georef manager panel
 bpy.types.WindowManager.displayOriginGeo = BoolProperty(name='Geo', description='Display longitude and latitude of scene origin')
 bpy.types.WindowManager.displayOriginPrj = BoolProperty(name='Proj', description='Display coordinates of scene origin in CRS space')
-bpy.types.WindowManager.toogleCrsEdit = BoolProperty(name='Switch scene CRS', description='Enable scene CRS selection', default=False)
 
 def getLon(self):
 	geoscn = GeoScene()
@@ -641,15 +639,7 @@ def georefManagerLayout(self, context):
 	else:
 		split.label("Not set")
 
-	#row.operator("geoscene.set_crs", text='', icon='SCRIPTWIN')
-	row.prop(wm, 'toogleCrsEdit', text='', icon='SCRIPTWIN', toggle=True)
-	if wm.toogleCrsEdit:
-		row = layout.row(align=True)
-		row.prop(prefs, 'predefCrs', text='Switch to')
-		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
-		col = row.column(align=True)
-		col.operator_context = 'EXEC_DEFAULT' #do not display props popup dialog
-		col.operator("geoscene.set_crs", text='', icon='FILE_TICK')
+	row.operator("geoscene.set_crs", text='', icon='SCRIPTWIN')
 
 	#Origin
 	row = layout.row(align=True)
