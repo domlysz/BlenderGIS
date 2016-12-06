@@ -747,6 +747,7 @@ class GeoRaster():
 		# Write pixels values to it
 		img.pixels = self.flattenPixelsArray(data)
 		# Save/pack
+		img.colorspace_settings.name = 'Non-Color'
 		img.pack(as_png=True) #as_png needed for generated images
 		# Remove old image
 		self.bpyImg.user_clear()
@@ -991,6 +992,7 @@ class GeoRasterGDAL(GeoRaster):
 		# Write pixels values to it
 		img.pixels = self.flattenPixelsArray(data)
 		# Save/pack
+		img.colorspace_settings.name = 'Non-Color'
 		img.pack(as_png=True) #as_png needed for generated images)
 
 		# Update class properties
