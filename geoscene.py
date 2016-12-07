@@ -139,7 +139,8 @@ class GeoScene():
 		if not self.isGeoref:
 			raise Exception("Cannot update geo origin of an ungeoref scene.")
 		x, y = reprojPt(4326, self.crs, lon, lat)
-		self.updOriginPrj(x, y)
+		self.updOriginPrj(x, y, updObjLoc)
+		'''
 		dx = x - self.crsx
 		dy = y - self.crsy
 		self.crsx, self.crsy = x, y
@@ -148,6 +149,7 @@ class GeoScene():
 			self._moveObjLoc(dx, dy)
 		if updBkgImg:
 			self._moveBkgImg(dx, dy)
+		'''
 
 	def moveOriginGeo(self, dx, dy, updObjLoc=True, updBkgImg=True):
 		if not self.hasOriginGeo:
@@ -556,15 +558,17 @@ def getLat(self):
 
 def setLon(self, lon):
 	geoscn = GeoScene()
+	prefs = bpy.context.user_preferences.addons[PKG].preferences
 	if geoscn.hasOriginGeo:
-		geoscn.updOriginGeo(lon, geoscn.lat)
+		geoscn.updOriginGeo(lon, geoscn.lat, updObjLoc=prefs.lockObj)
 	else:
 		geoscn.setOriginGeo(lon, geoscn.lat)
 
 def setLat(self, lat):
 	geoscn = GeoScene()
+	prefs = bpy.context.user_preferences.addons[PKG].preferences
 	if geoscn.hasOriginGeo:
-		geoscn.updOriginGeo(geoscn.lon, lat)
+		geoscn.updOriginGeo(geoscn.lon, lat, updObjLoc=prefs.lockObj)
 	else:
 		geoscn.setOriginGeo(geoscn.lon, lat)
 
@@ -581,15 +585,17 @@ def getCrsy(self):
 
 def setCrsx(self, x):
 	geoscn = GeoScene()
+	prefs = bpy.context.user_preferences.addons[PKG].preferences
 	if geoscn.hasOriginPrj:
-		geoscn.updOriginPrj(x, geoscn.crsy)
+		geoscn.updOriginPrj(x, geoscn.crsy, updObjLoc=prefs.lockObj)
 	else:
 		geoscn.setOriginPrj(x, geoscn.crsy)
 
 def setCrsy(self, y):
 	geoscn = GeoScene()
+	prefs = bpy.context.user_preferences.addons[PKG].preferences
 	if geoscn.hasOriginPrj:
-		geoscn.updOriginPrj(geoscn.crsx, y)
+		geoscn.updOriginPrj(geoscn.crsx, y, updObjLoc=prefs.lockObj)
 	else:
 		geoscn.setOriginPrj(geoscn.crsx, y)
 
