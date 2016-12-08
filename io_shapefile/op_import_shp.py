@@ -544,10 +544,11 @@ class IMPORT_SHP(Operator):
                         bmesh.ops.translate(bm, verts=verts, vec=vect)
             
 
-                    #Magnitude ##BENJIDA!!!
+                    #Magnitude #BENJIDA added
                     if self.fieldMagName and self.fieldElevName:
+                        print("Just a heads up, this will take time if the data set is large.")
                         loc = mathutils.Matrix.Translation(vert[0].co)
-                        #rot = v.normal.to_track_quat('-Y','Z') #rotation of object to face monkey out
+                        #rot = v.normal.to_track_quat('-Y','Z') #rotation of object to face out
                         mat = mathutils.Matrix.Identity(3)
                         #mat.rotate(rot) #Applies rotation
                         mat = loc * mat.to_4x4()
