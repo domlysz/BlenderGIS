@@ -247,6 +247,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 
 class IMPORT_SHP(Operator):
+<<<<<<< HEAD
     """Import from ESRI shapefile file format (.shp)"""
 
     bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
@@ -647,6 +648,12 @@ class IMPORT_SHP(Operator):
                 # because it cause implicit scene updates calls
                 # so we must avoid using operators when created many objects with the 'separate objects' option)
                 ##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+
+                #write attributes data
+                for i, field in enumerate(shp.fields):
+                    fieldName = field[0]
+                    if fieldName != 'DeletionFlag':
+                        obj[fieldName] = record[i-1]
 
             elif self.fieldExtrudeName:
                 #Join to final bmesh (use from_mesh method hack)

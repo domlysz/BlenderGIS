@@ -106,6 +106,7 @@ class BGIS_PREFS(AddonPreferences):
 	zoomToMouse = BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
 	lockOrigin = BoolProperty(name="Lock origin", description='Do not move scene origin when panning map', default=False)
+	lockObj = BoolProperty(name="Lock objects", description='Retain objects geolocation when moving map origin', default=True)
 
 	resamplAlg = EnumProperty(
 		name = "Resampling method",
@@ -141,6 +142,7 @@ class BGIS_PREFS(AddonPreferences):
 		box.prop(self, "cacheFolder")
 		row = box.row()
 		row.prop(self, "zoomToMouse")
+		row.prop(self, "lockObj")
 		row.prop(self, "lockOrigin")
 		row.label('Font color:')
 		row.prop(self, "fontColor", text='')
