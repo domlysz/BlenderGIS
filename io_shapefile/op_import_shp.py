@@ -247,7 +247,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 
 class IMPORT_SHP(Operator):
-<<<<<<< HEAD
+
     """Import from ESRI shapefile file format (.shp)"""
 
     bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
