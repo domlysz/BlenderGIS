@@ -574,6 +574,13 @@ class IMPORT_SHP(Operator):
 				# so we must avoid using operators when created many objects with the 'separate objects' option)
 				##bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 
+				#write attributes data
+				for i, field in enumerate(shp.fields):
+					fieldName = field[0]
+					if fieldName != 'DeletionFlag':
+						obj[fieldName] = record[i-1]
+
+
 			elif self.fieldExtrudeName:
 				#Join to final bmesh (use from_mesh method hack)
 				buff = bpy.data.meshes.new(".temp")
