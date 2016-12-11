@@ -78,25 +78,10 @@ class Reproj():
 		except Exception as e:
 			raise ReprojError(str(e))
 
-		'''
-		# Init proj4 interface for this instance
-		if HAS_GDAL:
-			self.iproj = 'GDAL'
-		elif HAS_PYPROJ:
-			 self.iproj = 'PYPROJ'
-		elif ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)):
-			self.iproj = 'BUILTIN'
-		elif EPSGIO.ping():
-			#this is the slower solution, not suitable for reproject lot of points
-			self.iproj = 'EPSGIO'
-		else:
-			raise ReprojError('Too limited reprojection capabilities.')
-
-		'''
 		prefs = bpy.context.user_preferences.addons[PKG].preferences
-		#ENGINE = prefs.projEngine
-		ENGINE = 'AUTO'
-		if ENGINE == 'AUTO':
+		self.iproj = prefs.projEngine
+
+		if self.iproj == 'AUTO':
 			# Init proj4 interface for this instance
 			if HAS_GDAL:
 				self.iproj = 'GDAL'
@@ -109,16 +94,16 @@ class Reproj():
 				self.iproj = 'EPSGIO'
 			else:
 				raise ReprojError('Too limited reprojection capabilities.')
-		'''
 		else:
-			self.iproj = prefs.projEngine
+			if (self.iproj == 'GDAL' and not HAS_GDAL) or (self.iproj == 'PYPROJ' and not HAS_PYPROJ):
+				raise ReprojError('Missing reproj engine')
 			if self.iproj == 'BUILTIN':
 				if not ( ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)) ):
 					raise ReprojError('Too limited built in reprojection capabilities')
 			if self.iproj == 'EPSGIO':
 				if not  EPSGIO.ping():
 					raise ReprojError('Cannot access epsg.io service')
-		'''
+
 
 		if self.iproj == 'GDAL':
 			self.crs1 = crs1.getOgrSpatialRef()

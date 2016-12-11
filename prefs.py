@@ -74,8 +74,9 @@ class BGIS_PREFS(AddonPreferences):
 			items.append( ('GDAL', 'GDAL', '') )
 		if HAS_PYPROJ:
 			items.append( ('PYPROJ', 'pyProj', '') )
-		if EPSGIO.ping():
-			items.append( ('EPSGIO', 'epsg.io', '') )
+		#if EPSGIO.ping(): #too slow
+		#	items.append( ('EPSGIO', 'epsg.io', '') )
+		items.append( ('EPSGIO', 'epsg.io', '') )
 		items.append( ('BUILTIN', 'Built in', '') )
 		return items
 
