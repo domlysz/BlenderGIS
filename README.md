@@ -28,7 +28,7 @@ Note that Blender cannot handle attribute data include in dbase file linked to t
 
 Import geotiff or common image format georeferenced with a [world file](http://en.wikipedia.org/wiki/World_file).
 
-You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or as DEM for warp a mesh with the displace modifier.
+You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or [as DEM](https://github.com/domlysz/BlenderGIS/wiki/Import-DEM-grid) for warp a mesh with the displace modifier.
 
 
 [OpenStreetMap import](https://github.com/domlysz/BlenderGIS/wiki/OSM-import)
