@@ -18,9 +18,7 @@ A [Shapefile](http://en.wikipedia.org/wiki/Shapefile) is a popular geospatial ve
 
 This tool can import into Blender most of shapefile feature type. It can also uses attributes data to define Z elevation values or Z extrusion values.
 
-Exporter script can export a mesh to pointZ, polylineZ or polygonZ shapefile.
-
-Note that Blender cannot handle attribute data include in dbase file linked to the shapefile. So if you want import a shapefile for edit it into Blender and then re-export it, you will lose attribute data.
+Exporter script can export a mesh to pointZ, polylineZ or polygonZ shapefile. Note that currently this tool does not re-export attribute data include in the dbase file linked to the shapefile. So if you want to import a shapefile for edit it into Blender and then re-export it, you will lose attribute data.
 
 
 [Georeferenced raster importer](https://github.com/domlysz/BlenderGIS/wiki/Import-georef-raster)
