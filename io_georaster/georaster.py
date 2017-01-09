@@ -704,13 +704,13 @@ class GeoRaster():
 
 	def copy(self, clip=False, fillNodata=False):
 		'''
-		Use bpy and numpy to create directly in Blender a new copy of the raster.
+		Use bpy, and numpy to create directly in Blender a new copy of the raster.
 
 		This method provides some usefull options:
 
 		* clip : will clip the raster according to the working extent define in subBox property.
 
-		* fillNodata : use an inpainting method based on numpy to fill nodata values. Nodata is generally
+		* fillNodata : use an inpainting method based on numpy (or gdal) to fill nodata values. Nodata is generally
 		representent with a very high or low value. It's why using raster that contains nodata as displacement
 		texture can give huge unwanted glitch. Fill nodata help to get smooth results.
 
@@ -720,12 +720,9 @@ class GeoRaster():
 		as displacement texture.
 		'''
 		# Check some assert
-		if self.ddtype is None:
-			raise IOError("Undefined data type")
 		if self.ddtype not in ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'float32']:
 			raise IOError("Unsupported data type")
-		if not self.isLoaded:
-			raise IOError("Copy() available only for image loaded in Blender")
+
 		# Get data
 		if self.isOneBand:
 			bandIdx = 0
@@ -744,14 +741,46 @@ class GeoRaster():
 		# Create a new image in Blender
 		height, width = data.shape
 		img = bpy.data.images.new(self.baseName, width, height, alpha=False, float_buffer=True)
+		img.colorspace_settings.name = 'Non-Color'
 		# Write pixels values to it
 		img.pixels = self.flattenPixelsArray(data)
+		#img.update()
+
 		# Save/pack
-		img.colorspace_settings.name = 'Non-Color'
-		img.pack(as_png=True) #as_png needed for generated images
+		##img.pack(as_png=True) #as_png needed for generated images
+
+		# ISSUE
+		# Generated image can only be packed in png format
+		# but png does not support float32 datatype so we must save the image in an external file
+		# The only one format that Blender can save as float32 is EXR (tiff 32bits not supported)
+
+		##img.filepath = os.path.splitext(self.path)[0] + '.exr'
+		##img.file_format = 'OPEN_EXR'
+		##img.save()
+
+		# ISSUE
+		# Seems actually there is no way to setting advanced format parameters
+		# like compression, codec, depth... for img.save() function
+		# a work around is to use save_render() function
+		# because this one use scene render output format settings
+		# see bpy.types.ImageFormatSettings
+
+		scn = bpy.context.scene
+		saveSettings = scn.render.image_settings
+		saveSettings.file_format = 'OPEN_EXR'
+		saveSettings.color_depth = '32'
+		saveSettings.color_mode = 'RGB'
+		saveSettings.exr_codec = 'ZIP'
+		path = os.path.splitext(self.path)[0] + '_float32.exr'
+		img.save_render(filepath=path, scene=scn)
+		img.source = 'FILE'
+		img.filepath = path
+		img.reload()
+
 		# Remove old image
-		self.bpyImg.user_clear()
-		bpy.data.images.remove(self.bpyImg)
+		if self.bpyImg is not None:
+			self.bpyImg.user_clear()
+			bpy.data.images.remove(self.bpyImg)
 		# Update class properties
 		self.path = None
 		self.bpyImg = img
@@ -952,58 +981,3 @@ class GeoRasterGDAL(GeoRaster):
 		data = b.ReadAsArray()
 		ds, b = None, None
 		return data
-
-
-	#override
-	def copy(self, clip=False, fillNodata=False):
-		'''
-		Use gdal and numpy to create directly in Blender a new copy of the raster.
-		Data type is always cast to float32.
-
-		This method provides some usefull options:
-		* clip : will clip the raster according to the working extent define in subBox property.
-		* fillNodata : use gdal fillnodata function.
-		'''
-
-		# Check some assert
-		if self.path is None or not self.fileExists:
-			raise IOError("Cannot find file on disk")
-
-		# Get data
-		if self.isOneBand:
-			bandIdx = 0
-		else:
-			bandIdx = None
-
-		if clip and self.subBox is not None:
-			data = self.readAsNpArray(bandIdx, subset=True)
-		else:
-			data = self.readAsNpArray(bandIdx)
-			clip = False #force clip to False
-
-		#fill nodata
-		if fillNodata and self.noData is not None:
-			if self.noData in data:
-				data = self.fillNodata(data)
-
-		# Create a new float image in Blender
-		height, width = data.shape
-		img = bpy.data.images.new(self.baseName, width, height, alpha=False, float_buffer=True)
-		# Write pixels values to it
-		img.pixels = self.flattenPixelsArray(data)
-		# Save/pack
-		img.colorspace_settings.name = 'Non-Color'
-		img.pack(as_png=True) #as_png needed for generated images)
-
-		# Update class properties
-		self.path = None
-		self.bpyImg = img
-		self.dtype = 'float'
-		self.depth = 32
-		if clip:
-			self.size = xy(*img.size)
-			self.origin = self.subBoxOrigin
-			self.min, self.max = self.submin, self.submax
-			self.subBox = None
-
-		return True
