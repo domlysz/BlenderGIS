@@ -69,15 +69,15 @@ class BGIS_PREFS(AddonPreferences):
 		)
 
 	def getProjEngine(self, context):
-		items = [ ('AUTO', 'Auto detect', '') ]
+		items = [ ('AUTO', 'Auto detect', 'Auto select the best library for reprojection tasks') ]
 		if HAS_GDAL:
-			items.append( ('GDAL', 'GDAL', '') )
+			items.append( ('GDAL', 'GDAL', 'Force GDAL as reprojection engine') )
 		if HAS_PYPROJ:
-			items.append( ('PYPROJ', 'pyProj', '') )
+			items.append( ('PYPROJ', 'pyProj', 'Force pyProj as reprojection engine') )
 		#if EPSGIO.ping(): #too slow
 		#	items.append( ('EPSGIO', 'epsg.io', '') )
-		items.append( ('EPSGIO', 'epsg.io', '') )
-		items.append( ('BUILTIN', 'Built in', '') )
+		items.append( ('EPSGIO', 'epsg.io', 'Force epsg.io as reprojection engine') )
+		items.append( ('BUILTIN', 'Built in', 'Force reprojection through built in Python functions') )
 		return items
 
 	projEngine = EnumProperty(
