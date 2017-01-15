@@ -78,6 +78,10 @@ class Reproj():
 		except Exception as e:
 			raise ReprojError(str(e))
 
+		if crs1 == crs2:
+			self.iproj = 'NO_REPROJ'
+			return
+
 		prefs = bpy.context.user_preferences.addons[PKG].preferences
 		self.iproj = prefs.projEngine
 
@@ -139,6 +143,9 @@ class Reproj():
 
 		if len(pts[0]) != 2:
 			raise ReprojError('Points must be [ (x,y) ]')
+
+		if self.iproj == 'NO_REPROJ':
+			return pts
 
 		if self.iproj == 'GDAL':
 			xs, ys, _zs = zip(*self.osrTransfo.TransformPoints(pts))
@@ -307,6 +314,9 @@ class SRS():
 			return self.SRID
 		else:
 			return self.proj4
+
+	def __eq__(self, srs2):
+		return self.__str__() == srs2.__str__()
 
 	def getOgrSpatialRef(self):
 		'''Build gdal osr spatial ref object'''

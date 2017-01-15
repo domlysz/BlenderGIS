@@ -220,21 +220,24 @@ class GeoScene():
 	@crs.setter
 	def crs(self, v):
 		#Make sure input value is a valid crs string representation
-		crs = str(SRS(v)) #will raise an error if the crs is not valid
+		crs = SRS(v) #will raise an error if the crs is not valid
 		#Reproj existing origin. New CRS will not be set if updating existing origin is not possible
 		# try first to reproj from origin geo because self.crs can be empty or broken
 		if self.hasOriginGeo:
-			self.crsx, self.crsy = reprojPt(4326, crs, self.lon, self.lat)
+			if crs.isWGS84:
+				#if destination crs is wgs84, just assign lonlat to originprj
+				self.crsx, self.crsy = self.lon, self.lat
+			self.crsx, self.crsy = reprojPt(4326, str(crs), self.lon, self.lat)
 		elif self.hasOriginPrj and self.hasCRS:
 			if self.hasValidCRS:
 				# will raise an error is current crs is empty or invalid
-				self.crsx, self.crsy = reprojPt(self.crs, crs, self.crsx, self.crsy)
+				self.crsx, self.crsy = reprojPt(self.crs, str(crs), self.crsx, self.crsy)
 			else:
 				raise Exception("Scene origin coordinates cannot be updated because current CRS is invalid.")
 		#Set ID prop
 		if SK.CRS not in self.scn:
 			self._rna_ui[SK.CRS] = {"description": "Map Coordinate Reference System", "default": ''}
-		self.scn[SK.CRS] = crs
+		self.scn[SK.CRS] = str(crs)
 	@crs.deleter
 	def crs(self):
 		if SK.CRS in self.scn:
