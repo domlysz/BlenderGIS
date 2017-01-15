@@ -44,6 +44,8 @@ class XY(object):
 			return "(%s, %s, %s)"%(self.x, self.y, self.z)
 		else:
 			return "(%s, %s)"%(self.x,self.y)
+	def __repr__(self):
+		return self.__str__()
 	def __getitem__(self,item):
 		return self.data[item]
 	def __setitem__(self, idx, value):

@@ -37,7 +37,7 @@ from .img import NpImage, GeoImage, reprojImg
 
 #reproj functions
 from ..utils.geom import BBOX
-from ..utils.proj import reprojPt, reprojBbox, dd2meters, SRS
+from ..utils.proj import reprojPt, reprojBbox, dd2meters, meters2dd, SRS
 
 
 
