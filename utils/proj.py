@@ -509,6 +509,7 @@ class EPSGIO():
 		url = "http://epsg.io/{CODE}.esriwkt"
 		url = url.replace("{CODE}", str(crs.code))
 		wkt = urllib.request.urlopen(url).read().decode('utf8')
+		return wkt
 
 
 
