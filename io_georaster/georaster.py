@@ -220,9 +220,9 @@ class GeoRaster():
 		tif = Tyf.open(self.path)[0]
 		#First search for a matrix transfo
 		try:
-			#34264: ("ModelTransformation", "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p")
+			#34264: ("ModelTransformationTag", "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p")
 			# 4x4 transform matrix in 3D space
-			transfoMatrix = tif['ModelTransformation']
+			transfoMatrix = tif['ModelTransformationTag']
 			a,b,c,d,
 			e,f,g,h,
 			m,n,o,p = transfoMatrix
