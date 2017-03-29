@@ -223,8 +223,9 @@ class GeoRaster():
 			#34264: ("ModelTransformationTag", "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p")
 			# 4x4 transform matrix in 3D space
 			transfoMatrix = tif['ModelTransformationTag']
-			a,b,c,d,
-			e,f,g,h,
+			a,b,c,d, \
+			e,f,g,h, \
+			i,j,k,l, \
 			m,n,o,p = transfoMatrix
 			#get only 2d affine parameters
 			self.origin = xy(d, h)
