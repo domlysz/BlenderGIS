@@ -33,7 +33,7 @@ if HAS_GDAL:
 #For debug
 #HAS_GDAL = False
 
-from .georaster import GeoRaster, GeoRasterGDAL
+from .georaster import GeoRaster_bpy
 
 from ..utils.geom import XY as xy, BBOX
 from ..utils.errors import OverlapError
@@ -359,7 +359,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'PLANE':#on plane
 			#Load raster
 			try:
-				rast = GeoRaster(filePath)
+				rast = GeoRaster_bpy(filePath)
 			except IOError as e:
 				return self.err(str(e))
 			#Get or set georef dx, dy
@@ -384,7 +384,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'BKG':#background
 			#Load raster
 			try:
-				rast = GeoRaster(filePath)
+				rast = GeoRaster_bpy(filePath)
 			except IOError as e:
 				return self.err(str(e))
 			#Check pixel size and rotation
@@ -428,7 +428,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			subBox = BBOX.fromObj(obj).toGeo(geoscn)
 			#Load raster
 			try:
-				rast = GeoRaster(filePath, subBox=subBox)
+				rast = GeoRaster_bpy(filePath, subBoxGeo=subBox)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 			# Add UV map texture layer
@@ -460,16 +460,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = None
 
 			# Load raster
-			if not HAS_GDAL:
-				try:
-					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
-				except (IOError, OverlapError) as e:
-					return self.err(str(e))
-			else:
-				try:
-					grid = GeoRasterGDAL(filePath, subBox=subBox, clip=self.clip, fillNodata=self.fillNodata)
-				except (IOError, OverlapError) as e:
-					return self.err(str(e))
+			try:
+				grid = GeoRaster_bpy(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL)
+			except (IOError, OverlapError) as e:
+				return self.err(str(e))
 
 			# If no reference, create a new plane object from raster extent
 			if not self.demOnMesh:
@@ -519,16 +513,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = BBOX.fromObj(obj).toGeo(geoscn)
 
 			# Load raster
-			if not HAS_GDAL:
-				try:
-					grid = GeoRaster(filePath, subBox=subBox, clip=self.clip)
-				except (IOError, OverlapError) as e:
-					return self.err(str(e))
-			else:
-				try:
-					grid = GeoRasterGDAL(filePath, subBox=subBox, clip=self.clip)
-				except (IOError, OverlapError) as e:
-					return self.err(str(e))
+			try:
+				grid = GeoRaster_bpy(filePath, subBoxGeo=subBox, clip=self.clip, useGDAL=HAS_GDAL)
+			except (IOError, OverlapError) as e:
+				return self.err(str(e))
 
 			if not geoscn.isGeoref:
 				dx, dy = grid.center.x, grid.center.y

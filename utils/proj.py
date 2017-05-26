@@ -29,7 +29,7 @@ from .geom import BBOX
 from ..checkdeps import HAS_GDAL, HAS_PYPROJ
 
 if HAS_GDAL:
-	from osgeo import osr
+	from osgeo import osr, gdal
 
 if HAS_PYPROJ:
 	import pyproj
@@ -65,6 +65,111 @@ def meters2dd(dst):
 	k = GRS80.perimeter/360
 	return dst / k
 
+
+def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, resamplAlg='BL'):
+	'''
+	Use GDAL Python binding to reproject an image
+	crs1, crs2 >> epsg code
+	ds1 >> input GDAL dataset object
+	out_ul >> output raster top left coords (same as input if None)
+	out_size >> output raster size (same as input is None)
+	out_res >> output raster resolution (same as input if None)
+	return ds2 >> output GDAL dataset object
+	'''
+
+	if not HAS_GDAL:
+		raise NotImplementedError
+
+	geoTrans = ds1.GetGeoTransform()
+	if geoTrans is not None:
+		xmin, resx, rotx, ymax, roty, resy = geoTrans
+		#Note that instead of worldfile, topleft geotag is at corner not pixel center
+	else:
+		raise IOError("Reprojection fails: input raster is not georeferenced")
+
+
+	img_w, img_h = ds1.RasterXSize, ds1.RasterYSize
+	nbBands = ds1.RasterCount
+	dtype = gdal.GetDataTypeName(ds1.GetRasterBand(1).DataType)
+
+	if rotx == roty == 0:
+		xmax = xmin + img_w * resx
+		ymin = ymax + img_h * resy
+		bbox = BBOX(xmin, ymin, xmax, ymax)
+	else:
+		raise IOError("Raster must be rectified (no rotation parameters)")
+		#TODO reuse the GeoRef class to extract bbox even if there are rotation parameters
+
+	#Assign input CRS to input datasource
+	prj1 = SRS(crs1).getOgrSpatialRef()
+	wkt1 = prj1.ExportToWkt()
+	ds1.SetProjection(wkt1)
+
+	#Build destination dataset
+	# ds2 will be a template empty raster to reproject the data into
+	# we can directly set its size, res and top left coord as expected
+	# reproject funtion will match the template (clip and resampling)
+
+	if out_ul is not None:
+		xmin, ymax = out_ul
+	else:
+		xmin, ymax = reprojPt(crs1, crs2, xmin, ymax)
+
+	#submit resolution and size
+	if out_res is not None and out_size is not None:
+		resx, resy = out_res, -out_res
+		img_w, img_h = out_size
+
+	#submit resolution and auto compute the best image size
+	if out_res is not None and out_size is None:
+		resx, resy = out_res, -out_res
+		#reprojected image size depend on final bbox and expected resolution
+		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, bbox)
+		img_w = int( (xmax - xmin) / resx )
+		img_h = int( (ymax - ymin) / resy )
+
+	#submit image size and ...
+	if out_res is None and out_size is not None:
+		img_w, img_h = out_size
+		#...let's res as source value ? (image will be croped)
+
+	#Keep original image px size and compute resolution to approximately preserve geosize
+	if out_res is None and out_size is None:
+		#find the res that match source diagolal size
+		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, bbox)
+		'''
+		dst_diag = math.sqrt( (xmax - xmin)**2 + (ymax - ymin)**2)
+		px_diag = math.sqrt(img_w**2 + img_h**2)
+		res = dst_diag / px_diag
+		'''
+		resx = (xmax-xmin) / img_w
+		resy = -(ymax-ymin) / img_h
+
+	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GetDataTypeByName(dtype))
+	geoTrans = (xmin, resx, 0, ymax, 0, resy)
+	ds2.SetGeoTransform(geoTrans)
+	prj2 = SRS(crs2).getOgrSpatialRef()
+	wkt2 = prj2.ExportToWkt()
+	ds2.SetProjection(wkt2)
+
+	#Perform the projection/resampling
+	# Resample algo
+	if resamplAlg == 'NN' : alg = gdal.GRA_NearestNeighbour
+	elif resamplAlg == 'BL' : alg = gdal.GRA_Bilinear
+	elif resamplAlg == 'CB' : alg = gdal.GRA_Cubic
+	elif resamplAlg == 'CBS' : alg = gdal.GRA_CubicSpline
+	elif resamplAlg == 'LCZ' : alg = gdal.GRA_Lanczos
+	# Memory limit (0 = no limit)
+	memLimit = 0
+	# Error in pixels (0 will use the exact transformer)
+	threshold = 0.25
+	# Warp options (http://www.gdal.org/structGDALWarpOptions.html)
+	opt = ['NUM_THREADS=ALL_CPUS, SAMPLE_GRID=YES']
+	gdal.ReprojectImage(ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt) #option parameter start with gdal 2.1
+
+	# Close
+	ds1 = None
+	return ds2
 
 
 

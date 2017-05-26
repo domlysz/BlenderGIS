@@ -238,9 +238,9 @@ class BaseMap(GeoScene):
 		self.bkg.opacity = 1
 
 		#Get some image props
-		img_ox, img_oy = self.mosaic.origin
+		img_ox, img_oy = self.mosaic.center
 		img_w, img_h = self.mosaic.size
-		res = self.mosaic.res
+		res = self.mosaic.pxSize.x
 		#res = self.tm.getRes(self.zoom)
 
 		#Set background size

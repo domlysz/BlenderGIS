@@ -33,11 +33,12 @@ import imghdr
 
 #addon import
 from .servicesDefs import GRIDS, SOURCES
-from .img import NpImage, GeoImage, reprojImg
+#from .img import NpImage, GeoImage, reprojImg
+from ..io_georaster.georaster import NpImage, GeoRef
 
 #reproj functions
 from ..utils.geom import BBOX
-from ..utils.proj import reprojPt, reprojBbox, dd2meters, meters2dd, SRS
+from ..utils.proj import reprojPt, reprojBbox, dd2meters, meters2dd, SRS, reprojImg
 
 
 
@@ -897,7 +898,7 @@ class MapService():
 	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
-		return GeoImage object (PIL image + georef infos)
+		return georeferenced NpImage object
 		"""
 
 		#Select tile matrix set
@@ -931,9 +932,10 @@ class MapService():
 		else:
 			rows = [firstRow-i for i in range(nbTilesY)]
 
-		#Create PIL image in memory
+		#Create numpy image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
-		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255))
+		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=None)
+		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef, IFACE='AUTO')
 
 		#Get tiles from www or cache
 		tiles = [ (c, r, zoom) for c in cols for r in rows]
@@ -968,17 +970,15 @@ class MapService():
 			posy = abs((row - firstRow)) * tileSize
 			mosaic.paste(img, posx, posy)
 
-		geoimg = GeoImage(mosaic, (xmin, ymax), res)
-
 		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
 			self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
-			geoimg = reprojImg(tm.CRS, outCRS, geoimg, resamplAlg=self.RESAMP_ALG)
+			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), resamplAlg=self.RESAMP_ALG))
 
 		#Finish
 		self.status = 0
 		if self.running:
-			return geoimg
+			return mosaic
 		else:
 			return None
