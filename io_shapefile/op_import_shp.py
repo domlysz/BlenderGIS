@@ -6,13 +6,16 @@ from bpy.types import Operator
 import bmesh
 import math
 import mathutils
-from .shapefile import Reader as shpReader
+
+
+from ..core.lib.shapefile import Reader as shpReader
 
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
-from ..utils.geom import BBOX
-from ..utils.proj import Reproj
-from ..utils.bpu import adjust3Dview
+from ..core import BBOX
+from ..core.proj import Reproj
+
+from ..bpy_utils import adjust3Dview, getBBOX
 
 featureType={
 0:'Null',
@@ -545,7 +548,7 @@ class IMPORT_SHP(Operator):
 					name = shpName
 
 				#Calc bmesh bbox
-				_bbox = BBOX.fromBmesh(bm)
+				_bbox = getBBOX.fromBmesh(bm)
 
 				#Calc bmesh geometry origin and translate coords according to it
 				#then object location will be set to initial bmesh origin

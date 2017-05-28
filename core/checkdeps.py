@@ -1,6 +1,6 @@
 
 
-#GDAL	
+#GDAL
 try:
 	from osgeo import gdal
 except:
@@ -28,14 +28,10 @@ else:
 
 
 #Imageio freeimage plugin
-#HAS_GDAL = HAS_PIL = False #For debug
-if not HAS_GDAL and not HAS_PIL:
-	try:
-		from .lib import imageio
-		imageio.plugins._freeimage.get_freeimage_lib() #try to download freeimage lib
-	except:
-		HAS_IMGIO = False
-	else:
-		HAS_IMGIO = True
-else:
+try:
+	from .lib import imageio
+	imageio.plugins._freeimage.get_freeimage_lib() #try to download freeimage lib
+except:
 	HAS_IMGIO = False
+else:
+	HAS_IMGIO = True

@@ -4,8 +4,8 @@ import os
 import colorsys
 from xml.dom.minidom import parse, parseString
 from xml.etree import ElementTree as etree
-from ..utils.interpo import scale, linearInterpo
-from .utils import akima
+from ..maths.interpo import scale, linearInterpo
+from ..maths import akima
 
 
 class Color(object):

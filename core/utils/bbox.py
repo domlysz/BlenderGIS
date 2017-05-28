@@ -19,60 +19,7 @@
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
 
-
-import bpy
-from mathutils import Vector
-from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
-
-
-class XY(object):
-	'''A class to represent 2-tuple value'''
-	def __init__(self, x, y, z=None):
-		'''
-		You can use the constructor in many ways:
-		XY(0, 1) - passing two arguments
-		XY(x=0, y=1) - passing keywords arguments
-		XY(**{'x': 0, 'y': 1}) - unpacking a dictionary
-		XY(*[0, 1]) - unpacking a list or a tuple (or a generic iterable)
-		'''
-		if z is None:
-			self.data=[x, y]
-		else:
-			self.data=[x, y, z]
-	def __str__(self):
-		if self.z is not None:
-			return "(%s, %s, %s)"%(self.x, self.y, self.z)
-		else:
-			return "(%s, %s)"%(self.x,self.y)
-	def __repr__(self):
-		return self.__str__()
-	def __getitem__(self,item):
-		return self.data[item]
-	def __setitem__(self, idx, value):
-		self.data[idx] = value
-	def __iter__(self):
-		return iter(self.data)
-	def __len__(self):
-		return len(self.data)
-	@property
-	def x(self):
-		return self.data[0]
-	@property
-	def y(self):
-		return self.data[1]
-	@property
-	def z(self):
-		try:
-			return self.data[2]
-		except:
-			return None
-	@property
-	def xy(self):
-		return self.data[:2]
-	@property
-	def xyz(self):
-		return self.data
-
+from . import XY
 
 class BBOX(dict):
 	'''A class to represent a bounding box'''
@@ -137,75 +84,6 @@ class BBOX(dict):
 	def values(self):
 		'''override dict keys() method'''
 		return self.__dict__.values()
-
-
-	@classmethod
-	def fromObj(cls, obj, applyTransform = True):
-		'''Create a 3D BBOX from Blender object'''
-		if applyTransform:
-			boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
-		else:
-			boundPts = obj.bound_box
-		xmin = min([pt[0] for pt in boundPts])
-		xmax = max([pt[0] for pt in boundPts])
-		ymin = min([pt[1] for pt in boundPts])
-		ymax = max([pt[1] for pt in boundPts])
-		zmin = min([pt[2] for pt in boundPts])
-		zmax = max([pt[2] for pt in boundPts])
-		return cls(xmin=xmin, ymin=ymin, zmin=zmin, xmax=xmax, ymax=ymax, zmax=zmax)
-
-	@classmethod
-	def fromScn(cls, scn):
-		'''Create a 3D BBOX from Blender Scene
-		union of bounding box of all objects containing in the scene'''
-		scn = bpy.context.scene
-		objs = scn.objects
-		if len(objs) == 0:
-			scnBbox = cls(0,0,0,0,0,0)
-		else:
-			scnBbox = BBOX.fromObj(objs[0])
-		for obj in objs:
-			bbox = BBOX.fromObj(obj)
-			scnBbox += bbox
-		return scnBbox
-
-	@classmethod
-	def fromBmesh(cls, bm):
-		'''Create a 3D bounding box from a bmesh object'''
-		xmin = min([pt.co.x for pt in bm.verts])
-		xmax = max([pt.co.x for pt in bm.verts])
-		ymin = min([pt.co.y for pt in bm.verts])
-		ymax = max([pt.co.y for pt in bm.verts])
-		zmin = min([pt.co.z for pt in bm.verts])
-		zmax = max([pt.co.z for pt in bm.verts])
-		#
-		return cls(xmin=xmin, ymin=ymin, zmin=zmin, xmax=xmax, ymax=ymax, zmax=zmax)
-
-	@classmethod
-	def fromTopView(cls, context):
-		'''Create a 2D BBOX from Blender 3dview if the view is top left ortho else return None'''
-		scn = context.scene
-		area = context.area
-		if area.type != 'VIEW_3D':
-			return None
-		reg = context.region
-		reg3d = context.region_data
-		if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
-			print("View3d must be in top ortho")
-			return None
-		#
-		w, h = area.width, area.height
-		coords = (w, h)
-		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc_ne = region_2d_to_location_3d(reg, reg3d, coords, vec)
-		xmax, ymax = loc_ne.x, loc_ne.y
-		#
-		coords = (0, 0)
-		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc_sw = region_2d_to_location_3d(reg, reg3d, coords, vec)
-		xmin, ymin = loc_sw.x, loc_sw.y
-		#
-		return cls(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
 
 	@classmethod
 	def fromXYZ(cls, lst):

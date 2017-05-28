@@ -22,7 +22,7 @@ import bpy
 from mathutils import Vector
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 
-from ..utils.geom import BBOX
+from ..bpy_utils import getBBOX
 from ..geoscene import GeoScene
 
 
@@ -50,7 +50,7 @@ class SetGeorenderCam(bpy.types.Operator):
 		layout.prop(self, 'name')
 		layout.prop(self, 'target_res')
 
-	
+
 
 	def execute(self, context):#every times operator redo options are modified
 
@@ -94,10 +94,10 @@ class SetGeorenderCam(bpy.types.Operator):
 			elif obj.type == 'CAMERA':
 				camObj = obj
 				cam = camObj.data
-				
+
 
 		#Get mesh object properties
-		bbox = BBOX.fromObj(georefObj, applyTransform = True)
+		bbox = getBBOX.fromObj(georefObj, applyTransform = True)
 		locx, locy, locz = bbox.center
 		dimx, dimy, dimz = bbox.dimensions
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
@@ -108,20 +108,20 @@ class SetGeorenderCam(bpy.types.Operator):
 			cam['mapRes'] = self.target_res #custom prop
 			camObj = bpy.data.objects.new(name=self.name, object_data=cam)
 			scn.objects.link(camObj)
-			scn.camera = camObj			
+			scn.camera = camObj
 		elif self.redo == 1: #first exec, get initial camera res
 			scn.camera = camObj
 			try:
 				self.target_res = cam['mapRes']
 			except:
 				self.report({'ERROR'}, "This camera has not map resolution property")
-				return {'CANCELLED'}	
+				return {'CANCELLED'}
 		else: #following exec, set camera res in redo panel
 			try:
 				cam['mapRes'] = self.target_res
 			except:
 				self.report({'ERROR'}, "This camera has not map resolution property")
-				return {'CANCELLED'}			
+				return {'CANCELLED'}
 
 		#Set camera data
 		cam.type = 'ORTHO'
@@ -171,7 +171,7 @@ class SetGeorenderCam(bpy.types.Operator):
 		else:
 			wfText = bpy.data.texts.new(name=wf_name)
 		wfText.write(wf_data)
-		
+
 		#Purge old wf text
 		for wfText in bpy.data.texts:
 			name, ext = wfText.name[:-4], wfText.name[-4:]

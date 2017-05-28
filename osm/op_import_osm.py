@@ -1,22 +1,21 @@
 import os
 import time
+import json
 
 import bpy
 import bmesh
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
+from . import overpy
+
 from ..geoscene import GeoScene
-from ..utils.geom import BBOX
-from ..utils.proj import Reproj, reprojBbox, reprojPt
-from ..utils.bpu import adjust3Dview
-from ..utils import utm
-from ..osm import overpy
+from ..bpy_utils import adjust3Dview, getBBOX
 
-import json
+from ..core.proj import Reproj, reprojBbox, reprojPt, utm
 
 
-PKG, SUBPKG = __package__.split('.')
+PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
 #WARNING: There is a known bug with using an enum property with a callback, Python must keep a reference to the strings returned
 #https://developer.blender.org/T48873
@@ -494,7 +493,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 		t = time.clock() - t0
 		print('build in %f' % t)
 
-		bbox = BBOX.fromScn(scn)
+		bbox = getBBOX.fromScn(scn)
 		adjust3Dview(context, bbox)
 
 		return{'FINISHED'}
@@ -552,7 +551,7 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		w.cursor_set('WAIT')
 
 		#Get view3d bbox in lonlat
-		bbox = BBOX.fromTopView(context).toGeo(geoscn)
+		bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")
 			return {'FINISHED'}
@@ -575,7 +574,7 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 
 		self.build(context, result, geoscn.crs)
 
-		bbox = BBOX.fromScn(scn)
+		bbox = getBBOX.fromScn(scn)
 		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}

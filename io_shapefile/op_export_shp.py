@@ -3,15 +3,18 @@ import os
 import bpy
 import bmesh
 import mathutils
-from .shapefile import Writer as shpWriter
-from .shapefile import POINTZ, POLYLINEZ, POLYGONZ
+
+
+from ..core.lib.shapefile import Writer as shpWriter
+from ..core.lib.shapefile import POINTZ, POLYLINEZ, POLYGONZ
 
 from bpy_extras.io_utils import ExportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
 from ..geoscene import GeoScene
-from ..utils.proj import EPSGIO
+
+from ..core.proj import EPSGIO
 
 class EXPORT_SHP(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""

@@ -26,23 +26,20 @@ import math
 from mathutils import Vector
 import numpy as np#Ship with Blender since 2.70
 
-from ..checkdeps import HAS_GDAL
+from ..geoscene import GeoScene, georefManagerLayout
+from ..prefs import PredefCRS
+
+from ..bpy_utils import adjust3Dview, showTextures, getBBOX
+
+from ..core import HAS_GDAL
 if HAS_GDAL:
 	from osgeo import gdal
 
-#For debug
-#HAS_GDAL = False
+from .bpy_georaster import bpyGeoRaster as GeoRaster
 
-from .georaster import GeoRaster_bpy
-
-from ..utils.geom import XY as xy, BBOX
-from ..utils.errors import OverlapError
-from ..utils.interpo import scale
-from ..utils.img import getImgFormat, getImgDim
-from ..utils.bpu import adjust3Dview, showTextures
-#from ..utils.proj import Reproj
-from ..geoscene import GeoScene, georefManagerLayout
-from ..prefs import PredefCRS
+from ..core import XY as xy
+from ..core.errors import OverlapError
+from ..core.maths.interpo import scale
 
 
 #------------------------------------------------------------------------
@@ -359,7 +356,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'PLANE':#on plane
 			#Load raster
 			try:
-				rast = GeoRaster_bpy(filePath)
+				rast = GeoRaster(filePath)
 			except IOError as e:
 				return self.err(str(e))
 			#Get or set georef dx, dy
@@ -384,7 +381,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if self.importMode == 'BKG':#background
 			#Load raster
 			try:
-				rast = GeoRaster_bpy(filePath)
+				rast = GeoRaster(filePath)
 			except IOError as e:
 				return self.err(str(e))
 			#Check pixel size and rotation
@@ -425,10 +422,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			obj.select = True
 			scn.objects.active = obj
 			# Compute projeted bbox (in geographic coordinates system)
-			subBox = BBOX.fromObj(obj).toGeo(geoscn)
+			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			#Load raster
 			try:
-				rast = GeoRaster_bpy(filePath, subBoxGeo=subBox)
+				rast = GeoRaster(filePath, subBoxGeo=subBox)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 			# Add UV map texture layer
@@ -455,13 +452,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				obj.select = True
 				scn.objects.active = obj
 				# Compute projeted bbox (in geographic coordinates system)
-				subBox = BBOX.fromObj(obj).toGeo(geoscn)
+				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			else:
 				subBox = None
 
 			# Load raster
 			try:
-				grid = GeoRaster_bpy(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL)
+				grid = GeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 
@@ -510,11 +507,11 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					return self.err("No working extent")
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
-				subBox = BBOX.fromObj(obj).toGeo(geoscn)
+				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 
 			# Load raster
 			try:
-				grid = GeoRaster_bpy(filePath, subBoxGeo=subBox, clip=self.clip, useGDAL=HAS_GDAL)
+				grid = GeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, useGDAL=HAS_GDAL)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 
@@ -534,7 +531,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 		#...if so, maybee we need to adjust 3d view settings to it
 		if newObjCreated:
-			bb = BBOX.fromObj(obj)
+			bb = getBBOX.fromObj(obj)
 			adjust3Dview(context, bb)
 
 		#Force view mode with textures

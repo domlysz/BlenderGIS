@@ -1,19 +1,22 @@
 # -*- coding:utf-8 -*-
 
 import os
-import bpy
 import math
+
+import bpy
 from mathutils import Vector
-#import numpy as np
-from ..utils.interpo import scale
-from ..utils.geom import BBOX
-from .utils.kmeans1D import kmeans1d, getBreaks
-#from .utils.jenks_caspall import jenksCaspall
+
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, CollectionProperty, FloatVectorProperty
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
-from .gradient import Color, Stop, Gradient
 
+from ..bpy_utils import getBBOX
+
+from ..core.utils.gradient import Color, Stop, Gradient
+
+from ..core.maths.interpo import scale
+from ..core.maths.kmeans1D import kmeans1d, getBreaks
+#from ..core.maths.jenks_caspall import jenksCaspall
 
 
 #Global var
@@ -154,7 +157,7 @@ def setBounds():
 	global obj
 	if mode == 'HEIGHT':
 		obj = scn.objects.active
-		bbox = BBOX.fromObj(obj)
+		bbox = getBBOX.fromObj(obj)
 		inMin = bbox['zmin']
 		inMax = bbox['zmax']
 	elif mode == 'SLOPE':

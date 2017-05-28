@@ -1,10 +1,11 @@
 # -*- coding:utf-8 -*-
-
-import bpy
 import math
-from ..utils.interpo import scale
-from ..utils.geom import BBOX
+import bpy
 from bpy.types import Panel, Operator
+
+from ..bpy_utils import getBBOX
+
+from ..core.maths.interpo import scale
 
 
 class Analysis_nodes(Operator):
@@ -95,7 +96,7 @@ class Analysis_nodes(Operator):
 		scaleNodeGroup.location = (-200, 200)
 		#
 		# create z bbox value nodes
-		bbox = BBOX.fromObj(obj)
+		bbox = getBBOX.fromObj(obj)
 		zmin = node_tree.nodes.new('ShaderNodeValue')
 		zmin.label = 'zmin ' + obj.name
 		zmin.outputs[0].default_value = bbox['zmin']

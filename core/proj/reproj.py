@@ -18,15 +18,17 @@
 #  ***** GPL LICENSE BLOCK *****
 
 
-import urllib.request
-import json
 import math
 
+from .srs import SRS
 from .utm import UTM, UTM_EPSG_CODES
-from .errors import ReprojError
-from .geom import BBOX
+from .ellps import GRS80
+from .srv import EPSGIO
 
+from ..errors import ReprojError
+from ..utils import BBOX
 from ..checkdeps import HAS_GDAL, HAS_PYPROJ
+from ..settings import getSettings
 
 if HAS_GDAL:
 	from osgeo import osr, gdal
@@ -34,46 +36,37 @@ if HAS_GDAL:
 if HAS_PYPROJ:
 	import pyproj
 
-import bpy
-PKG, SUBPKG = __package__.split('.')
 
+######################################
+# Build in functions
 
-
-
-##############
-
-
-class Ellps():
-	"""ellipsoid"""
-	def __init__(self, a, b):
-		self.a =  a#equatorial radius in meters
-		self.b =  b#polar radius in meters
-		self.f = (self.a-self.b)/self.a#inverse flat
-		self.perimeter = (2*math.pi*self.a)#perimeter at equator
-
-GRS80 = Ellps(6378137, 6356752.314245)
-
-def dd2meters(dst):
-	"""
-	Basic function to approximaly convert a short distance in decimal degrees to meters
-	Only true at equator and along horizontal axis
-	"""
+def webMercToLonLat(x, y):
 	k = GRS80.perimeter/360
-	return dst * k
+	lon = x / k
+	lat = y / k
+	lat = 180 / math.pi * (2 * math.atan( math.exp( lat * math.pi / 180.0)) - math.pi / 2.0)
+	return lon, lat
 
-def meters2dd(dst):
+def lonLatToWebMerc(lon, lat):
 	k = GRS80.perimeter/360
-	return dst / k
+	x = lon * k
+	lat = math.log( math.tan((90 + lat) * math.pi / 360.0 )) / (math.pi / 180.0)
+	y = lat * k
+	return x, y
 
 
-def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, resamplAlg='BL'):
+######################################
+# Raster reproj using GDAL
+
+def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=False, resamplAlg='BL'):
 	'''
 	Use GDAL Python binding to reproject an image
 	crs1, crs2 >> epsg code
 	ds1 >> input GDAL dataset object
-	out_ul >> output raster top left coords (same as input if None)
-	out_size >> output raster size (same as input is None)
-	out_res >> output raster resolution (same as input if None)
+	out_ul >> [tuple] output raster top left coords (same as input if None)
+	out_size >> |tuple], output raster size (same as input is None)
+	out_res >> [number], output raster resolution (same as input if None) (resx = resy)
+	sqPx >> [boolean] force square pixel resolution when resoltion is automatically computed
 	return ds2 >> output GDAL dataset object
 	'''
 
@@ -144,6 +137,9 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, resampl
 		'''
 		resx = (xmax-xmin) / img_w
 		resy = -(ymax-ymin) / img_h
+		if sqPx:
+			resx = max(resx, abs(resy))
+			resy = -resx
 
 	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GetDataTypeByName(dtype))
 	geoTrans = (xmin, resx, 0, ymax, 0, resy)
@@ -165,7 +161,12 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, resampl
 	threshold = 0.25
 	# Warp options (http://www.gdal.org/structGDALWarpOptions.html)
 	opt = ['NUM_THREADS=ALL_CPUS, SAMPLE_GRID=YES']
-	gdal.ReprojectImage(ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)#, options=opt) #option parameter start with gdal 2.1
+	#option parameters available since gdal 2.1
+	a, b, c = gdal.__version__.split('.', 2)
+	if (int(a) == 2 and int(b) >=1) or int(a) > 2:
+		gdal.ReprojectImage(ds1, ds2, wkt1, wkt2, alg, memLimit, threshold, options=opt)
+	else:
+		gdal.ReprojectImage(ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)
 
 	# Close
 	ds1 = None
@@ -187,8 +188,11 @@ class Reproj():
 			self.iproj = 'NO_REPROJ'
 			return
 
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
-		self.iproj = prefs.projEngine
+		#Get proj engine from module settings
+		prefs = getSettings()
+		self.iproj = prefs['proj_engine']
+		if self.iproj not in ['AUTO', 'GDAL', 'PYPROJ', 'BUILTIN', 'EPSGIO']:
+			raise ReprojError('Wrong engine name')
 
 		if self.iproj == 'AUTO':
 			# Init proj4 interface for this instance
@@ -321,328 +325,3 @@ def reprojPts(crs1, crs2, pts):
 def reprojBbox(crs1, crs2, bbox):
 	rprj = Reproj(crs1, crs2)
 	return rprj.bbox(bbox)
-
-
-##########################
-
-class SRS():
-
-	'''
-	A simple class to handle Spatial Ref System inputs
-	'''
-
-	@classmethod
-	def validate(cls, crs):
-		try:
-			cls(crs)
-			return True
-		except:
-			return False
-
-	def __init__(self, crs):
-		'''
-		Valid crs input can be :
-		> an epsg code (integer or string)
-		> a SRID string (AUTH:CODE)
-		> a proj4 string
-		'''
-
-		#force cast to string
-		crs = str(crs)
-
-		#case 1 : crs is just a code
-		if crs.isdigit():
-			self.auth = 'EPSG' #assume authority is EPSG
-			self.code = int(crs)
-			self.proj4 = '+init=epsg:'+str(self.code)
-			#note : 'epsg' must be lower case to be compatible with gdal osr
-
-		#case 2 crs is in the form AUTH:CODE
-		elif ':' in crs:
-			self.auth, self.code = crs.split(':')
-			if self.code.isdigit(): #what about non integer code ??? (IGNF:LAMB93)
-				self.code = int(self.code)
-				if self.auth.startswith('+init='):
-					_, self.auth = self.auth.split('=')
-				self.auth = self.auth.upper()
-				self.proj4 = '+init=' + self.auth.lower() + ':' + str(self.code)
-			else:
-				raise ValueError('Invalid CRS : '+crs)
-
-		#case 3 : crs is proj4 string
-		elif all([param.startswith('+') for param in crs.split(' ')]):
-			self.auth = None
-			self.code = None
-			self.proj4 = crs
-
-		else:
-			raise ValueError('Invalid CRS : '+crs)
-
-	@property
-	def SRID(self):
-		if self.isSRID:
-			return self.auth + ':' + str(self.code)
-		else:
-			return None
-
-	@property
-	def hasCode(self):
-		return self.code is not None
-
-	@property
-	def hasAuth(self):
-		return self.auth is not None
-
-	@property
-	def isSRID(self):
-		return self.hasAuth and self.hasCode
-
-	@property
-	def isEPSG(self):
-		return self.auth == 'EPSG' and self.code is not None
-
-	@property
-	def isWM(self):
-		return self.auth == 'EPSG' and self.code == 3857
-
-	@property
-	def isWGS84(self):
-		return self.auth == 'EPSG' and self.code == 4326
-
-	@property
-	def isUTM(self):
-		return self.auth == 'EPSG' and self.code in UTM_EPSG_CODES
-
-	def __str__(self):
-		'''Return the best string representation for this crs'''
-		if self.isSRID:
-			return self.SRID
-		else:
-			return self.proj4
-
-	def __eq__(self, srs2):
-		return self.__str__() == srs2.__str__()
-
-	def getOgrSpatialRef(self):
-		'''Build gdal osr spatial ref object'''
-		if not HAS_GDAL:
-			raise ImportError('GDAL not available')
-
-		prj = osr.SpatialReference()
-
-		if self.isEPSG:
-			r = prj.ImportFromEPSG(self.code)
-		else:
-			r = prj.ImportFromProj4(self.proj4)
-
-		#ImportFromEPSG and ImportFromProj4 do not raise any exception
-		#but return zero if the projection is valid
-		if r > 0:
-			raise ValueError('Cannot initialize osr : ' + self.proj4)
-
-		return prj
-
-
-	def getPyProj(self):
-		'''Build pyproj object'''
-		if not HAS_PYPROJ:
-			raise ImportError('PYPROJ not available')
-		try:
-			return pyproj.Proj(self.proj4)
-		except:
-			raise ValueError('Cannot initialize pyproj : ' + self.proj4)
-
-
-	def loadProj4(self):
-		'''Return a Python dict of proj4 parameters'''
-		dc = {}
-		if self.proj4 is None:
-			return dc
-		for param in self.proj4.split(' '):
-			try:
-				k,v = param.split('=')
-			except:
-				pass
-			else:
-				try:
-					v = float(v)
-				except:
-					pass
-				dc[k] = v
-		return dc
-
-	@property
-	def isGeo(self):
-		if self.code == 4326:
-			return True
-		elif HAS_GDAL:
-			prj = self.getOgrSpatialRef()
-			isGeo = prj.IsGeographic()
-			if isGeo == 1:
-				return True
-			else:
-				return False
-		elif HAS_PYPROJ:
-			prj = self.getPyProj()
-			return prj.is_latlong()
-		else:
-			return None
-
-
-
-
-######################################
-# Build in functions
-
-
-
-def webMercToLonLat(x, y):
-	k = GRS80.perimeter/360
-	lon = x / k
-	lat = y / k
-	lat = 180 / math.pi * (2 * math.atan( math.exp( lat * math.pi / 180.0)) - math.pi / 2.0)
-	return lon, lat
-
-def lonLatToWebMerc(lon, lat):
-	k = GRS80.perimeter/360
-	x = lon * k
-	lat = math.log( math.tan((90 + lat) * math.pi / 360.0 )) / (math.pi / 180.0)
-	y = lat * k
-	return x, y
-
-
-######################################
-# EPSG.io
-# https://github.com/klokantech/epsg.io
-
-
-class EPSGIO():
-
-	@staticmethod
-	def ping():
-		url = "http://epsg.io"
-		try:
-			urllib.request.urlopen(url, timeout=1)
-			return True
-		except urllib.request.URLError:
-			return False
-		except:
-			raise
-
-
-	@staticmethod
-	def reprojPt(epsg1, epsg2, x1, y1):
-
-		url = "http://epsg.io/trans?x={X}&y={Y}&z={Z}&s_srs={CRS1}&t_srs={CRS2}"
-
-		url = url.replace("{X}", str(x1))
-		url = url.replace("{Y}", str(y1))
-		url = url.replace("{Z}", '0')
-		url = url.replace("{CRS1}", str(epsg1))
-		url = url.replace("{CRS2}", str(epsg2))
-
-		response = urllib.request.urlopen(url).read().decode('utf8')
-		obj = json.loads(response)
-
-		return (float(obj['x']), float(obj['y']))
-
-	@staticmethod
-	def reprojPts(epsg1, epsg2, points):
-
-		if len(points) == 1:
-			x, y = points[0]
-			return [EPSGIO.reprojPt(epsg1, epsg2, x, y)]
-
-		urlTemplate = "http://epsg.io/trans?data={POINTS}&s_srs={CRS1}&t_srs={CRS2}"
-
-		urlTemplate = urlTemplate.replace("{CRS1}", str(epsg1))
-		urlTemplate = urlTemplate.replace("{CRS2}", str(epsg2))
-
-		#data = ';'.join([','.join(map(str, p)) for p in points])
-
-		precision = 4
-		data = [','.join( [str(round(v, precision)) for v in p] ) for p in points ]
-		part, parts = [], []
-		for i,p in enumerate(data):
-			l = sum([len(p) for p in part]) + len(';'*len(part))
-			if l + len(p) < 4000: #limit is 4094
-				part.append(p)
-			else:
-				parts.append(part)
-				part = [p]
-			if i == len(data)-1:
-				parts.append(part)
-		parts = [';'.join(part) for part in parts]
-
-		result = []
-		for part in parts:
-			url = urlTemplate.replace("{POINTS}", part)
-
-			try:
-				response = urllib.request.urlopen(url).read().decode('utf8')
-			except urllib.error.HTTPError as err:
-				print(err.code, err.reason, err.headers)
-				print(url)
-				raise
-
-			obj = json.loads(response)
-			result.extend( [(float(p['x']), float(p['y'])) for p in obj] )
-
-		return result
-
-	@staticmethod
-	def search(query):
-		query = str(query).replace(' ', '+')
-		url = "http://epsg.io/?q={QUERY}&format=json"
-		url = url.replace("{QUERY}", query)
-		response = urllib.request.urlopen(url).read().decode('utf8')
-		obj = json.loads(response)
-		'''
-		for res in obj['results']:
-			#print( res['name'], res['code'], res['proj4'] )
-			print( res['code'], res['name'] )
-		'''
-		return obj['results']
-
-	@staticmethod
-	def getEsriWkt(crs):
-		if not EPSGIO:
-			return None
-		crs = SRS(crs)
-		if not crs.isEPSG:
-			return None
-		url = "http://epsg.io/{CODE}.esriwkt"
-		url = url.replace("{CODE}", str(crs.code))
-		wkt = urllib.request.urlopen(url).read().decode('utf8')
-		return wkt
-
-
-
-
-######################################
-# World Coordinate Converter
-# https://github.com/ClemRz/TWCC
-
-class TWCC():
-
-	@staticmethod
-	def reprojPt(epsg1, epsg2, x1, y1):
-
-		url = "http://twcc.fr/en/ws/?fmt=json&x={X}&y={Y}&in=EPSG:{CRS1}&out=EPSG:{CRS2}"
-
-		url = url.replace("{X}", str(x1))
-		url = url.replace("{Y}", str(y1))
-		url = url.replace("{Z}", '0')
-		url = url.replace("{CRS1}", str(epsg1))
-		url = url.replace("{CRS2}", str(epsg2))
-
-		response = urllib.request.urlopen(url).read().decode('utf8')
-		obj = json.loads(response)
-
-		return (float(obj['point']['x']), float(obj['point']['y']))
-
-
-######################################
-#http://spatialreference.org/ref/epsg/2154/esriwkt/
-
-#class SpatialRefOrg():

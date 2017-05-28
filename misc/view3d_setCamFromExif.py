@@ -26,11 +26,11 @@ from bpy.types import Panel, Operator, OperatorFileListElement
 
 #bgis
 from ..geoscene import GeoScene
-from ..utils.proj import reprojPt
-from ..utils.img import getImgFormat
+from ..core.proj import reprojPt
+from ..core.georaster import getImgFormat
 
 #deps
-from ..lib import Tyf
+from ..core.lib import Tyf
 
 
 

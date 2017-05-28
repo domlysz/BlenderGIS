@@ -28,18 +28,13 @@ import sqlite3
 import urllib.request
 import imghdr
 
-#deps imports
-#import numpy as np
-
-#addon import
+#core imports
 from .servicesDefs import GRIDS, SOURCES
-#from .img import NpImage, GeoImage, reprojImg
-from ..io_georaster.georaster import NpImage, GeoRef
-
-#reproj functions
-from ..utils.geom import BBOX
-from ..utils.proj import reprojPt, reprojBbox, dd2meters, meters2dd, SRS, reprojImg
-
+from ..georaster import NpImage, GeoRef
+from ..utils import BBOX
+from ..proj.reproj import reprojPt, reprojBbox, reprojImg
+from ..proj.ellps import dd2meters, meters2dd
+from ..proj.srs import SRS
 
 
 
@@ -800,7 +795,7 @@ class MapService():
 
 			tileSize = self.dstTms.tileSize
 
-			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, resamplAlg=self.RESAMP_ALG)
+			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, sqPx=True, resamplAlg=self.RESAMP_ALG)
 
 			#Get BLOB
 			data = img.toBLOB()
@@ -935,7 +930,7 @@ class MapService():
 		#Create numpy image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
 		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=None)
-		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef, IFACE='AUTO')
+		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 
 		#Get tiles from www or cache
 		tiles = [ (c, r, zoom) for c in cols for r in rows]
@@ -974,7 +969,7 @@ class MapService():
 		if outCRS is not None and outCRS != tm.CRS:
 			self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
-			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), resamplAlg=self.RESAMP_ALG))
+			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(),  sqPx=True, resamplAlg=self.RESAMP_ALG))
 
 		#Finish
 		self.status = 0

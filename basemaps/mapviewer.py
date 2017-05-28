@@ -31,18 +31,18 @@ from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vecto
 import addon_utils
 import blf, bgl
 
-#addon import
-from .servicesDefs import GRIDS, SOURCES
-from .mapservice import MapService
+#core imports
+from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
+from ..core.proj import reprojPt, reprojBbox, dd2meters, meters2dd
+from ..core.basemaps import GRIDS, SOURCES, MapService
+
 
 #bgis imports
-from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
-from ..utils.proj import reprojPt, reprojBbox, dd2meters, meters2dd
-from ..utils.geom import BBOX
+
 #for export to mesh tool
-from ..utils.bpu import adjust3Dview, showTextures
+from ..bpy_utils import adjust3Dview, showTextures, getBBOX
 from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geoRastUVmap, addTexture
 
 #OSM Nominatim API module
@@ -50,7 +50,7 @@ from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geo
 from ..osm.nominatim import Nominatim
 
 
-PKG, SUBPKG = __package__.split('.') #blendergis.basemaps
+PKG, SUBPKG = __package__.split('.', maxsplit=1) #blendergis.basemaps
 
 ####################
 
@@ -188,7 +188,7 @@ class BaseMap(GeoScene):
 
 		'''
 		#Method 2
-		bbox = BBOX.fromTopView(self.context) #ERROR context is None ????
+		bbox = getBBOX.fromTopView(self.context) #ERROR context is None ????
 		bbox = bbox.toGeo(geoscn=self)
 		if self.crs != self.tm.CRS:
 			bbox = reprojBbox(self.crs, self.tm.CRS, bbox)
@@ -613,7 +613,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		self.map = BaseMap(context, self.srckey, self.laykey, self.grdkey)
 
 		if self.recenter and len(context.scene.objects) > 0:
-			scnBbox = BBOX.fromScn(context.scene).to2D()
+			scnBbox = getBBOX.fromScn(context.scene).to2D()
 			w, h = scnBbox.dimensions
 			px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
 			dst_diag = math.sqrt( w**2 + h**2 )
@@ -956,7 +956,7 @@ class MAP_VIEWER(bpy.types.Operator):
 			addTexture(mat, self.map.img, uvTxtLayer)
 
 			#Adjust 3d view and display textures
-			adjust3Dview(context, BBOX.fromObj(obj))
+			adjust3Dview(context, getBBOX.fromObj(obj))
 			showTextures(context)
 
 			return {'FINISHED'}
