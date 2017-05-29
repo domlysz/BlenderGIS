@@ -15,7 +15,7 @@ from ..prefs import PredefCRS
 from ..core import BBOX
 from ..core.proj import Reproj
 
-from ..bpy_utils import adjust3Dview, getBBOX
+from .utils import adjust3Dview, getBBOX
 
 featureType={
 0:'Null',

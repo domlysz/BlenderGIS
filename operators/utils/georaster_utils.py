@@ -21,8 +21,88 @@
 
 import os
 import numpy as np
-import bpy
-from ..core.georaster import GeoRaster
+import bpy, bmesh
+
+from ...core.georaster import GeoRaster
+
+
+def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
+	'''Build a new mesh that represent a georaster extent'''
+	#create mesh
+	bm = bmesh.new()
+	if pxLoc == 'CORNER':
+		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.corners]#shift coords
+	elif pxLoc == 'CENTER':
+		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.cornersCenter]
+	z = 0
+	pts = [bm.verts.new((pt[0], pt[1], z)) for pt in pts]#upper left to botton left (clockwise)
+	pts.reverse()#bottom left to upper left (anticlockwise --> face up)
+	bm.faces.new(pts)
+	#Create mesh from bmesh
+	mesh = bpy.data.meshes.new(name)
+	bm.to_mesh(mesh)
+	bm.free()
+	return mesh
+
+def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy):
+	'''uv map a georaster texture on a given mesh'''
+	uvTxtLayer.active = True
+	# Assign image texture for every face
+	mesh = obj.data
+	for idx, pg in enumerate(mesh.polygons):
+		uvTxtLayer.data[idx].image = rast.bpyImg
+	#Get UV loop layer
+	uvLoopLayer = mesh.uv_layers.active
+	#Assign uv coords
+	loc = obj.location
+	for pg in mesh.polygons:
+		for i in pg.loop_indices:
+			vertIdx = mesh.loops[i].vertex_index
+			pt = list(mesh.vertices[vertIdx].co)
+			#adjust coords against object location and shift values to retrieve original point coords
+			pt = (pt[0] + loc.x + dx, pt[1] + loc.y + dy)
+			#Compute UV coords --> pourcent from image origin (bottom left)
+			dx_px, dy_px = rast.pxFromGeo(pt[0], pt[1], reverseY=True, round2Floor=False)
+			u = dx_px / rast.size[0]
+			v = dy_px / rast.size[1]
+			#Assign coords
+			uvLoop = uvLoopLayer.data[i]
+			uvLoop.uv = [u,v]
+
+def setDisplacer(obj, rast, uvTxtLayer, mid=0):
+	#Config displacer
+	displacer = obj.modifiers.new('DEM', type='DISPLACE')
+	demTex = bpy.data.textures.new('demText', type = 'IMAGE')
+	demTex.image = rast.bpyImg
+	demTex.use_interpolation = False
+	demTex.extension = 'CLIP'
+	demTex.use_clamp = False #Needed to get negative displacement with float32 texture
+	displacer.texture = demTex
+	displacer.texture_coords = 'UV'
+	displacer.uv_layer = uvTxtLayer.name
+	displacer.mid_level = mid #Texture values below this value will result in negative displacement
+	#Setting the displacement strength :
+	#displacement = (texture value - Midlevel) * Strength
+	#>> Strength = displacement / texture value (because mid=0)
+	#If DEM non scaled then
+	#	*displacement = alt max - alt min = delta Z
+	#	*texture value = delta Z / (2^depth-1)
+	#		(because in Blender, pixel values are normalized between 0.0 and 1.0)
+	#>> Strength = delta Z / (delta Z / (2^depth-1))
+	#>> Strength = 2^depth-1
+	if rast.depth < 32:
+		#8 or 16 bits unsigned values (signed int16 must be converted to float to be usuable)
+		displacer.strength = 2**rast.depth-1
+	else:
+		#32 bits values
+		#with float raster, blender give directly raw float values(non normalied)
+		#so a texture value of 100 simply give a displacement of 100
+		displacer.strength = 1
+	bpy.ops.object.shade_smooth()
+	return displacer
+
+
+#########################################
 
 class bpyGeoRaster(GeoRaster):
 

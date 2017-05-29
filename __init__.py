@@ -42,13 +42,7 @@ from .core.settings import getSettings, setSettings
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
 from . import geoscene
-from .basemaps import mapviewer
-from .misc import view3d_setGeorefCam, view3d_setCamFromExif
-from .delaunay_voronoi import delaunayVoronoiBlender
-from .io_georaster import op_import_georaster, op_get_srtm
-from .io_shapefile import op_export_shp, op_import_shp
-from .osm import op_import_osm
-from .terrain_analysis import nodes_builder, reclassify
+from .operators import * #see operators/__init__/__all__
 
 
 import bpy.utils.previews as iconsLib
@@ -125,7 +119,7 @@ def register():
 		icons_dict.load(name, os.path.join(icons_dir, icon), 'IMAGE')
 
 	#operators
-	reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
+	nodes_terrain_analysis_reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
 	bpy.utils.register_module(__name__) #register all imported operators of the current module
 
 	#menus
@@ -158,7 +152,7 @@ def unregister():
 	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 	#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
 
-	reclassify.unregister()
+	nodes_terrain_analysis_reclassify.unregister()
 	bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":

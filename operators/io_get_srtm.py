@@ -9,7 +9,7 @@ from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
 from ..geoscene import GeoScene
-from ..bpy_utils import adjust3Dview, getBBOX
+from .utils import adjust3Dview, getBBOX
 
 from ..core import HAS_GDAL
 from ..core.proj import SRS, Reproj, reprojBbox, reprojPt, reprojImg

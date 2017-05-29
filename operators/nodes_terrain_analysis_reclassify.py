@@ -10,13 +10,16 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
 
-from ..bpy_utils import getBBOX
+from .utils import getBBOX
 
 from ..core.utils.gradient import Color, Stop, Gradient
 
 from ..core.maths.interpo import scale
 from ..core.maths.kmeans1D import kmeans1d, getBreaks
 #from ..core.maths.jenks_caspall import jenksCaspall
+
+#Folder containing SVG gradients
+svgGradientFolder = os.path.dirname(os.path.realpath(__file__)) + os.sep + "rsrc" + os.sep + "gradients" + os.sep
 
 
 #Global var
@@ -789,15 +792,15 @@ class Reclass_quickGradient(Operator):
 
 #SVG COLOR RAMP
 def filesList(inFolder, ext):
+	if not os.path.exists(inFolder):
+		#os.makedirs(inFolder)
+		return []
 	lst = os.listdir(inFolder)
 	extLst=[elem for elem in lst if os.path.splitext(elem)[1]==ext]
 	extLst.sort()
 	return extLst
 
-folder = os.path.dirname(os.path.realpath(__file__)) + os.sep + "gradients" + os.sep
-if not os.path.exists(folder):
-	os.makedirs(folder)
-svgFiles = filesList(folder, '.svg')
+svgFiles = filesList(svgGradientFolder, '.svg')
 
 colorPreviewRange = 20
 
@@ -810,7 +813,7 @@ class Reclass_svgGradient(Operator):
 		#Function used to update the gradient list used by the dropdown box.
 		svgs = [] #list containing tuples of each object
 		for index, svg in enumerate(svgFiles): #iterate over all objects
-			svgs.append((str(index), os.path.splitext(svg)[0], folder+svg)) #tuple (key, label, tooltip)
+			svgs.append((str(index), os.path.splitext(svg)[0], svgGradientFolder + svg)) #tuple (key, label, tooltip)
 		return svgs
 
 	def updatePreview(self, context):
@@ -818,7 +821,7 @@ class Reclass_svgGradient(Operator):
 			return
 		#build gradient
 		enumIdx = int(self.colorPresets)
-		path = folder+svgFiles[enumIdx]
+		path = svgGradientFolder + svgFiles[enumIdx]
 		colorRamp = Gradient(path)
 		#make preview
 		nbColors = colorPreviewRange
@@ -882,7 +885,7 @@ class Reclass_svgGradient(Operator):
 			return {'FINISHED'}
 		#build gradient
 		enumIdx = int(self.colorPresets)
-		path = folder+svgFiles[enumIdx]
+		path = svgGradientFolder + svgFiles[enumIdx]
 		colorRamp = Gradient(path)
 		#get color ramp node
 		node = context.active_node

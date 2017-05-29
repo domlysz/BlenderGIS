@@ -36,19 +36,17 @@ from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..core.proj import reprojPt, reprojBbox, dd2meters, meters2dd
 from ..core.basemaps import GRIDS, SOURCES, MapService
 
-
 #bgis imports
 from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
 
-#for export to mesh tool
-from ..bpy_utils import adjust3Dview, showTextures, getBBOX
-from ..io_georaster.op_import_georaster import rasterExtentToMesh, placeObj, geoRastUVmap, addTexture
+#utilities
+from .utils import getBBOX
+from .utils import placeObj, adjust3Dview, showTextures, rasterExtentToMesh, geoRastUVmap, addTexture #for export to mesh tool
 
 #OSM Nominatim API module
 #https://github.com/damianbraun/nominatim
-from ..osm.nominatim import Nominatim
-
+from .lib.osm.nominatim import Nominatim
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1) #blendergis.basemaps
 

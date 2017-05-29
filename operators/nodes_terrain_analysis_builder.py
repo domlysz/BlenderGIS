@@ -3,7 +3,7 @@ import math
 import bpy
 from bpy.types import Panel, Operator
 
-from ..bpy_utils import getBBOX
+from .utils import getBBOX
 
 from ..core.maths.interpo import scale
 

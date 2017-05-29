@@ -26,6 +26,8 @@ from bpy.types import Panel, Operator, OperatorFileListElement
 
 #bgis
 from ..geoscene import GeoScene
+
+#core
 from ..core.proj import reprojPt
 from ..core.georaster import getImgFormat
 
