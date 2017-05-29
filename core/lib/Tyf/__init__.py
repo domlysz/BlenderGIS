@@ -461,7 +461,7 @@ def jpeg_extract(f):
 
 	marker, = unpack(">H", fileobj)
 	if marker != 0xffd8: raise Exception("not a valid jpeg file")
-	
+
 	while marker != 0xffda:
 		marker, count = unpack(">HH", fileobj)
 		if marker == 0xffe1:
@@ -480,7 +480,7 @@ def jpeg_extract(f):
 
 def open(f):
 	fileobj, _close = _fileobj(f, "rb")
-		
+
 	first, = unpack(">H", fileobj)
 	fileobj.seek(0)
 
@@ -491,7 +491,7 @@ def open(f):
 	try: return obj
 	except: raise Exception("file is not a valid JPEG nor TIFF image")
 
-
+'''
 # if PIL exists do some overridings
 try: from PIL import Image as _Image
 except ImportError: pass
@@ -535,3 +535,4 @@ else:
 	from PIL import JpegImagePlugin
 	JpegImagePlugin._getexif = _getexif
 	del _getexif
+'''
