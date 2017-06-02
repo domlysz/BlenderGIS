@@ -39,7 +39,6 @@ if HAS_GDAL:
 
 from ..core import XY as xy
 from ..core.errors import OverlapError
-from ..core.maths.interpo import scale
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
