@@ -20,6 +20,7 @@
 
 import os
 import io
+import math
 import datetime
 import sqlite3
 
@@ -218,7 +219,14 @@ class GeoPackage():
 		db.close()
 
 
+	def hasTile(self, x, y, z):
+		if self.getTile(x ,y, z) is not None:
+			return True
+		else:
+			return False
+
 	def getTile(self, x, y, z):
+		'''return tilde_data if tile exists otherwie return None'''
 		#connect with detect_types parameter for automatically convert date to Python object
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
 		query = 'SELECT tile_data, last_modified FROM gpkg_tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?'
@@ -240,6 +248,34 @@ class GeoPackage():
 		db.close()
 
 
+	def listExistingTiles(self, tiles):
+		"""
+		input : tiles list [(x,y,z)]
+		output : tiles list set [(x,y,z)] of existing records in cache db"""
+		n = len(tiles)
+		xs, ys, zs = zip(*tiles)
+		lst = list(xs) + list(ys) + list(zs)
+
+		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
+		query = "SELECT tile_column, tile_row, zoom_level FROM gpkg_tiles " \
+				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
+				"AND tile_column IN (" + ','.join('?'*n) + ") " \
+				"AND tile_row IN (" + ','.join('?'*n) + ") " \
+				"AND zoom_level IN (" + ','.join('?'*n) + ")"
+
+		result = db.execute(query, lst).fetchall()
+		db.close()
+
+		return set(result)
+
+	def listMissingTiles(self, tiles):
+		existing = self.listExistingTiles(tiles)
+		return set(tiles) - existing # difference
+
+
+
+
+
 	def getTiles(self, tiles):
 		"""tiles = list of (x,y,z) tuple
 		return list of (x,y,z,data) tuple"""
@@ -247,10 +283,11 @@ class GeoPackage():
 		xs, ys, zs = zip(*tiles)
 		lst = list(xs) + list(ys) + list(zs)
 
+		#TODO check last modified
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
 		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles WHERE tile_column IN (" + ','.join('?'*n) + ") AND tile_row IN (" + ','.join('?'*n) + ") AND zoom_level IN (" + ','.join('?'*n) + ")"
 
-		result = db.execute(query, lst).fetchall()
+		result = db.execute(query, lst).fetchall() #TODO return an iterator, do not load all data in memory
 		db.close()
 
 		return result

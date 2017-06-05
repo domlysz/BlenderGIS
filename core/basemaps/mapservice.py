@@ -34,9 +34,8 @@ from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
 
+import time
 
-
-###############################"
 
 class TileMatrix():
 	"""
@@ -123,7 +122,7 @@ class TileMatrix():
 
 
 	def geoToProj(self, long, lat):
-		"""convert longitude latitude un decimal degrees to grid crs"""
+		"""convert longitude latitude in decimal degrees to grid crs"""
 		if self.CRS == 'EPSG:4326':
 			return long, lat
 		else:
@@ -245,6 +244,50 @@ class TileMatrix():
 		return xmin, ymin, xmax, ymax
 
 
+
+
+class bboxRequest():
+
+	def __init__(self, tm, bbox, zoom):
+
+		self.tm = tm
+		self.zoom = zoom
+		self.tileSize = tm.tileSize
+		self.res = tm.getRes(zoom)
+
+		xmin, ymin, xmax, ymax = bbox
+
+		#Get first tile indices (top left of requested bbox)
+		self.firstCol, self.firstRow = tm.getTileNumber(xmin, ymax, zoom)
+
+		#correction of top left coord
+		xmin, ymax = tm.getTileCoords(self.firstCol, self.firstRow, zoom)
+		self.bbox = BBOX(xmin, ymin, xmax, ymax)
+
+		#Total number of tiles required
+		self.nbTilesX = math.ceil( (xmax - xmin) / (self.tileSize * self.res) )
+		self.nbTilesY = math.ceil( (ymax - ymin) / (self.tileSize * self.res) )
+
+	@property
+	def cols(self):
+		return [self.firstCol+i for i in range(self.nbTilesX)]
+
+	@property
+	def rows(self):
+		if self.tm.originLoc == "NW":
+			return [self.firstRow+i for i in range(self.nbTilesY)]
+		else:
+			return [self.firstRow-i for i in range(self.nbTilesY)]
+
+	@property
+	def tiles(self):
+		return [(c, r, self.zoom) for c in self.cols for r in self.rows]
+
+	@property
+	def nbTiles(self):
+		return self.nbTilesX * self.nbTilesY
+
+	#n tiles, megapixel, geosize
 
 
 
@@ -444,6 +487,17 @@ class MapService():
 		return quadKey
 
 
+	def isTileInMapsBounds(self, col, row, zoom, tm):
+		'''Test if the tile is not out of tile matrix bounds'''
+		x,y = tm.getTileCoords(col, row, zoom) #top left
+		if row < 0 or col < 0:
+			return False
+		elif not tm.xmin <= x < tm.xmax or not tm.ymin < y <= tm.ymax:
+			return False
+		else:
+			return True
+
+
 	def downloadTile(self, laykey, col, row, zoom):
 		"""
 		Download bytes data of requested tile in source tile matrix space
@@ -462,7 +516,7 @@ class MapService():
 			handle.close()
 		except:
 			print("Can't download tile x"+str(col)+" y"+str(row))
-			print(url)
+			#print(url)
 			data = None
 
 		#Make sure the stream is correct
@@ -474,12 +528,10 @@ class MapService():
 		return data
 
 
-
-	def getTile(self, laykey, col, row, zoom, toDstGrid=True, useCache=True):
+	def tileRequest(self, laykey, col, row, zoom, toDstGrid=True):
 		"""
-		Return bytes data of requested tile
-		Return None if unable to get valid data
-		Tile is downloaded from map service or directly pick up from cache database if useCache option is True
+		Return bytes data of the requested tile or None if unable to get valid data
+		Tile is downloaded from map service and, if needed, reprojected to fit the destination grid
 		"""
 
 		#Select tile matrix set
@@ -492,120 +544,119 @@ class MapService():
 			tm = self.srcTms
 
 		#don't try to get tiles out of map bounds
-		x,y = tm.getTileCoords(col, row, zoom) #top left
-		if row < 0 or col < 0:
-			return None
-		elif not tm.xmin <= x < tm.xmax or not tm.ymin < y <= tm.ymax:
+		if not self.isTileInMapsBounds(col, row, zoom, tm):
 			return None
 
-		if useCache:
-			#check if tile already exists in cache
-			cache = self.getCache(laykey, toDstGrid)
-			data = cache.getTile(col, row, zoom)
-
-			#if so check if its a valid image
-			if data is not None:
-				format = imghdr.what(None, data)
-				if format is not None:
-					return data
-
-		#if tile does not exists in cache or is corrupted, try to download it from map service
 		if not toDstGrid:
-
 			data = self.downloadTile(laykey, col, row, zoom)
-
-		else: # build a reprojected tile
-
-			#get tile bbox
-			bbox = self.dstTms.getTileBbox(col, row, zoom)
-			xmin, ymin, xmax, ymax = bbox
-
-			#get closest zoom level
-			res = self.dstTms.getRes(zoom)
-			if self.dstTms.units == 'degrees' and self.srcTms.units == 'meters':
-				res2 = dd2meters(res)
-			elif self.srcTms.units == 'degrees' and self.dstTms.units == 'meters':
-				res2 = meters2dd(res)
-			else:
-				res2 = res
-			_zoom = self.srcTms.getNearestZoom(res2)
-			_res = self.srcTms.getRes(_zoom)
-
-			#reproj bbox
-			crs1, crs2 = self.srcTms.CRS, self.dstTms.CRS
-			try:
-				_bbox = reprojBbox(crs2, crs1, bbox)
-			except Exception as e:
-				print('WARN : cannot reproj tile bbox - ' + str(e))
-				return None
-
-			#list, download and merge the tiles required to build this one (recursive call)
-			mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, useCache=True, nbThread=4, cpt=False, allowEmptyTile=False)
-
-			if mosaic is None:
-				return None
-
-			tileSize = self.dstTms.tileSize
-
-			img = reprojImg(crs1, crs2, mosaic, out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, sqPx=True, resamplAlg=self.RESAMP_ALG)
-
-			#Get BLOB
-			data = img.toBLOB()
-
-		#put the tile in cache database
-		if useCache and data is not None:
-			cache.putTile(col, row, self.zoom, data)
+		else:
+			data = self.buildReprojectedTile(laykey, col, row, zoom)
 
 		return data
 
 
+	def buildReprojectedTile(self, laykey, col, row, zoom):
+		'''build a reprojected tile that fit the destination tile matrix'''
 
-	def getTiles(self, laykey, tiles, tilesData = [], toDstGrid=True, useCache=True, nbThread=10, cpt=True):
+		#get tile bbox
+		bbox = self.dstTms.getTileBbox(col, row, zoom)
+		xmin, ymin, xmax, ymax = bbox
+
+		#get closest zoom level
+		res = self.dstTms.getRes(zoom)
+		if self.dstTms.units == 'degrees' and self.srcTms.units == 'meters':
+			res2 = dd2meters(res)
+		elif self.srcTms.units == 'degrees' and self.dstTms.units == 'meters':
+			res2 = meters2dd(res)
+		else:
+			res2 = res
+		_zoom = self.srcTms.getNearestZoom(res2)
+		_res = self.srcTms.getRes(_zoom)
+
+		#reproj bbox
+		crs1, crs2 = self.srcTms.CRS, self.dstTms.CRS
+		try:
+			_bbox = reprojBbox(crs2, crs1, bbox)
+		except Exception as e:
+			print('WARN : cannot reproj tile bbox - ' + str(e))
+			return None
+
+		#list, download and merge the tiles required to build this one (recursive call)
+		mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, nbThread=4, cpt=False, allowEmptyTile=False)
+
+		if mosaic is None:
+			return None
+
+		#Reprojection
+		tileSize = self.dstTms.tileSize
+		img = NpImage(reprojImg(crs1, crs2, mosaic.toGDAL(), out_ul=(xmin,ymax), out_size=(tileSize,tileSize), out_res=res, sqPx=True, resamplAlg=self.RESAMP_ALG))
+
+		return img.toBLOB()
+
+
+
+
+	def seedTiles(self, laykey, tiles, toDstGrid=True, nbThread=10, bufSize=5000, cpt=True):
 		"""
-		Return bytes data of requested tiles
-		input: [(x,y,z)] >> output: [(x,y,z,data)]
-		Tiles are downloaded from map service or directly pick up from cache database.
+		Seed the cache by downloading the requested tiles from map service
 		Downloads are performed through thread to speed up
-		Possibility to pass a list 'tilesData' as argument to seed it
+
+		bufSize : maximum number of tiles keeped in memory before put them in cache database
 		"""
 
 		def downloading(laykey, tilesQueue, tilesData, toDstGrid):
 			'''Worker that process the queue and seed tilesData array [(x,y,z,data)]'''
 			#infinite loop that processes items into the queue
-			while not tilesQueue.empty():
+			while not tilesQueue.empty(): #empty is True if all item was get but it not tell if all task was done
 				#cancel thread if requested
 				if not self.running:
 					break
 				#Get a job into the queue
-				col, row, zoom = tilesQueue.get()
+				col, row, zoom = tilesQueue.get() #get() pop the item from queue
 				#do the job
-				data = self.getTile(laykey, col, row, zoom, toDstGrid, useCache=False)
-				tilesData.append( (col, row, zoom, data) )
+				data = self.tileRequest(laykey, col, row, zoom, toDstGrid)
+				if data is not None:
+					tilesData.put( (col, row, zoom, data) ) #will block if the queue is full
 				if cpt:
 					self.cptTiles += 1
+				self.nTaskDone += 1
+				#print(self.nTaskDone)
 				#flag it's done
-				tilesQueue.task_done()
+				tilesQueue.task_done() #it's just a count of finished tasks used by join() to know if the work is finished
+
+
+		def putInCache(tilesData, jobs, cache):
+			while True:
+				if tilesData.full() or (self.nTaskDone == nMissing and not tilesData.empty()):
+					data = [tilesData.get() for i in range(tilesData.qsize())]
+					cache.putTiles(data)
+				if self.nTaskDone == nMissing and tilesData.empty():
+					break
+				if not self.running:
+					break
 
 		if cpt:
 			#init cpt progress
 			self.nbTiles = len(tiles)
 			self.cptTiles = 0
 
+		self.nTaskDone = 0
+
 		#Get cache db
 		self.status = 1
-		if useCache:
-			cache = self.getCache(laykey, toDstGrid)
-			result = cache.getTiles(tiles) #return [(x,y,z,data)]
-			existing = set([ r[:-1] for r in result])
-			missing = [t for t in tiles if t not in existing]
-			if cpt:
-				self.cptTiles += len(result)
-		else:
-			missing = tiles
+		cache = self.getCache(laykey, toDstGrid)
+		missing = cache.listMissingTiles(tiles)
+		nMissing = len(missing)
+		if cpt:
+			nExists = self.nbTiles - len(missing)
+			self.cptTiles += nExists
 
 		#Downloading tiles
 		self.status = 2
 		if len(missing) > 0:
+
+			#Result queue
+			tilesData = queue.Queue(maxsize=bufSize)
 
 			#Seed the queue
 			jobs = queue.Queue()
@@ -620,32 +671,64 @@ class MapService():
 				threads.append(t)
 				t.start()
 
+			'''
 			#Wait for all threads to complete (queue empty)
 			#jobs.join()
 			for t in threads:
 				t.join()
+			'''
 
-			#Put all missing tiles in cache
-			if useCache:
-				cache.putTiles( [t for t in tilesData if t[3] is not None] )
-
-		#Add existing tiles to final list
-		if useCache:
-			tilesData.extend(result)
+			seeder = threading.Thread(target=putInCache, args=(tilesData, jobs, cache))
+			seeder.setDaemon(True)
+			seeder.start()
+			seeder.join()
 
 		#Reinit status and cpt progress
 		self.status = 0
 		if cpt:
 			self.nbTiles, self.cptTiles = 0, 0
 
-		return tilesData
 
 
+	def getTiles(self, laykey, tiles, toDstGrid=True, nbThread=10, cpt=True):
+		"""
+		Return bytes data of requested tiles
+		input: [(x,y,z)] >> output: [(x,y,z,data)]
+		Tiles are downloaded from map service or directly pick up from cache database.
+		"""
+		#seed the cache
+		self.seedTiles(laykey, tiles, toDstGrid=toDstGrid, nbThread=10, cpt=cpt)
+		#request the cache and return
+		cache = self.getCache(laykey, toDstGrid)
+		return cache.getTiles(tiles) #[(x,y,z,data)]
 
-	def getImage(self, laykey, bbox, zoom, toDstGrid=True, useCache=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
+
+	def getTile(self, laykey, col, row, zoom, toDstGrid=True):
+		return self.getTiles(laykey, [col, row, zoom], toDstGrid)[0]
+
+
+	def seedCache(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, bufSize=5000):
+		#Select tile matrix set
+		if toDstGrid:
+			if self.dstGridKey is not None:
+				tm = self.dstTms
+			else:
+				raise ValueError('No destination grid defined')
+		else:
+			tm = self.srcTms
+		rq = bboxRequest(tm, bbox, zoom)
+		self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, bufSize=5000)
+
+	'''
+	def evaluateRequest(bbox, zoom, toDstGrid=True):
+		return bboxRequest(tm, bbox, zoom)
+	'''
+
+
+	def getImage(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
-		return georeferenced NpImage object
+		return a georeferenced NpImage object or None
 		"""
 
 		#Select tile matrix set
@@ -657,36 +740,20 @@ class MapService():
 		else:
 			tm = self.srcTms
 
-		tileSize = tm.tileSize
-		res = tm.getRes(zoom)
-
-		xmin, ymin, xmax, ymax = bbox
-
-		#Get first tile indices (top left of requested bbox)
-		firstCol, firstRow = tm.getTileNumber(xmin, ymax, zoom)
-
-		#correction of top left coord
-		xmin, ymax = tm.getTileCoords(firstCol, firstRow, zoom)
-
-		#Total number of tiles required
-		nbTilesX = math.ceil( (xmax - xmin) / (tileSize * res) )
-		nbTilesY = math.ceil( (ymax - ymin) / (tileSize * res) )
-
-		#Build list of required column and row numbers
-		cols = [firstCol+i for i in range(nbTilesX)]
-		if tm.originLoc == "NW":
-			rows = [firstRow+i for i in range(nbTilesY)]
-		else:
-			rows = [firstRow-i for i in range(nbTilesY)]
+		rq = bboxRequest(tm, bbox, zoom)
+		tileSize = rq.tileSize
+		res = rq.res
+		cols, rows = rq.cols, rq.rows
 
 		#Create numpy image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
+		xmin, ymin, xmax, ymax = rq.bbox
 		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=None)
 		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 
-		#Get tiles from www or cache
-		tiles = [ (c, r, zoom) for c in cols for r in rows]
-		tiles = self.getTiles(laykey, tiles, [], toDstGrid, useCache, nbThread, cpt)
+		#Get tiles from www or cache (all tiles must fit in memory)
+		tiles = [(c, r, zoom) for c in cols for r in rows]
+		tiles = self.getTiles(laykey, tiles, toDstGrid, nbThread, cpt)
 
 		#Build mosaic
 		self.status = 3
@@ -713,15 +780,16 @@ class MapService():
 						img = NpImage.new(tileSize, tileSize, bkgColor=(255,192,203,255))
 					else:
 						return None
-			posx = (col - firstCol) * tileSize
-			posy = abs((row - firstRow)) * tileSize
+
+			posx = (col - rq.firstCol) * tileSize
+			posy = abs((row - rq.firstRow)) * tileSize
 			mosaic.paste(img, posx, posy)
 
 		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
 			self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
-			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(),  sqPx=True, resamplAlg=self.RESAMP_ALG))
+			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), sqPx=True, resamplAlg=self.RESAMP_ALG))
 
 		#Finish
 		self.status = 0
