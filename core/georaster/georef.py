@@ -133,8 +133,8 @@ class GeoRef():
 		# >> 2 = point (cell anchor = center)
 		#geotags = Tyf.gkd.Gkd(tif)
 		#cellAnchor = geotags['GTRasterTypeGeoKey']
-		geotags = tif['GeoKeyDirectoryTag']
 		try:
+			geotags = tif['GeoKeyDirectoryTag']
 			#get GTRasterTypeGeoKey value
 			cellAnchor = geotags[geotags.index(1025)+3] #http://www.remotesensing.org/geotiff/spec/geotiff2.4.html
 		except:

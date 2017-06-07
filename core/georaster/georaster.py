@@ -66,6 +66,8 @@ class GeoRaster():
 				self._fromTIFF()
 				if not self.isGeoref and self.hasWorldFile:
 					self.georef = GeoRef.fromWorldFile(self.wfPath, self.size)
+				else:
+					pass
 			else:
 				# Try to read file header
 				w, h = getImgDim(self.path)
@@ -133,7 +135,10 @@ class GeoRaster():
 		except:
 			self.noData = None
 		#Get Georef
-		self.georef = GeoRef.fromTyf(tif)
+		try:
+			self.georef = GeoRef.fromTyf(tif)
+		except:
+			pass
 
 
 	def _fromGDAL(self):
@@ -186,8 +191,11 @@ class GeoRaster():
 	@property
 	def isGeoref(self):
 		'''Flag if georef parameters have been extracted'''
-		if self.origin is not None and self.pxSize is not None and self.rotation is not None:
-			return True
+		if self.georef is not None:
+			if self.origin is not None and self.pxSize is not None and self.rotation is not None:
+				return True
+			else:
+				return False
 		else:
 			return False
 	@property
