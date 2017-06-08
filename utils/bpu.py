@@ -7,7 +7,10 @@ import bpy
 def adjust3Dview(context, bbox, zoomToSelect=True):
 
 	# grid size and clip distance
-	dstMax = round(max(abs(bbox.xmax), abs(bbox.xmin), abs(bbox.ymax), abs(bbox.ymin)))*2
+	try:
+		dstMax = round(max(abs(bbox.xmax), abs(bbox.xmin), abs(bbox.ymax), abs(bbox.ymin)))*2
+	except:
+		return
 	nbDigit = len(str(dstMax))
 	scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
 	nbLines = round(dstMax/scale)
