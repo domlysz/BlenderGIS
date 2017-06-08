@@ -3,6 +3,7 @@ Blender GIS
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
+Minimal version of Blender required : v2.78
 
 [Basemaps](https://github.com/domlysz/BlenderGIS/wiki/Basemaps)
 --------------------
