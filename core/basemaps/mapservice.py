@@ -370,6 +370,12 @@ class MapService():
 		# 4 = reprojecting
 		self.status = 0
 
+	def start(self):
+		self.running = True
+
+	def stop(self):
+		self.running = False
+
 	@property
 	def report(self):
 		if self.status == 0:
@@ -596,12 +602,12 @@ class MapService():
 
 
 
-	def seedTiles(self, laykey, tiles, toDstGrid=True, nbThread=10, bufSize=5000, cpt=True):
+	def seedTiles(self, laykey, tiles, toDstGrid=True, nbThread=10, buffSize=5000, cpt=True):
 		"""
 		Seed the cache by downloading the requested tiles from map service
 		Downloads are performed through thread to speed up
 
-		bufSize : maximum number of tiles keeped in memory before put them in cache database
+		buffSize : maximum number of tiles keeped in memory before put them in cache database
 		"""
 
 		def downloading(laykey, tilesQueue, tilesData, toDstGrid):
@@ -656,7 +662,7 @@ class MapService():
 		if len(missing) > 0:
 
 			#Result queue
-			tilesData = queue.Queue(maxsize=bufSize)
+			tilesData = queue.Queue(maxsize=buffSize)
 
 			#Seed the queue
 			jobs = queue.Queue()
@@ -707,7 +713,7 @@ class MapService():
 		return self.getTiles(laykey, [col, row, zoom], toDstGrid)[0]
 
 
-	def seedCache(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, bufSize=5000):
+	def seedCache(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, buffSize=5000):
 		#Select tile matrix set
 		if toDstGrid:
 			if self.dstGridKey is not None:
@@ -717,7 +723,18 @@ class MapService():
 		else:
 			tm = self.srcTms
 		rq = bboxRequest(tm, bbox, zoom)
-		self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, bufSize=5000)
+		#self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, buffSize=5000)
+
+		#seedCache is a client method and must report progress
+		t = threading.Thread(target=self.seedTiles, kwargs={'laykey':laykey, 'tiles':rq.tiles, 'toDstGrid':toDstGrid, 'nbThread':nbThread, 'buffSize':buffSize})
+		t.start()
+		while t.is_alive():
+			print('\r' + self.report, end='')
+			#Writing '\r' will move the cursor back to the beginning of the line
+			#specify empty end character to avoid default newline of print function
+		print('')#will print a newline
+
+
 
 	'''
 	def evaluateRequest(bbox, zoom, toDstGrid=True):
@@ -752,8 +769,7 @@ class MapService():
 		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 
 		#Get tiles from www or cache (all tiles must fit in memory)
-		tiles = [(c, r, zoom) for c in cols for r in rows]
-		tiles = self.getTiles(laykey, tiles, toDstGrid, nbThread, cpt)
+		tiles = self.getTiles(laykey, rq.tiles, toDstGrid, nbThread, cpt)
 
 		#Build mosaic
 		self.status = 3
