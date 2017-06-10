@@ -39,6 +39,7 @@ if HAS_GDAL:
 
 from ..core import XY as xy
 from ..core.errors import OverlapError
+from ..core.proj import Reproj
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
@@ -194,9 +195,18 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
 				return {'FINISHED'}
-		elif geoscn.crs != self.rastCRS:
-			self.report({'ERROR'}, "Cannot reproj raster")
-			return {'FINISHED'}
+
+		#Raster reprojection throught UV mapping
+		#build reprojector objects
+		if geoscn.crs != self.rastCRS:
+			rprj = True
+			rprjToRaster = Reproj(geoscn.crs, self.rastCRS)
+			rprjToScene = Reproj(self.rastCRS, geoscn.crs)
+		else:
+			rprj = False
+			rprjToRaster = None
+			rprjToScene = None
+
 		#Path
 		filePath = self.filepath
 		name = os.path.basename(filePath)[:-4]
@@ -211,14 +221,16 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			#Get or set georef dx, dy
 			if not geoscn.isGeoref:
 				dx, dy = rast.center.x, rast.center.y
+				if rprj:
+					dx, dy = rprjToScene.pt(dx, dy)
 				geoscn.setOriginPrj(dx, dy)
 			#create a new mesh from raster extent
-			mesh = rasterExtentToMesh(name, rast, dx, dy)
+			mesh = rasterExtentToMesh(name, rast, dx, dy, reproj=rprjToScene)
 			#place obj
 			obj = placeObj(mesh, name)
 			#UV mapping
 			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
-			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
+			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
 			# Create material
 			mat = bpy.data.materials.new('rastMat')
 			# Add material to current object
@@ -228,6 +240,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 		######################################
 		if self.importMode == 'BKG':#background
+			if rprj:
+				return self.err("Raster reprojection not possible in background mode") #TODO, do gdal true reproj
 			#Load raster
 			try:
 				rast = GeoRaster(filePath)
@@ -272,6 +286,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			scn.objects.active = obj
 			# Compute projeted bbox (in geographic coordinates system)
 			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+			if rprj:
+				subBox = rprjToRaster.bbox(subBox)
 			#Load raster
 			try:
 				rast = GeoRaster(filePath, subBoxGeo=subBox)
@@ -281,7 +297,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			mesh = obj.data
 			uvTxtLayer = mesh.uv_textures.new('rastUVmap')
 			# UV mapping
-			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
+			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
 			# Add material and texture
 			mat = bpy.data.materials.new('rastMat')
 			obj.data.materials.append(mat)
@@ -302,6 +318,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				scn.objects.active = obj
 				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+				if rprj:
+					subBox = rprjToRaster.bbox(subBox)
 			else:
 				subBox = None
 
@@ -315,15 +333,17 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			if not self.demOnMesh:
 				if not geoscn.isGeoref:
 					dx, dy = grid.center.x, grid.center.y
+					if rprj:
+						dx, dy = rprjToScene.pt(dx, dy)
 					geoscn.setOriginPrj(dx, dy)
-				mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER') #use pixel center to avoid displacement glitch
+				mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER', reproj=rprjToScene) #use pixel center to avoid displacement glitch
 				obj = placeObj(mesh, name)
 
 			# Add UV map texture layer
 			previousUVmapIdx = mesh.uv_textures.active_index
 			uvTxtLayer = mesh.uv_textures.new('demUVmap')
 			#UV mapping
-			geoRastUVmap(obj, uvTxtLayer, grid, dx, dy)
+			geoRastUVmap(obj, uvTxtLayer, grid, dx, dy, reproj=rprjToRaster)
 			#Restore previous uv map
 			if previousUVmapIdx != -1:
 				mesh.uv_textures.active_index = previousUVmapIdx
@@ -357,6 +377,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+				if rprj:
+					subBox = rprjToRaster.bbox(subBox)
 
 			# Load raster
 			try:
@@ -366,8 +388,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 			if not geoscn.isGeoref:
 				dx, dy = grid.center.x, grid.center.y
+				if rprj:
+					dx, dy = rprjToScene.pt(dx, dy)
 				geoscn.setOriginPrj(dx, dy)
-			mesh = grid.exportAsMesh(dx, dy, self.step)
+			mesh = grid.exportAsMesh(dx, dy, self.step, reproj=rprjToScene)
 			obj = placeObj(mesh, name)
 			grid.unload()
 

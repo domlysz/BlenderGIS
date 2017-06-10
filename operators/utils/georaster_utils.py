@@ -26,16 +26,19 @@ import bpy, bmesh
 from ...core.georaster import GeoRaster
 
 
-def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
+def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER', reproj=None, subdivise=False):
 	'''Build a new mesh that represent a georaster extent'''
 	#create mesh
 	bm = bmesh.new()
 	if pxLoc == 'CORNER':
-		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.corners]#shift coords
+		pts = [(pt[0], pt[1]) for pt in rast.corners]#shift coords
 	elif pxLoc == 'CENTER':
-		pts = [(pt[0]-dx, pt[1]-dy) for pt in rast.cornersCenter]
-	z = 0
-	pts = [bm.verts.new((pt[0], pt[1], z)) for pt in pts]#upper left to botton left (clockwise)
+		pts = [(pt[0], pt[1]) for pt in rast.cornersCenter]
+	#Reprojection
+	if reproj is not None:
+		pts = reproj.pts(pts)
+	#build shifted flat 3d vertices
+	pts = [bm.verts.new((pt[0]-dx, pt[1]-dy, 0)) for pt in pts]#upper left to botton left (clockwise)
 	pts.reverse()#bottom left to upper left (anticlockwise --> face up)
 	bm.faces.new(pts)
 	#Create mesh from bmesh
@@ -44,7 +47,7 @@ def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER'):
 	bm.free()
 	return mesh
 
-def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy):
+def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=None):
 	'''uv map a georaster texture on a given mesh'''
 	uvTxtLayer.active = True
 	# Assign image texture for every face
@@ -61,6 +64,8 @@ def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy):
 			pt = list(mesh.vertices[vertIdx].co)
 			#adjust coords against object location and shift values to retrieve original point coords
 			pt = (pt[0] + loc.x + dx, pt[1] + loc.y + dy)
+			if reproj is not None:
+				pt = reproj.pt(*pt)
 			#Compute UV coords --> pourcent from image origin (bottom left)
 			dx_px, dy_px = rast.pxFromGeo(pt[0], pt[1], reverseY=True, round2Floor=False)
 			u = dx_px / rast.size[0]
@@ -182,7 +187,7 @@ class bpyGeoRaster(GeoRaster):
 			return False
 
 
-	def exportAsMesh(self, dx=0, dy=0, step=1, subset=False):
+	def exportAsMesh(self, dx=0, dy=0, step=1, subset=False, reproj=None):
 		if subset and self.subBoxGeo is None:
 			subset = False
 
@@ -190,8 +195,6 @@ class bpyGeoRaster(GeoRaster):
 		#TODO raise error if multiband
 		data = img.data
 		x0, y0 = self.origin
-		x0 -= dx
-		y0 -= dy
 
 		#Avoid using bmesh because it's very slow with large mesh
 		#use from_pydata instead
@@ -201,6 +204,14 @@ class bpyGeoRaster(GeoRaster):
 			for py in range(0, self.size.y, step):
 				x = x0 + (self.pxSize.x * px)
 				y = y0 +(self.pxSize.y * py)
+
+				if reproj is not None:
+					x, y = reproj.pt(x, y)
+
+				#shift
+				x -= dx
+				y -= dy
+
 				z = data[py, px]
 				if z != self.noData:
 					#bm.verts.new((x, y, z))
