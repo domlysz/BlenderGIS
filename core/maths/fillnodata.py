@@ -30,8 +30,8 @@
 
 import numpy as np
 
-DTYPEf = np.float64
-DTYPEi = np.int32
+DTYPEf = np.float32
+#DTYPEi = np.int32
 
 
 def replace_nans(array, max_iter, tolerance, kernel_size=1, method='localmean'):

@@ -19,7 +19,7 @@ def setSettings(prefs):
 		json.dump(prefs, cfg, indent='\t')
 
 def getAvailableProjEngines():
-	engines = ['AUTO']
+	engines = ['AUTO', 'BUILTIN']
 	#if EPSGIO.ping():
 	engines.append('EPSGIO')
 	if HAS_GDAL:
