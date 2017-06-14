@@ -273,9 +273,6 @@ class GeoPackage():
 		return set(tiles) - existing # difference
 
 
-
-
-
 	def getTiles(self, tiles):
 		"""tiles = list of (x,y,z) tuple
 		return list of (x,y,z,data) tuple"""
@@ -283,11 +280,14 @@ class GeoPackage():
 		xs, ys, zs = zip(*tiles)
 		lst = list(xs) + list(ys) + list(zs)
 
-		#TODO check last modified
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
-		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles WHERE tile_column IN (" + ','.join('?'*n) + ") AND tile_row IN (" + ','.join('?'*n) + ") AND zoom_level IN (" + ','.join('?'*n) + ")"
+		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles " \
+				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
+				"AND tile_column IN (" + ','.join('?'*n) + ") " \
+				"AND tile_row IN (" + ','.join('?'*n) + ") " \
+				"AND zoom_level IN (" + ','.join('?'*n) + ")"
 
-		result = db.execute(query, lst).fetchall() #TODO return an iterator, do not load all data in memory
+		result = db.execute(query, lst).fetchall()#TODO just return a cursor and avoid loading all data in memory
 		db.close()
 
 		return result

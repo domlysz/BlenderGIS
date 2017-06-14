@@ -36,6 +36,7 @@ from ..proj.srs import SRS
 
 import time
 
+import random
 
 class TileMatrix():
 	"""
@@ -370,6 +371,8 @@ class MapService():
 		# 4 = reprojecting
 		self.status = 0
 
+		self.lock = threading.RLock()
+
 	def start(self):
 		self.running = True
 
@@ -625,18 +628,24 @@ class MapService():
 					tilesData.put( (col, row, zoom, data) ) #will block if the queue is full
 				if cpt:
 					self.cptTiles += 1
-				self.nTaskDone += 1
-				#print(self.nTaskDone)
+				#self.nTaskDone += 1
 				#flag it's done
 				tilesQueue.task_done() #it's just a count of finished tasks used by join() to know if the work is finished
 
+		def finished():
+			#return self.nTaskDone == nMissing
+			#self.nTaskDone is not reliable because the recursive call to getImage will
+			#start multiple threads to seedTiles() and all these process will increments nTaskDone
+			return not any([t.is_alive() for t in threads])
 
 		def putInCache(tilesData, jobs, cache):
 			while True:
-				if tilesData.full() or (self.nTaskDone == nMissing and not tilesData.empty()):
+				if tilesData.full() or \
+				( (finished() or not self.running) and not tilesData.empty()):
 					data = [tilesData.get() for i in range(tilesData.qsize())]
-					cache.putTiles(data)
-				if self.nTaskDone == nMissing and tilesData.empty():
+					with self.lock:
+						cache.putTiles(data)
+				if finished() and tilesData.empty():
 					break
 				if not self.running:
 					break
@@ -646,10 +655,11 @@ class MapService():
 			self.nbTiles = len(tiles)
 			self.cptTiles = 0
 
-		self.nTaskDone = 0
+		#self.nTaskDone = 0
 
 		#Get cache db
-		self.status = 1
+		if cpt:
+			self.status = 1
 		cache = self.getCache(laykey, toDstGrid)
 		missing = cache.listMissingTiles(tiles)
 		nMissing = len(missing)
@@ -658,7 +668,8 @@ class MapService():
 			self.cptTiles += nExists
 
 		#Downloading tiles
-		self.status = 2
+		if cpt:
+			self.status = 2
 		if len(missing) > 0:
 
 			#Result queue
@@ -677,23 +688,19 @@ class MapService():
 				threads.append(t)
 				t.start()
 
-			'''
-			#Wait for all threads to complete (queue empty)
-			#jobs.join()
-			for t in threads:
-				t.join()
-			'''
-
 			seeder = threading.Thread(target=putInCache, args=(tilesData, jobs, cache))
 			seeder.setDaemon(True)
 			seeder.start()
 			seeder.join()
 
-		#Reinit status and cpt progress
-		self.status = 0
-		if cpt:
-			self.nbTiles, self.cptTiles = 0, 0
+			#Make sure all threads has finished
+			for t in threads:
+				t.join()
 
+		#Reinit status and cpt progress
+		if cpt:
+			self.status = 0
+			self.nbTiles, self.cptTiles = 0, 0
 
 
 	def getTiles(self, laykey, tiles, toDstGrid=True, nbThread=10, cpt=True):
@@ -772,11 +779,13 @@ class MapService():
 		tiles = self.getTiles(laykey, rq.tiles, toDstGrid, nbThread, cpt)
 
 		#Build mosaic
-		self.status = 3
+		if cpt:
+			self.status = 3
 		for tile in tiles:
 
 			if not self.running:
-				self.status = 0
+				if cpt:
+					self.status = 0
 				return None
 
 			col, row, z, data = tile
@@ -803,12 +812,14 @@ class MapService():
 
 		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
-			self.status = 4
+			if cpt:
+				self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
 			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), sqPx=True, resamplAlg=self.RESAMP_ALG))
 
 		#Finish
-		self.status = 0
+		if cpt:
+			self.status = 0
 		if self.running:
 			return mosaic
 		else:
