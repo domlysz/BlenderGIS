@@ -34,9 +34,7 @@ from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
 
-import time
 
-import random
 
 class TileMatrix():
 	"""
@@ -111,7 +109,8 @@ class TileMatrix():
 			raise NotImplementedError
 
 		#Determine unit of CRS (decimal degrees or meters)
-		if SRS(self.CRS).isGeo:
+		self.crs = SRS(self.CRS)
+		if self.crs.isGeo:
 			self.units = 'degrees'
 		else: #(if units cannot be determined we assume its meters)
 			self.units = 'meters'
@@ -245,9 +244,11 @@ class TileMatrix():
 		return xmin, ymin, xmax, ymax
 
 
+	def bboxRequest(self, bbox, zoom):
+		return BBoxRequest(self, bbox, zoom)
 
 
-class bboxRequest():
+class BBoxRequest():
 
 	def __init__(self, tm, bbox, zoom):
 
@@ -424,6 +425,15 @@ class MapService():
 		else:
 			return cache
 
+	def getTM(self, dstGrid=False):
+		if dstGrid:
+			if self.dstTms is not None:
+				return self.dstTms
+			else:
+				raise ValueError('No destination grid defined')
+		else:
+			return self.srcTms
+
 
 	def buildUrl(self, laykey, col, row, zoom):
 		"""
@@ -544,13 +554,7 @@ class MapService():
 		"""
 
 		#Select tile matrix set
-		if toDstGrid:
-			if self.dstGridKey is not None:
-				tm = self.dstTms
-			else:
-				raise ValueError('No destination grid defined')
-		else:
-			tm = self.srcTms
+		tm = self.getTM(toDstGrid)
 
 		#don't try to get tiles out of map bounds
 		if not self.isTileInMapsBounds(col, row, zoom, tm):
@@ -559,13 +563,13 @@ class MapService():
 		if not toDstGrid:
 			data = self.downloadTile(laykey, col, row, zoom)
 		else:
-			data = self.buildReprojectedTile(laykey, col, row, zoom)
+			data = self.buildDstTile(laykey, col, row, zoom)
 
 		return data
 
 
-	def buildReprojectedTile(self, laykey, col, row, zoom):
-		'''build a reprojected tile that fit the destination tile matrix'''
+	def buildDstTile(self, laykey, col, row, zoom):
+		'''build a tile that fit the destination tile matrix'''
 
 		#get tile bbox
 		bbox = self.dstTms.getTileBbox(col, row, zoom)
@@ -720,16 +724,20 @@ class MapService():
 		return self.getTiles(laykey, [col, row, zoom], toDstGrid)[0]
 
 
-	def seedCache(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, buffSize=5000):
+	def bboxRequest(self, bbox, zoom, dstGrid=True):
 		#Select tile matrix set
-		if toDstGrid:
-			if self.dstGridKey is not None:
-				tm = self.dstTms
-			else:
-				raise ValueError('No destination grid defined')
-		else:
-			tm = self.srcTms
-		rq = bboxRequest(tm, bbox, zoom)
+		tm = self.getTM(dstGrid)
+		return BBoxRequest(tm, bbox, zoom)
+
+
+	def seedCache(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, buffSize=5000):
+		"""
+		Seed the cache with the tiles covering the requested bbox
+		"""
+		#Select tile matrix set
+		tm = self.getTM(toDstGrid)
+
+		rq = BBoxRequest(tm, bbox, zoom)
 		#self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, buffSize=5000)
 
 		#seedCache is a client method and must report progress
@@ -742,13 +750,6 @@ class MapService():
 		print('')#will print a newline
 
 
-
-	'''
-	def evaluateRequest(bbox, zoom, toDstGrid=True):
-		return bboxRequest(tm, bbox, zoom)
-	'''
-
-
 	def getImage(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
@@ -756,15 +757,9 @@ class MapService():
 		"""
 
 		#Select tile matrix set
-		if toDstGrid:
-			if self.dstGridKey is not None:
-				tm = self.dstTms
-			else:
-				raise ValueError('No destination grid defined')
-		else:
-			tm = self.srcTms
+		tm = self.getTM(toDstGrid)
 
-		rq = bboxRequest(tm, bbox, zoom)
+		rq = BBoxRequest(tm, bbox, zoom)
 		tileSize = rq.tileSize
 		res = rq.res
 		cols, rows = rq.cols, rq.rows
@@ -772,7 +767,7 @@ class MapService():
 		#Create numpy image in memory
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
 		xmin, ymin, xmax, ymax = rq.bbox
-		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=None)
+		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=tm.crs)
 		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 
 		#Get tiles from www or cache (all tiles must fit in memory)
