@@ -32,12 +32,6 @@ class SRTM_QUERY(Operator):
 
 	def invoke(self, context, event):
 
-		#check if 3dview is top ortho
-		reg3d = context.region_data
-		if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
-			self.report({'ERROR'}, "View3d must be in top ortho")
-			return {'FINISHED'}
-
 		#check georef
 		geoscn = GeoScene(context.scene)
 		if not geoscn.isGeoref:
@@ -60,22 +54,40 @@ class SRTM_QUERY(Operator):
 			bpy.ops.object.mode_set(mode='OBJECT')
 		except:
 			pass
-		bpy.ops.object.select_all(action='DESELECT')
 
-		#Set cursor representation to 'loading' icon
-		w = context.window
-		w.cursor_set('WAIT')
 
 		#2 possibilités
 		#- soit on s'appui sur la bbox de la 3dview, on créé un mesh plan et on y aplique le DEM téléchargé
 		#- soit on a préselectionné un mesh (plan) et on applique le dem téléchargé dessus
 
-		#Get view3d bbox in lonlat
-		bbox = getBBOX.fromTopView(context).toGeo(geoscn)
+
+		#Validate selection
+		objs = bpy.context.selected_objects
+		if not objs:
+			onMesh = False
+			#check if 3dview is top ortho
+			reg3d = context.region_data
+			if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
+				self.report({'ERROR'}, "View3d must be in top ortho")
+				return {'FINISHED'}
+			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
+		elif len(objs) > 2 or (len(objs) == 1 and not objs[0].type == 'MESH'):
+			self.report({'ERROR'}, "Pre-selection is incorrect")
+			return {'CANCELLED'}
+		else:
+			onMesh = True
+			bbox = getBBOX.fromObj(objs[0]).toGeo(geoscn)
+			#bbox = bbox.to2D()
+
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")
 			return {'FINISHED'}
+
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
+
+		#Set cursor representation to 'loading' icon
+		w = context.window
+		w.cursor_set('WAIT')
 
 		#url template
 		#http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&west=-120.168457&south=36.738884&east=-118.465576&north=38.091337&outputFormat=GTiff
@@ -85,9 +97,10 @@ class SRTM_QUERY(Operator):
 		n = 'north=' + str(bbox.ymax)
 		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
 
-		filePath = '/home/domlysz/Bureau/test.tif'
+
 		# Download the file from url and save it locally
 		# opentopo return a geotiff object in wgs84
+		filePath = bpy.app.tempdir + 'srtm.tif'
 
 		'''
 		#we can directly init NpImg from blob but if gdal is not used as image engine then georef will not be extracted
@@ -95,10 +108,6 @@ class SRTM_QUERY(Operator):
 			data = response.read()
 		img = NpImage(data)
 		print(img)
-
-		#perform reproj and save
-		img = NpImage(reprojImg(4326, crs.code, img.toGDAL()))
-		img.save(filePath)
 		'''
 
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
@@ -109,19 +118,24 @@ class SRTM_QUERY(Operator):
 		#img = GeoRaster(filePath, useGDAL=HAS_GDAL)#.readAsNpArray()
 		#print(img)
 
-
-		#anyway, we need gdal support to perform reprojection
-		# a better place to perform reproj is at georaster import
-		ds = gdal.Open(filePath, gdal.GA_ReadOnly)
-		ds2 = reprojImg(4326, crs.code, ds)
-		ds = None
-		out = gdal.GetDriverByName('GTiff').CreateCopy(filePath, ds2)
-		ds2 = out = None
-
-		#bpy.ops.importgis.georaster('EXEC_DEFAULT', filepath=filePath, rastCRS=str(crs), importMode='DEM', subdivision='subsurf')
-
-		bpy.ops.importgis.georaster('EXEC_DEFAULT', filepath=filePath, rastCRS=str(crs), importMode='DEM',  subdivision='subsurf', \
-demOnMesh=True, objectsLst='0', clip=False, fillNodata=False)
+		if not onMesh:
+			bpy.ops.importgis.georaster(
+			'EXEC_DEFAULT',
+			filepath = filePath,
+			rastCRS = 'EPSG:4326',
+			importMode = 'DEM',
+			subdivision = 'subsurf')
+		else:
+			bpy.ops.importgis.georaster(
+			'EXEC_DEFAULT',
+			filepath = filePath,
+			rastCRS = 'EPSG:4326',
+			importMode = 'DEM',
+			subdivision = 'subsurf',
+			demOnMesh = True,
+			objectsLst = [str(i) for i, obj in enumerate(scn.objects) if obj.name == bpy.context.active_object.name][0],
+			clip = False,
+			fillNodata = False)
 
 
 		#bbox = getBBOX.fromScn(scn)
