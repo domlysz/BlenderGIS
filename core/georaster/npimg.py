@@ -26,9 +26,8 @@ import random
 import numpy as np
 
 from .georef import GeoRef
-
+from ..proj.reproj import reprojImg
 from ..maths.fillnodata import replace_nans #inpainting function (ie fill nodata)
-
 from ..utils import XY as xy
 from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..settings import getSettings
@@ -459,18 +458,20 @@ class NpImage():
 			# Inpainting
 			self.data = replace_nans(self.data, max_iter=5, tolerance=0.5, kernel_size=2, method='localmean')
 
+	def reproj(self, crs1, crs2, out_ul=None, out_size=None, out_res=None, sqPx=False, resamplAlg='BL'):
+		ds1 = self.toGDAL()
+		if not self.isGeoref:
+			raise IOError('Unable to reproject non georeferenced image')
+		ds2 = reprojImg(crs1, crs2, ds1, out_ul=out_ul, out_size=out_size, out_res=out_res, sqPx=sqPx, resamplAlg=resamplAlg)
+		return NpImage(ds2)
+
 	def __repr__(self):
-		'''Brute force print...'''
-		print('* Data infos :')
-		print(' size %s' %self.size)
-		print(' dtype %s' %self.dtype)
-		print(' number of bands %i' %self.nbBands)
-		print(' nodata value %s' %self.noData)
-		#
-		print('* Statistics')
-		print(' min max %s' %((self.getMin(), self.getMax()), ))
-		#
-		if self.isGeoref:
-			print('* Georef & Geometry')
-			self.georef.__repr__()
-		return "------------"
+		return '\n'.join([
+		"* Data infos :",
+		" size {}".format(self.size),
+		" type {}".format(self.dtype),
+		" number of bands {}".format(self.nbBands),
+		" nodata value {}".format(self.noData),
+		"* Statistics : min {} max {}".format(self.getMin(), self.getMax()),
+		"* Georef & Geometry : \n{}".format(self.georef)
+		])

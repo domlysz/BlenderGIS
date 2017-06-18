@@ -218,24 +218,19 @@ class GeoRaster():
 
 
 	def __repr__(self):
-		'''Brute force print...'''
-		print('------------')
-		print('* Paths infos :')
-		print(' path %s' %self.path)
-		print(' worldfile %s' %self.wfPath)
-		print(' format %s' %self.format)
-		#
-		print('* Data infos :')
-		print(' size %s' %self.size)
-		print(' depth %s' %(self.depth,))
-		print(' dtype %s' %self.dtype)
-		print(' number of bands %i' %self.nbBands)
-		print(' nodata value %s' %self.noData)
-		#
-		print('* Georef & Geometry')
-		print(' is georef %s' %self.isGeoref)
-		self.georef.__repr__()
-		return "------------"
+		return '\n'.join([
+		'* Paths infos :',
+		' path {}'.format(self.path),
+		' worldfile {}'.format(self.wfPath),
+		' format {}'.format(self.format),
+		"* Data infos :",
+		" size {}".format(self.size),
+		" bit depth {}".format(self.depth),
+		" data type {}".format(self.dtype),
+		" number of bands {}".format(self.nbBands),
+		" nodata value {}".format(self.noData),
+		"* Georef & Geometry : \n{}".format(self.georef)
+		])
 
 	#######################################
 	# Methods

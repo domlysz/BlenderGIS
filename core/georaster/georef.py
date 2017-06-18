@@ -1,4 +1,4 @@
-# -*- coding:utf-8 -*-
+{}# -*- coding:utf-8 -*-
 
 # This file is part of BlenderGIS
 
@@ -416,23 +416,23 @@ class GeoRef():
 	####
 
 	def __repr__(self):
-		'''Brute force print...'''
-		print(' has srs %s' %self.hasCRS)
-		if self.crs is not None:
-			print(str(self.crs))
-		print(' origin geo %s' %self.origin)
-		print(' pixel size %s' %self.pxSize)
-		print(' rotation %s' %self.rotation)
-		print(' bbox %s' %self.bbox)
-		print(' geoSize %s' %self.geoSize)
-		#print('	orthoGeoSize %s' %self.orthoGeoSize)
-		#print('	orthoPxSize %s' %self.orthoPxSize)
-		#print('	corners %s' %([p.xy for p in self.corners],))
-		#print('	center %s' %self.center)
+		s = [
+		' spatial ref system {}'.format(self.crs),
+		' origin geo {}'.format(self.origin),
+		' pixel size {}'.format(self.pxSize),
+		' rotation {}'.format(self.rotation),
+		' bounding box {}'.format(self.bbox),
+		' geoSize {}'.format(self.geoSize)
+		]
+
 		if self.subBoxGeo is not None:
-			print(' subbox origin (geo space) %s' %self.subBoxGeoOrigin)
-			print(' subbox origin (px space) %s' %self.subBoxPxOrigin)
-			print(' subbox (geo space) %s' %self.subBoxGeo)
-			print(' subbox (px space) %s' %self.subBoxPx)
-			print(' sub geoSize %s' %self.subBoxGeoSize)
-			print(' sub pxSize %s' %self.subBoxPxSize)
+			s.extend([
+			' subbox origin (geo space) {}'.format(self.subBoxGeoOrigin),
+			' subbox origin (px space) {}'.format(self.subBoxPxOrigin),
+			' subbox (geo space) {}'.format(self.subBoxGeo),
+			' subbox (px space) {}'.format(self.subBoxPx),
+			' sub geoSize {}'.format(self.subBoxGeoSize),
+			' sub pxSize {}'.format(self.subBoxPxSize),
+			])
+
+		return '\n'.join(s)
