@@ -284,12 +284,22 @@ class GeoRef():
 		use reverseY option is yPx is counting from bottom instead of top
 		Number of pixels is range from 0 (not 1)
 		"""
+
+		#normal behaviour
+		##ox = self.origin.x - abs(self.pxSize.x/2)
+		##oy = self.origin.y + abs(self.pxSize.y/2)
+
+		#force pixel center, in this case we need to cast the inputs to floor integer
+		xPx, yPx = math.floor(xPx), math.floor(yPx)
+		ox, oy = self.origin.x, self.origin.y
+
 		if reverseY:#the users given y pixel in the image counting from bottom
 			yPxRange = self.rSize.y - 1
 			yPx = yPxRange - yPx
-		#
-		x = self.pxSize.x * xPx + self.rotation.y * yPx + self.origin.x
-		y = self.pxSize.y * yPx + self.rotation.x * xPx + self.origin.y
+
+		x = self.pxSize.x * xPx + self.rotation.y * yPx + ox
+		y = self.pxSize.y * yPx + self.rotation.x * xPx + oy
+
 		return xy(x, y)
 
 
@@ -303,16 +313,14 @@ class GeoRef():
 		# aliases for more readability
 		pxSizex, pxSizey = self.pxSize
 		rotx, roty = self.rotation
-		offx, offy = self.origin
-		#
+		offx = self.origin.x - abs(self.pxSize.x/2)
+		offy = self.origin.y + abs(self.pxSize.y/2)
+		# transfo
 		xPx  = (pxSizey*x - rotx*y + rotx*offy - pxSizey*offx) / (pxSizex*pxSizey - rotx*roty)
 		yPx = (-roty*x + pxSizex*y + roty*offx - pxSizex*offy) / (pxSizex*pxSizey - rotx*roty)
 		if reverseY:#the users want y pixel position counting from bottom
 			yPxRange = self.rSize.y - 1#number of pixels is range from 0 (not 1)
 			yPx = yPxRange - yPx
-		#offset the result of 1/2 px to get the good value
-		xPx += 0.5
-		yPx += 0.5
 		#round to floor
 		if round2Floor:
 			xPx, yPx = math.floor(xPx), math.floor(yPx)
@@ -357,9 +365,9 @@ class GeoRef():
 		#we count pixel number from 0 but size represents total number of pixel (counting from 1), so we must use size-1
 		sizex, sizey = self.rSize
 		if xminPx < 0: xminPx = 0
-		if xmaxPx > sizex: xmaxPx = sizex - 1
+		if xmaxPx >= sizex: xmaxPx = sizex - 1
 		if yminPx < 0: yminPx = 0
-		if ymaxPx > sizey: ymaxPx = sizey - 1
+		if ymaxPx >= sizey: ymaxPx = sizey - 1
 		#get the adjusted geo coords at pixels center
 		xmin, ymin = self.geoFromPx(xminPx, ymaxPx)
 		xmax, ymax = self.geoFromPx(xmaxPx, yminPx)
