@@ -97,6 +97,9 @@ class BaseMap(GeoScene):
 		if not self.hasZoom:
 			self.zoom = 0
 
+		self.lockedZoom = None
+		print('reinit')
+
 		#Set path to tiles mosaic used as background image in Blender
 		#We need a format that support transparency so jpg is exclude
 		#Writing to tif is generally faster than writing to png
@@ -169,7 +172,8 @@ class BaseMap(GeoScene):
 		#Get area bbox coords in destination tile matrix crs (map origin is bottom lelf)
 
 		#Method 1 : Get bbox coords in scene crs and then reproject the bbox if needed
-		res = self.tm.getRes(self.zoom)
+		z = self.lockedZoom if self.lockedZoom is not None else self.zoom
+		res = self.tm.getRes(z)
 		if self.crs == 'EPSG:4326':
 			res = meters2dd(res)
 		dx, dy, dz = self.reg3d.view_location
@@ -255,6 +259,8 @@ class BaseMap(GeoScene):
 		#Compute view3d z distance
 		#in ortho view, view_distance = max(view3d dst x, view3d dist y) / 2
 		dst =  max( [self.area3d.width, self.area3d.height] )
+		z = self.lockedZoom if self.lockedZoom is not None else self.zoom
+		res = self.tm.getRes(z)
 		dst = dst * res / self.scale
 		dst /= 2
 		self.reg3d.view_distance = dst
@@ -320,6 +326,12 @@ def drawInfosText(self, context):
 	blf.position(font_id, cx-45, 10, 0)
 	blf.draw(font_id, str((int(self.posx), int(self.posy))))
 
+	bgl.glColor4f(255, 0, 0, 150) #rgba
+	blf.size(font_id, 25, 72)
+	blf.position(font_id, w-100, 25, 0)
+	if self.map.lockedZoom is not None:
+		#blf.draw(font_id, "z lock " + str(self.map.lockedZoom))
+		blf.draw(font_id, "zLock")
 
 
 def drawZoomBox(self, context):
@@ -679,23 +691,24 @@ class MAP_VIEWER(bpy.types.Operator):
 					# map zoom up
 					if self.map.zoom < self.map.layer.zmax and self.map.zoom < self.map.tm.nbLevels-1:
 						self.map.zoom += 1
-						resFactor = self.map.tm.getNextResFac(self.map.zoom)
-						if not self.prefs.zoomToMouse:
-							context.region_data.view_distance *= resFactor
-						else:
-							#Progressibly zoom to cursor
-							dst = context.region_data.view_distance
-							dst2 = dst * resFactor
-							context.region_data.view_distance = dst2
-							mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-							viewLoc = context.region_data.view_location
-							moveFactor = (dst - dst2) / dst
-							deltaVect = (mouseLoc - viewLoc) * moveFactor
-							if self.prefs.lockOrigin:
-								viewLoc += deltaVect
+						if self.map.lockedZoom is None:
+							resFactor = self.map.tm.getNextResFac(self.map.zoom)
+							if not self.prefs.zoomToMouse:
+								context.region_data.view_distance *= resFactor
 							else:
-								dx, dy, dz = deltaVect
-								self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
+								#Progressibly zoom to cursor
+								dst = context.region_data.view_distance
+								dst2 = dst * resFactor
+								context.region_data.view_distance = dst2
+								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								viewLoc = context.region_data.view_location
+								moveFactor = (dst - dst2) / dst
+								deltaVect = (mouseLoc - viewLoc) * moveFactor
+								if self.prefs.lockOrigin:
+									viewLoc += deltaVect
+								else:
+									dx, dy, dz = deltaVect
+									self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
 						self.map.get()
 
 
@@ -727,23 +740,24 @@ class MAP_VIEWER(bpy.types.Operator):
 					#map zoom down
 					if self.map.zoom > self.map.layer.zmin and self.map.zoom > 0:
 						self.map.zoom -= 1
-						resFactor = self.map.tm.getPrevResFac(self.map.zoom)
-						if not self.prefs.zoomToMouse:
-							context.region_data.view_distance *= resFactor
-						else:
-							#Progressibly zoom to cursor
-							dst = context.region_data.view_distance
-							dst2 = dst * resFactor
-							context.region_data.view_distance = dst2
-							mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
-							viewLoc = context.region_data.view_location
-							moveFactor = (dst - dst2) / dst
-							deltaVect = (mouseLoc - viewLoc) * moveFactor
-							if self.prefs.lockOrigin:
-								viewLoc += deltaVect
+						if self.map.lockedZoom is None:
+							resFactor = self.map.tm.getPrevResFac(self.map.zoom)
+							if not self.prefs.zoomToMouse:
+								context.region_data.view_distance *= resFactor
 							else:
-								dx, dy, dz = deltaVect
-								self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
+								#Progressibly zoom to cursor
+								dst = context.region_data.view_distance
+								dst2 = dst * resFactor
+								context.region_data.view_distance = dst2
+								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								viewLoc = context.region_data.view_location
+								moveFactor = (dst - dst2) / dst
+								deltaVect = (mouseLoc - viewLoc) * moveFactor
+								if self.prefs.lockOrigin:
+									viewLoc += deltaVect
+								else:
+									dx, dy, dz = deltaVect
+									self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
 						self.map.get()
 
 
@@ -910,6 +924,16 @@ class MAP_VIEWER(bpy.types.Operator):
 			self.restart = True
 			self.dialog = 'OPTIONS'
 			return {'FINISHED'}
+
+		#Lock/unlock 3d view zoom distance
+		if event.type == 'L' and event.value == 'PRESS':
+			if self.map.lockedZoom is None:
+				self.map.lockedZoom = self.map.zoom
+			else:
+				self.map.lockedZoom = None
+				self.map.get()
+
+
 
 		#ZOOM BOX
 		if event.type == 'B' and event.value == 'PRESS':
