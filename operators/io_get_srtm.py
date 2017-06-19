@@ -10,17 +10,9 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 
 from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX
-
-from ..core import HAS_GDAL
-from ..core.proj import SRS, Reproj, reprojBbox, reprojPt, reprojImg
-from ..core.georaster import NpImage, GeoRef
-
-if HAS_GDAL:
-	from osgeo import gdal
+from ..core.proj import SRS, reprojBbox
 
 
-
-########################
 
 class SRTM_QUERY(Operator):
 	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
@@ -55,12 +47,6 @@ class SRTM_QUERY(Operator):
 		except:
 			pass
 
-
-		#2 possibilités
-		#- soit on s'appui sur la bbox de la 3dview, on créé un mesh plan et on y aplique le DEM téléchargé
-		#- soit on a préselectionné un mesh (plan) et on applique le dem téléchargé dessus
-
-
 		#Validate selection
 		objs = bpy.context.selected_objects
 		if not objs:
@@ -77,7 +63,6 @@ class SRTM_QUERY(Operator):
 		else:
 			onMesh = True
 			bbox = getBBOX.fromObj(objs[0]).toGeo(geoscn)
-			#bbox = bbox.to2D()
 
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")
@@ -91,32 +76,25 @@ class SRTM_QUERY(Operator):
 
 		#url template
 		#http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&west=-120.168457&south=36.738884&east=-118.465576&north=38.091337&outputFormat=GTiff
-		w = 'west=' + str(bbox.xmin)
-		e = 'east=' + str(bbox.xmax)
-		s = 'south=' + str(bbox.ymin)
-		n = 'north=' + str(bbox.ymax)
+		e = 0.002 #opentopo service does not always respect the entire bbox, so request for a little more
+		xmin, xmax = bbox.xmin - e, bbox.xmax + e
+		ymin, ymax = bbox.ymin - e, bbox.ymax + e
+		w = 'west={}'.format(xmin)
+		e = 'east={}'.format(xmax)
+		s = 'south={}'.format(ymin)
+		n = 'north={}'.format(ymax)
 		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
-
+		print(url)
 
 		# Download the file from url and save it locally
 		# opentopo return a geotiff object in wgs84
 		filePath = bpy.app.tempdir + 'srtm.tif'
 
-		'''
 		#we can directly init NpImg from blob but if gdal is not used as image engine then georef will not be extracted
-		with urllib.request.urlopen(url) as response:
-			data = response.read()
-		img = NpImage(data)
-		print(img)
-		'''
-
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
 		with urllib.request.urlopen(url) as response, open(filePath, 'wb') as outFile:
 			data = response.read() # a `bytes` object
 			outFile.write(data) #
-
-		#img = GeoRaster(filePath, useGDAL=HAS_GDAL)#.readAsNpArray()
-		#print(img)
 
 		if not onMesh:
 			bpy.ops.importgis.georaster(
@@ -137,8 +115,7 @@ class SRTM_QUERY(Operator):
 			clip = False,
 			fillNodata = False)
 
-
-		#bbox = getBBOX.fromScn(scn)
-		#adjust3Dview(context, bbox, zoomToSelect=False)
+		bbox = getBBOX.fromScn(scn)
+		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}
