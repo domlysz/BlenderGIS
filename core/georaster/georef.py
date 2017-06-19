@@ -209,8 +209,8 @@ class GeoRef():
 		(pt1, pt2, pt3, pt4) <--> (upper left, upper right, bottom right, bottom left)
 		The coords are located at the pixel center
 		'''
-		xPxRange = self.rSize.x-1#number of pixels is range from 0 (not 1)
-		yPxRange = self.rSize.y-1
+		xPxRange = self.rSize.x
+		yPxRange = self.rSize.y
 		#pixel center
 		pt1 = self.geoFromPx(0, yPxRange, True)#upperLeft
 		pt2 = self.geoFromPx(xPxRange, yPxRange, True)#upperRight
@@ -275,7 +275,7 @@ class GeoRef():
 		return xy(pxWidth, pxHeight)
 
 
-	def geoFromPx(self, xPx, yPx, reverseY=False):
+	def geoFromPx(self, xPx, yPx, reverseY=False, pxCenter=True):
 		"""
 		Affine transformation (cf. ESRI WorldFile spec.)
 		Return geo coords of the center of an given pixel
@@ -285,16 +285,17 @@ class GeoRef():
 		Number of pixels is range from 0 (not 1)
 		"""
 
-		#normal behaviour
-		##ox = self.origin.x - abs(self.pxSize.x/2)
-		##oy = self.origin.y + abs(self.pxSize.y/2)
-
-		#force pixel center, in this case we need to cast the inputs to floor integer
-		xPx, yPx = math.floor(xPx), math.floor(yPx)
-		ox, oy = self.origin.x, self.origin.y
+		if pxCenter:
+			#force pixel center, in this case we need to cast the inputs to floor integer
+			xPx, yPx = math.floor(xPx), math.floor(yPx)
+			ox, oy = self.origin.x, self.origin.y
+		else:
+			#normal behaviour
+			ox = self.origin.x - abs(self.pxSize.x/2)
+			oy = self.origin.y + abs(self.pxSize.y/2)
 
 		if reverseY:#the users given y pixel in the image counting from bottom
-			yPxRange = self.rSize.y - 1
+			yPxRange = self.rSize.y
 			yPx = yPxRange - yPx
 
 		x = self.pxSize.x * xPx + self.rotation.y * yPx + ox
@@ -319,7 +320,7 @@ class GeoRef():
 		xPx  = (pxSizey*x - rotx*y + rotx*offy - pxSizey*offx) / (pxSizex*pxSizey - rotx*roty)
 		yPx = (-roty*x + pxSizex*y + roty*offx - pxSizex*offy) / (pxSizex*pxSizey - rotx*roty)
 		if reverseY:#the users want y pixel position counting from bottom
-			yPxRange = self.rSize.y - 1#number of pixels is range from 0 (not 1)
+			yPxRange = self.rSize.y
 			yPx = yPxRange - yPx
 		#round to floor
 		if round2Floor:
