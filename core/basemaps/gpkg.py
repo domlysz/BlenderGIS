@@ -252,18 +252,16 @@ class GeoPackage():
 		"""
 		input : tiles list [(x,y,z)]
 		output : tiles list set [(x,y,z)] of existing records in cache db"""
-		n = len(tiles)
-		xs, ys, zs = zip(*tiles)
-		lst = list(xs) + list(ys) + list(zs)
 
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
+
+		tiles = ['_'.join(map(str, tile)) for tile in tiles]
+
 		query = "SELECT tile_column, tile_row, zoom_level FROM gpkg_tiles " \
 				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
-				"AND tile_column IN (" + ','.join('?'*n) + ") " \
-				"AND tile_row IN (" + ','.join('?'*n) + ") " \
-				"AND zoom_level IN (" + ','.join('?'*n) + ")"
+				"AND tile_column || '_' || tile_row || '_' || zoom_level IN ('" + "','".join(tiles) + "')"
 
-		result = db.execute(query, lst).fetchall()
+		result = db.execute(query).fetchall()
 		db.close()
 
 		return set(result)
@@ -276,18 +274,17 @@ class GeoPackage():
 	def getTiles(self, tiles):
 		"""tiles = list of (x,y,z) tuple
 		return list of (x,y,z,data) tuple"""
-		n = len(tiles)
-		xs, ys, zs = zip(*tiles)
-		lst = list(xs) + list(ys) + list(zs)
 
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
+
+		tiles = ['_'.join(map(str, tile)) for tile in tiles]
+
 		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles " \
 				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
-				"AND tile_column IN (" + ','.join('?'*n) + ") " \
-				"AND tile_row IN (" + ','.join('?'*n) + ") " \
-				"AND zoom_level IN (" + ','.join('?'*n) + ")"
+				"AND tile_column || '_' || tile_row || '_' || zoom_level IN ('" + "','".join(tiles) + "')"
 
-		result = db.execute(query, lst).fetchall()#TODO just return a cursor and avoid loading all data in memory
+		result = db.execute(query).fetchall()
+
 		db.close()
 
 		return result
