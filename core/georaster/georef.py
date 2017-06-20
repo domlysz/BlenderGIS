@@ -209,13 +209,13 @@ class GeoRef():
 		(pt1, pt2, pt3, pt4) <--> (upper left, upper right, bottom right, bottom left)
 		The coords are located at the pixel center
 		'''
-		xPxRange = self.rSize.x
-		yPxRange = self.rSize.y
+		xPxRange = self.rSize.x - 1
+		yPxRange = self.rSize.y - 1
 		#pixel center
-		pt1 = self.geoFromPx(0, yPxRange, True)#upperLeft
-		pt2 = self.geoFromPx(xPxRange, yPxRange, True)#upperRight
-		pt3 = self.geoFromPx(xPxRange, 0, True)#bottomRight
-		pt4 = self.geoFromPx(0, 0, True)#bottomLeft
+		pt1 = self.geoFromPx(0, 0, pxCenter=True)#upperLeft
+		pt2 = self.geoFromPx(xPxRange, 0, pxCenter=True)#upperRight
+		pt3 = self.geoFromPx(xPxRange, yPxRange, pxCenter=True)#bottomRight
+		pt4 = self.geoFromPx(0, yPxRange, pxCenter=True)#bottomLeft
 		return (pt1, pt2, pt3, pt4)
 
 	@property
@@ -290,12 +290,12 @@ class GeoRef():
 			xPx, yPx = math.floor(xPx), math.floor(yPx)
 			ox, oy = self.origin.x, self.origin.y
 		else:
-			#normal behaviour
+			#normal behaviour, coord at pixel's top left corner
 			ox = self.origin.x - abs(self.pxSize.x/2)
 			oy = self.origin.y + abs(self.pxSize.y/2)
 
 		if reverseY:#the users given y pixel in the image counting from bottom
-			yPxRange = self.rSize.y
+			yPxRange = self.rSize.y - 1
 			yPx = yPxRange - yPx
 
 		x = self.pxSize.x * xPx + self.rotation.y * yPx + ox
@@ -320,8 +320,9 @@ class GeoRef():
 		xPx  = (pxSizey*x - rotx*y + rotx*offy - pxSizey*offx) / (pxSizex*pxSizey - rotx*roty)
 		yPx = (-roty*x + pxSizex*y + roty*offx - pxSizex*offy) / (pxSizex*pxSizey - rotx*roty)
 		if reverseY:#the users want y pixel position counting from bottom
-			yPxRange = self.rSize.y
+			yPxRange = self.rSize.y - 1
 			yPx = yPxRange - yPx
+			yPx += 1 #adjust because the coord start at pixel's top left coord
 		#round to floor
 		if round2Floor:
 			xPx, yPx = math.floor(xPx), math.floor(yPx)
