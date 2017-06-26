@@ -22,8 +22,7 @@
 import urllib.request
 import json
 
-from .srs import SRS
-
+USER_AGENT = 'Mozilla/5.0'
 
 ######################################
 # EPSG.io
@@ -36,7 +35,8 @@ class EPSGIO():
 	def ping():
 		url = "http://epsg.io"
 		try:
-			urllib.request.urlopen(url, timeout=1)
+			rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+			urllib.request.urlopen(rq, timeout=1)
 			return True
 		except urllib.request.URLError:
 			return False
@@ -55,7 +55,8 @@ class EPSGIO():
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
 
-		response = urllib.request.urlopen(url).read().decode('utf8')
+		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+		response = urllib.request.urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
 
 		return (float(obj['x']), float(obj['y']))
@@ -93,7 +94,8 @@ class EPSGIO():
 			url = urlTemplate.replace("{POINTS}", part)
 
 			try:
-				response = urllib.request.urlopen(url).read().decode('utf8')
+				rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+				response = urllib.request.urlopen(rq).read().decode('utf8')
 			except urllib.error.HTTPError as err:
 				print(err.code, err.reason, err.headers)
 				print(url)
@@ -109,7 +111,8 @@ class EPSGIO():
 		query = str(query).replace(' ', '+')
 		url = "http://epsg.io/?q={QUERY}&format=json"
 		url = url.replace("{QUERY}", query)
-		response = urllib.request.urlopen(url).read().decode('utf8')
+		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+		response = urllib.request.urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
 		'''
 		for res in obj['results']:
@@ -119,15 +122,11 @@ class EPSGIO():
 		return obj['results']
 
 	@staticmethod
-	def getEsriWkt(crs):
-		if not EPSGIO:
-			return None
-		crs = SRS(crs)
-		if not crs.isEPSG:
-			return None
+	def getEsriWkt(epsg):
 		url = "http://epsg.io/{CODE}.esriwkt"
-		url = url.replace("{CODE}", str(crs.code))
-		wkt = urllib.request.urlopen(url).read().decode('utf8')
+		url = url.replace("{CODE}", str(epsg))
+		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+		wkt = urllib.request.urlopen(rq).read().decode('utf8')
 		return wkt
 
 
@@ -150,7 +149,8 @@ class TWCC():
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
 
-		response = urllib.request.urlopen(url).read().decode('utf8')
+		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+		response = urllib.request.urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
 
 		return (float(obj['point']['x']), float(obj['point']['y']))

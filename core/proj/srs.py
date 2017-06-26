@@ -18,6 +18,7 @@
 #  ***** GPL LICENSE BLOCK *****
 
 from .utm import UTM, UTM_EPSG_CODES
+from .srv import EPSGIO
 
 from ..checkdeps import HAS_GDAL, HAS_PYPROJ
 
@@ -200,3 +201,12 @@ class SRS():
 			return prj.is_latlong()
 		else:
 			return None
+
+	def getWKT(self):
+		if HAS_GDAL:
+			prj = self.getOgrSpatialRef()
+			return prj.ExportToWkt()
+		elif self.isEPSG:
+			return EPSGIO.getEsriWkt(self.code)
+		else:
+			raise NotImplementedError

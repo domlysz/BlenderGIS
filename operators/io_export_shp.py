@@ -14,7 +14,7 @@ from bpy.types import Operator
 
 from ..geoscene import GeoScene
 
-from ..core.proj import EPSGIO
+from ..core.proj import SRS
 
 class EXPORT_SHP(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
@@ -69,7 +69,11 @@ class EXPORT_SHP(Operator, ExportHelper):
 
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
-			wkt = EPSGIO.getEsriWkt(geoscn.crs)
+			crs = SRS(geoscn.crs)
+			try:
+				wkt = crs.getWKT()
+			except:
+				wkt = None
 		elif geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'FINISHED'}
