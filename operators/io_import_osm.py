@@ -209,7 +209,7 @@ class OSM_IMPORT():
 							except:
 								for i, c in enumerate(htag):
 									if not c.isdigit():
-										offset, unit = int(htag[:i]), htag[i:].strip()
+										offset, unit = float(htag[:i]), htag[i:].strip()
 										#todo : parse unit  25, 25m, 25 ft, etc.
 				elif "building:levels" in tags:
 					offset = int(tags["building:levels"]) * self.levelHeight
