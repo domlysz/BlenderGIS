@@ -18,6 +18,10 @@ def setSettings(prefs):
 	with open(cfgFile, 'w') as cfg:
 		json.dump(prefs, cfg, indent='\t')
 
+def getSetting(k):
+	prefs = getSettings()
+	return prefs.get(k, None)
+
 def getAvailableProjEngines():
 	engines = ['AUTO', 'BUILTIN']
 	#if EPSGIO.ping():

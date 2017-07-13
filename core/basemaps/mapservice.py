@@ -34,6 +34,8 @@ from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
 
+from ..settings import getSetting
+USER_AGENT = getSetting('user_agent')
 
 
 class TileMatrix():
@@ -356,7 +358,7 @@ class MapService():
 			'Accept-Language' : 'fr,en-us,en;q=0.5' ,
 			'Keep-Alive': 115 ,
 			'Proxy-Connection' : 'keep-alive' ,
-			'User-Agent' : 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0',
+			'User-Agent' : USER_AGENT,
 			'Referer' : self.referer}
 
 		#Downloading progress

@@ -21,8 +21,9 @@
 
 import urllib.request
 import json
+from ..settings import getSetting
 
-USER_AGENT = 'Mozilla/5.0'
+USER_AGENT = getSetting('user_agent')
 
 ######################################
 # EPSG.io

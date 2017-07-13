@@ -12,6 +12,9 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX
 from ..core.proj import SRS, reprojBbox
 
+from ..settings import getSetting
+
+USER_AGENT = getSetting('user_agent')
 
 
 class SRTM_QUERY(Operator):
@@ -84,7 +87,6 @@ class SRTM_QUERY(Operator):
 		s = 'south={}'.format(ymin)
 		n = 'north={}'.format(ymax)
 		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
-		print(url)
 
 		# Download the file from url and save it locally
 		# opentopo return a geotiff object in wgs84
@@ -92,7 +94,8 @@ class SRTM_QUERY(Operator):
 
 		#we can directly init NpImg from blob but if gdal is not used as image engine then georef will not be extracted
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
-		with urllib.request.urlopen(url) as response, open(filePath, 'wb') as outFile:
+		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+		with urllib.request.urlopen(rq) as response, open(filePath, 'wb') as outFile:
 			data = response.read() # a `bytes` object
 			outFile.write(data) #
 
