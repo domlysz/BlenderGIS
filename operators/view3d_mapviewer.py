@@ -133,14 +133,14 @@ class BaseMap(GeoScene):
 	def get(self):
 		'''Launch run() function in a new thread'''
 		self.stop()
-		self.srv.running = True
+		self.srv.start()
 		self.thread = threading.Thread(target=self.run)
 		self.thread.start()
 
 	def stop(self):
 		'''Stop actual thread'''
 		if self.srv.running:
-			self.srv.running = False
+			self.srv.stop()
 			self.thread.join()
 
 	def run(self):
@@ -152,6 +152,7 @@ class BaseMap(GeoScene):
 		if self.srv.running:
 			#Place background image
 			self.place()
+		self.srv.stop()
 
 	def view3dToProj(self, dx, dy):
 		'''Convert view3d coords to crs coords'''
@@ -650,7 +651,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		reg = context.region
 		reg3d = context.region_data
 		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc = region_2d_to_location_3d(reg, reg3d, coords, vec)
+		loc = region_2d_to_location_3d(reg, reg3d, coords, vec) #WARNING, this function return indeterminate value when view3d clip distance is too large
 		return loc
 
 
@@ -934,7 +935,6 @@ class MAP_VIEWER(bpy.types.Operator):
 				self.map.get()
 
 
-
 		#ZOOM BOX
 		if event.type == 'B' and event.value == 'PRESS':
 			self.map.stop()
@@ -944,44 +944,43 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		#EXPORT
 		if event.type == 'E' and event.value == 'PRESS':
-			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
-			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+			#self.map.stop()
+			if not self.map.srv.running and self.map.mosaic is not None:
+				
+				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
+				bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 
-			#Get geoimage and bpyimage
-			rast = self.map.mosaic
-			bpyImg = self.map.img
+				#Copy image to new datablock
+				bpyImg = bpy.data.images.load(self.map.imgPath) #(self.map.img.filepath)
+				name = 'EXPORT_' + self.map.srckey + '_' + self.map.laykey + '_' + self.map.grdkey
+				bpyImg.name = name
+				bpyImg.pack()
 
-			#Copy image to new datablock
-			bpyImg = bpy.data.images.load(bpyImg.filepath)
-			name = 'EXPORT_' + self.map.srckey + '_' + self.map.laykey + '_' + self.map.grdkey
-			bpyImg.name = name
-			bpyImg.pack()
+				#Add new attribute to GeoRaster (used by geoRastUVmap function)
+				rast = self.map.mosaic
+				setattr(rast, 'bpyImg', bpyImg)
 
-			#Add new attribute to geoImg class (like GeoRaster class)
-			setattr(rast, 'bpyImg', bpyImg)
+				#Create Mesh
+				dx, dy = self.map.getOriginPrj()
+				mesh = rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER')
 
-			#Create Mesh
-			dx, dy = self.map.getOriginPrj()
-			mesh = rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER')
+				#Create object
+				obj = placeObj(mesh, name)
 
-			#Create object
-			obj = placeObj(mesh, name)
+				#UV mapping
+				uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
+				geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
 
-			#UV mapping
-			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
-			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
+				#Create material
+				mat = bpy.data.materials.new('rastMat')
+				obj.data.materials.append(mat)
+				addTexture(mat, bpyImg, uvTxtLayer)
 
-			#Create material
-			mat = bpy.data.materials.new('rastMat')
-			obj.data.materials.append(mat)
-			addTexture(mat, self.map.img, uvTxtLayer)
+				#Adjust 3d view and display textures
+				adjust3Dview(context, getBBOX.fromObj(obj))
+				showTextures(context)
 
-			#Adjust 3d view and display textures
-			adjust3Dview(context, getBBOX.fromObj(obj))
-			showTextures(context)
-
-			return {'FINISHED'}
+				return {'FINISHED'}
 
 		#EXIT
 		if event.type == 'ESC' and event.value == 'PRESS':

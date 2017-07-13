@@ -36,7 +36,10 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 			if space.grid_lines*space.grid_scale < targetDst:
 				space.grid_lines = nbLines
 				space.grid_scale = scale
-				space.clip_end = targetDst*10 #10x more than necessary
+				dst = targetDst*10 #10x more than necessary
+				if dst > 10000000:
+					dst = 10000000 #too large clip distance broke the 3d view
+				space.clip_end = dst
 			if zoomToSelect:
 				overrideContext = context.copy()
 				overrideContext['area'] = area
