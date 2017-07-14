@@ -45,6 +45,7 @@ from bpy_extras.io_utils import ImportHelper #helper class defines filename and 
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
+PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
 class IMPORT_GEORAST(Operator, ImportHelper):
 	"""Import georeferenced raster (need world file)"""
@@ -175,6 +176,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		return {'FINISHED'}
 
 	def execute(self, context):
+		prefs = bpy.context.user_preferences.addons[PKG].preferences
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
 		except:
@@ -338,6 +340,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					geoscn.setOriginPrj(dx, dy)
 				mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER', reproj=rprjToScene) #use pixel center to avoid displacement glitch
 				obj = placeObj(mesh, name)
+				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 
 			# Add UV map texture layer
 			previousUVmapIdx = mesh.uv_textures.active_index
@@ -349,11 +352,16 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				mesh.uv_textures.active_index = previousUVmapIdx
 			#Make subdivision
 			if self.subdivision == 'mesh':#Mesh cut
-				#if len(mesh.polygons) == 1: #controler que le mesh n'a qu'une face
-				nbCuts = int(max(grid.size.xy))#Estimate better subdivise cuts number
+				#if len(mesh.polygons) == 1:
 				bpy.ops.object.mode_set(mode='EDIT')
 				bpy.ops.mesh.select_all(action='SELECT')
-				bpy.ops.mesh.subdivide(number_cuts=nbCuts)
+				#nbCuts = int(max(grid.size.xy))
+				#bpy.ops.mesh.subdivide(number_cuts=nbCuts)
+				#WIP make a better sudivision : we need one vertex / pixel
+				ul = grid.georef.pxFromGeo(*subBox.ul)
+				ul = grid.georef.geoFromPx(ul.x+1, ul.y+1)
+				bpy.ops.mesh.loopcut(number_cuts = grid.size.x - 1, edge_index = 1)
+				bpy.ops.mesh.loopcut(number_cuts = grid.size.y - 1, edge_index = 2)
 				bpy.ops.object.mode_set(mode='OBJECT')
 			elif self.subdivision == 'subsurf':#Add subsurf modifier
 				if not 'SUBSURF' in [mod.type for mod in obj.modifiers]:
@@ -403,12 +411,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			newObjCreated = False
 
 		#...if so, maybee we need to adjust 3d view settings to it
-		if newObjCreated:
+		if newObjCreated and prefs.adjust3Dview:
 			bb = getBBOX.fromObj(obj)
 			adjust3Dview(context, bb)
 
 		#Force view mode with textures
-		showTextures(context)
+		if prefs.forceTexturedSolid:
+			showTextures(context)
 
 
 		return {'FINISHED'}

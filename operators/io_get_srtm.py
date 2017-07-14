@@ -12,7 +12,7 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX
 from ..core.proj import SRS, reprojBbox
 
-from ..settings import getSetting
+from ..core.settings import getSetting
 
 USER_AGENT = getSetting('user_agent')
 

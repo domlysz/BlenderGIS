@@ -946,7 +946,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		if event.type == 'E' and event.value == 'PRESS':
 			#self.map.stop()
 			if not self.map.srv.running and self.map.mosaic is not None:
-				
+
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
 
@@ -977,8 +977,10 @@ class MAP_VIEWER(bpy.types.Operator):
 				addTexture(mat, bpyImg, uvTxtLayer)
 
 				#Adjust 3d view and display textures
-				adjust3Dview(context, getBBOX.fromObj(obj))
-				showTextures(context)
+				if self.prefs.adjust3Dview:
+					adjust3Dview(context, getBBOX.fromObj(obj))
+				if self.prefs.forceTexturedSolid:
+					showTextures(context)
 
 				return {'FINISHED'}
 

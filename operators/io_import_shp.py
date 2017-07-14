@@ -17,6 +17,8 @@ from ..core.proj import Reproj
 
 from .utils import adjust3Dview, getBBOX
 
+PKG, SUBPKG = __package__.split('.', maxsplit=1)
+
 featureType={
 0:'Null',
 1:'Point',
@@ -258,6 +260,8 @@ class IMPORT_SHP(Operator):
 
 
 	def execute(self, context):
+
+		prefs = bpy.context.user_preferences.addons[PKG].preferences
 
 		#Set cursor representation to 'loading' icon
 		w = context.window
@@ -601,7 +605,8 @@ class IMPORT_SHP(Operator):
 				bm.free()
 				bm = finalBm
 
-			bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+			if prefs.mergeDoubles:
+				bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 			bm.to_mesh(mesh)
 
 			#Finish
@@ -620,8 +625,9 @@ class IMPORT_SHP(Operator):
 		print('Build in %f seconds' % t)
 
 		#Adjust grid size
-		bbox.shift(-dx, -dy) #convert shapefile bbox in 3d view space
-		adjust3Dview(context, bbox)
+		if prefs.adjust3Dview:
+			bbox.shift(-dx, -dy) #convert shapefile bbox in 3d view space
+			adjust3Dview(context, bbox)
 
 
 		return {'FINISHED'}

@@ -144,6 +144,7 @@ class OSM_IMPORT():
 
 
 	def build(self, context, result, dstCRS):
+		prefs = bpy.context.user_preferences.addons[PKG].preferences
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		scale = geoscn.scale #TODO
@@ -355,7 +356,8 @@ class OSM_IMPORT():
 		if not self.separate:
 
 			for name, bm in bmeshes.items():
-				##bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+				if prefs.mergeDoubles:
+					bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 				mesh = bpy.data.meshes.new(name)
 				bm.to_mesh(mesh)
 				bm.free()

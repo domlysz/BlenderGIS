@@ -168,7 +168,20 @@ class BGIS_PREFS(AddonPreferences):
 		items = [ ('NN', 'Nearest Neighboor', ''), ('BL', 'Bilinear', ''), ('CB', 'Cubic', ''), ('CBS', 'Cubic Spline', ''), ('LCZ', 'Lanczos', '') ]
 		)
 
-
+	################
+	#IO options
+	mergeDoubles = BoolProperty(
+		name = "Merge duplicate vertices",
+		description = 'Merge shared vertices between features when importing vector data',
+		default = False)
+	adjust3Dview = BoolProperty(
+		name = "Adjust 3D view",
+		description = "Update 3d view grid size and clip distances according to the new imported object's size",
+		default = True)
+	forceTexturedSolid = BoolProperty(
+		name = "Force textured solid shading",
+		description = "Update shading mode to display raster's texture",
+		default = True)
 
 	def draw(self, context):
 		layout = self.layout
@@ -209,6 +222,10 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_osm_tag", icon='SCRIPTWIN')
 		row.operator("bgis.rmv_osm_tag", icon='ZOOMOUT')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
+		row = box.row()
+		row.prop(self, "mergeDoubles")
+		row.prop(self, "adjust3Dview")
+		row.prop(self, "forceTexturedSolid")
 
 
 #######################
