@@ -23,7 +23,8 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from bpy.types import Operator, Panel
 
 from .prefs import PredefCRS
-from .utils.proj import reprojPt, SRS
+from .core.proj.reproj import reprojPt
+from .core.proj.srs import SRS
 
 
 PKG = __package__

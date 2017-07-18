@@ -6,8 +6,10 @@ from bpy.types import Operator, Panel, AddonPreferences
 import addon_utils
 
 from . import bl_info
-from .utils.proj import SRS, EPSGIO #classes
-from .checkdeps import HAS_GDAL, HAS_PYPROJ
+from .core.proj.reproj import EPSGIO
+from .core.proj.srs import SRS
+from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
+from .core.settings import getSettings, setSettings
 
 PKG = __package__
 
@@ -68,7 +70,10 @@ class BGIS_PREFS(AddonPreferences):
 		items = listPredefCRS
 		)
 
-	def getProjEngine(self, context):
+	################
+	#proj engine
+
+	def getProjEngineItems(self, context):
 		items = [ ('AUTO', 'Auto detect', 'Auto select the best library for reprojection tasks') ]
 		if HAS_GDAL:
 			items.append( ('GDAL', 'GDAL', 'Force GDAL as reprojection engine') )
@@ -80,10 +85,41 @@ class BGIS_PREFS(AddonPreferences):
 		items.append( ('BUILTIN', 'Built in', 'Force reprojection through built in Python functions') )
 		return items
 
+	def updateProjEngine(self, context):
+		prefs = getSettings()
+		prefs['proj_engine'] = self.projEngine
+		setSettings(prefs)
+
 	projEngine = EnumProperty(
 		name = "Projection engine",
 		description = "Select projection engine",
-		items = getProjEngine
+		items = getProjEngineItems,
+		update = updateProjEngine
+		)
+
+	################
+	#img engine
+
+	def getImgEngineItems(self, context):
+		items = [ ('AUTO', 'Auto detect', 'Auto select the best imaging library') ]
+		if HAS_GDAL:
+			items.append( ('GDAL', 'GDAL', 'Force GDAL as image processing engine') )
+		if HAS_IMGIO:
+			items.append( ('IMGIO', 'ImageIO', 'Force ImageIO as image processing  engine') )
+		if HAS_PIL:
+			items.append( ('PIL', 'PIL', 'Force PIL as image processing  engine') )
+		return items
+
+	def updateImgEngine(self, context):
+		prefs = getSettings()
+		prefs['img_engine'] = self.imgEngine
+		setSettings(prefs)
+
+	imgEngine = EnumProperty(
+		name = "Image processing engine",
+		description = "Select image processing engine",
+		items = getImgEngineItems,
+		update = updateImgEngine
 		)
 
 	################
@@ -132,7 +168,20 @@ class BGIS_PREFS(AddonPreferences):
 		items = [ ('NN', 'Nearest Neighboor', ''), ('BL', 'Bilinear', ''), ('CB', 'Cubic', ''), ('CBS', 'Cubic Spline', ''), ('LCZ', 'Lanczos', '') ]
 		)
 
-
+	################
+	#IO options
+	mergeDoubles = BoolProperty(
+		name = "Merge duplicate vertices",
+		description = 'Merge shared vertices between features when importing vector data',
+		default = False)
+	adjust3Dview = BoolProperty(
+		name = "Adjust 3D view",
+		description = "Update 3d view grid size and clip distances according to the new imported object's size",
+		default = True)
+	forceTexturedSolid = BoolProperty(
+		name = "Force textured solid shading",
+		description = "Update shading mode to display raster's texture",
+		default = True)
 
 	def draw(self, context):
 		layout = self.layout
@@ -147,6 +196,7 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.rmv_predef_crs", icon='ZOOMOUT')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
 		box.prop(self, "projEngine")
+		box.prop(self, "imgEngine")
 
 		#Basemaps
 		box = layout.box()
@@ -172,6 +222,10 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_osm_tag", icon='SCRIPTWIN')
 		row.operator("bgis.rmv_osm_tag", icon='ZOOMOUT')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
+		row = box.row()
+		row.prop(self, "mergeDoubles")
+		row.prop(self, "adjust3Dview")
+		row.prop(self, "forceTexturedSolid")
 
 
 #######################

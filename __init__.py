@@ -36,18 +36,13 @@ bl_info = {
 
 import bpy, os
 
-from .checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
+from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
+from .core.settings import getSettings, setSettings
 
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
 from . import geoscene
-from .basemaps import mapviewer
-from .misc import view3d_setGeorefCam, view3d_setCamFromExif
-from .delaunay_voronoi import delaunayVoronoiBlender
-from .io_georaster import op_import_georaster
-from .io_shapefile import op_export_shp, op_import_shp
-from .osm import op_import_osm
-from .terrain_analysis import nodes_builder, reclassify
+from .operators import * #see operators/__init__/__all__
 
 
 import bpy.utils.previews as iconsLib
@@ -75,6 +70,7 @@ class bgisPanel(bpy.types.Panel):
 
 		row = col.row(align=True)
 		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
+		row.operator("importgis.srtm_query")
 		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
 
 		row = layout.row(align=True)
@@ -114,6 +110,7 @@ def menu_func_export(self, context):
 
 def register():
 
+	#icons
 	global icons_dict
 	icons_dict = iconsLib.new()
 	icons_dir = os.path.join(os.path.dirname(__file__), "icons")
@@ -121,15 +118,26 @@ def register():
 		name, ext = os.path.splitext(icon)
 		icons_dict.load(name, os.path.join(icons_dir, icon), 'IMAGE')
 
-	reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
-	bpy.utils.register_module(__name__)
+	#operators
+	nodes_terrain_analysis_reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
+	bpy.utils.register_module(__name__) #register all imported operators of the current module
 
+	#menus
 	bpy.types.INFO_MT_file_import.append(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
 
+	#shortcuts
 	wm = bpy.context.window_manager
 	km = wm.keyconfigs.active.keymaps['3D View']
 	kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+
+	#config core settings
+	prefs = bpy.context.user_preferences.addons[__package__].preferences
+	cfg = getSettings()
+	cfg['proj_engine'] = prefs.projEngine
+	cfg['img_engine'] = prefs.imgEngine
+	setSettings(cfg)
+
 
 def unregister():
 
@@ -144,7 +152,7 @@ def unregister():
 	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 	#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
 
-	reclassify.unregister()
+	nodes_terrain_analysis_reclassify.unregister()
 	bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
