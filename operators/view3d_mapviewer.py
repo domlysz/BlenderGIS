@@ -98,7 +98,6 @@ class BaseMap(GeoScene):
 			self.zoom = 0
 
 		self.lockedZoom = None
-		print('reinit')
 
 		#Set path to tiles mosaic used as background image in Blender
 		#We need a format that support transparency so jpg is exclude
