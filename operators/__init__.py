@@ -1,1 +1,1 @@
-__all__ = ["add_camera_exif", "add_camera_georef", "io_export_shp", "io_get_srtm", "io_import_georaster", "io_import_osm", "io_import_shp", "mesh_delaunay_voronoi", "nodes_terrain_analysis_builder", "nodes_terrain_analysis_reclassify", "view3d_mapviewer"]
+__all__ = ["add_camera_exif", "add_camera_georef", "io_export_shp", "io_get_srtm", "io_import_georaster", "io_import_osm", "io_import_shp", "io_import_asc", "mesh_delaunay_voronoi", "nodes_terrain_analysis_builder", "nodes_terrain_analysis_reclassify", "view3d_mapviewer"]
