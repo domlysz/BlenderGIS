@@ -156,7 +156,8 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                 _ = f.readline()
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
-                vertices.append((x, y, coldata[x]))
+                if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
+                    vertices.append((x, y, coldata[x]))
 
         if self.importMode == 'MESH':
             step_ncols = int(ncols / step)
