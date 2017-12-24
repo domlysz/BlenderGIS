@@ -4,6 +4,7 @@ import re
 import os
 import string
 import bpy
+import math
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
@@ -30,8 +31,17 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
     # ImportHelper class properties
     filter_glob = StringProperty(
-        default="*.asc",
+        default="*.asc;*.grd",
         options={'HIDDEN'},
+    )
+
+    # Raster CRS definition
+    def listPredefCRS(self, context):
+        return PredefCRS.getEnumItems()
+    fileCRS = EnumProperty(
+        name = "CRS",
+        description = "Choose a Coordinate Reference System",
+        items = listPredefCRS,
     )
 
     # List of operator properties, the attributes will be assigned
@@ -59,15 +69,15 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         layout.prop(self, 'importMode')
         layout.prop(self, 'step')
         
-        #row = layout.row(align=True)
-        #split = row.split(percentage=0.35, align=True)
-        #split.label('CRS:')
-        #split.prop(self, "rastCRS", text='')
-        #row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
-        #scn = bpy.context.scene
-        #geoscn = GeoScene(scn)
-        #if geoscn.isPartiallyGeoref:
-        #	georefManagerLayout(self, context)
+        row = layout.row(align=True)
+        split = row.split(percentage=0.35, align=True)
+        split.label('CRS:')
+        split.prop(self, "fileCRS", text='')
+        row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
+        scn = bpy.context.scene
+        geoscn = GeoScene(scn)
+        if geoscn.isPartiallyGeoref:
+        	georefManagerLayout(self, context)
 
 
     def err(self, msg):
@@ -91,23 +101,22 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         if geoscn.isGeoref:
             dx, dy = geoscn.getOriginPrj()
         scale = geoscn.scale #TODO
-        # if not geoscn.hasCRS:
-        # 	try:
-        # 		geoscn.crs = self.rastCRS
-        # 	except Exception as e:
-        # 		self.report({'ERROR'}, str(e))
-        # 		return {'FINISHED'}
+        if not geoscn.hasCRS:
+        	try:
+        		geoscn.crs = self.fileCRS
+        	except Exception as e:
+        		self.report({'ERROR'}, str(e))
+        		return {'FINISHED'}
 
-        #Raster reprojection throught UV mapping
         #build reprojector objects
-        # if geoscn.crs != self.rastCRS:
-        # 	rprj = True
-        # 	rprjToRaster = Reproj(geoscn.crs, self.rastCRS)
-        # 	rprjToScene = Reproj(self.rastCRS, geoscn.crs)
-        # else:
-        rprj = False
-        rprjToRaster = None
-        rprjToScene = None
+        if geoscn.crs != self.fileCRS:
+        	rprj = True
+        	rprjToRaster = Reproj(geoscn.crs, self.fileCRS)
+        	rprjToScene = Reproj(self.fileCRS, geoscn.crs)
+        else:
+            rprj = False
+            rprjToRaster = None
+            rprjToScene = None
 
         #Path
         filename = self.filepath
@@ -120,32 +129,51 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             line = f.readline()
             m = meta_re.match(line)
             if m:
-                meta[m.group(1)] = m.group(2)
+                meta[m.group(1).lower()] = m.group(2)
 
-        llcorner = (float(meta['xllcorner']), float(meta['yllcorner']))
-        if rprj:
-            llcorner = rprjToScene.pt(*llcorner)
-        if not geoscn.isGeoref:
-            geoscn.setOriginPrj(*llcorner)
-
+        # step allows reduction during import, only taking every Nth point
+        step = self.step
+        nrows = int(meta['nrows'])
+        ncols = int(meta['ncols'])
+        cellsize = float(meta['cellsize'])
+        nodata = float(meta['nodata_value'])
+        
         # Create mesh
         name = os.path.splitext(os.path.basename(filename))[0]
         me = bpy.data.meshes.new(name)
         ob = bpy.data.objects.new(name, me)
-        ob.location = (llcorner[0] - dx, llcorner[1] - dy, 0)
+        ob.scale = (cellsize,) * 3
         ob.show_name = True
+
+        # options are lower left corner, or centre
+        if 'xllcorner' in meta:
+            llcorner = (float(meta['xllcorner']), float(meta['yllcorner']))
+        elif 'xllcenter' in meta:
+            centre = (float(meta['xllcenter']), float(meta['yllcenter']))
+            llcorner = centre
+            # llcorner = (centre[0] - ((ncols / 2) * cellsize), 
+            #             centre[1] - ((nrows / 2) * cellsize))
+
+        if not geoscn.isGeoref:
+            if not centre:
+                # use the centre of the imported grid as scene origin (calculate only if grid file specified llcorner)
+                centre = (llcorner[0] + ((ncols / 2) * cellsize), 
+                          llcorner[1] + ((nrows / 2) * cellsize))
+            if rprj:
+                centre = rprjToScene.pt(*centre)
+            geoscn.setOriginPrj(*centre)
+            dx, dy = geoscn.getOriginPrj()
+
+        # now set the correct offset for the mesh
+        if rprj:
+            llcorner = rprjToScene.pt(*llcorner)
+        ob.location = (llcorner[0] - dx, llcorner[1] - dy, 0)
 
         # Link object to scene and make active
         scn = bpy.context.scene
         scn.objects.link(ob)
         scn.objects.active = ob
         ob.select = True
-
-        # step allows reduction during import, only taking every Nth point
-        step = self.step
-        nrows = int(meta['nrows'])
-        ncols = int(meta['ncols'])
-        nodata = float(meta['nodata_value'])
 
         index = 0
         vertices = []
@@ -160,8 +188,8 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                     vertices.append((x, y, coldata[x]))
 
         if self.importMode == 'MESH':
-            step_ncols = int(ncols / step)
-            for r in range(0, int(nrows / step) - 1):
+            step_ncols = math.ceil(ncols / step)
+            for r in range(0, math.ceil(nrows / step) - 1):
                 for c in range(0, step_ncols - 1):
                     v1 = index
                     v2 = v1 + step_ncols
