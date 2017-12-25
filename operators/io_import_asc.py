@@ -12,6 +12,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 
 from ..core.proj import Reproj
+from ..core.utils import XY
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 
@@ -147,44 +148,34 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         ob = bpy.data.objects.new(name, me)
         ob.show_name = True
 
-        # options are lower left corner, or centre
+        # options are lower left cell corner, or lower left cell centre
+        reprojection = {}
+        offset = XY(0, 0)
         if 'xllcorner' in meta:
-            llcorner = (float(meta['xllcorner']), float(meta['yllcorner']))
+            llcorner = XY(float(meta['xllcorner']), float(meta['yllcorner']))
+            reprojection['from'] = llcorner
         elif 'xllcenter' in meta:
-            centre = (float(meta['xllcenter']), float(meta['yllcenter']))
-            llcorner = centre
-            # llcorner = (centre[0] - ((ncols / 2) * cellsize), 
-            #             centre[1] - ((nrows / 2) * cellsize))
+            centre = XY(float(meta['xllcenter']), float(meta['yllcenter']))
+            offset = XY(-cellsize / 2, -cellsize / 2)
+            reprojection['from'] = centre
+
+        # now set the correct offset for the mesh
+        if rprj:
+            reprojection['to'] = XY(*rprjToScene.pt(*reprojection['from']))
+            print('{name} reprojected from {from} to {to}'.format(**reprojection, name=name))
+        else:
+            reprojection['to'] = reprojection['from']
 
         if not geoscn.isGeoref:
-            if not centre:
-                # use the centre of the imported grid as scene origin (calculate only if grid file specified llcorner)
-                centre = (llcorner[0] + ((ncols / 2) * cellsize), 
-                          llcorner[1] + ((nrows / 2) * cellsize))
+            # use the centre of the imported grid as scene origin (calculate only if grid file specified llcorner)
+            centre = (reprojection['from'].x + offset.x + ((ncols / 2) * cellsize), 
+                      reprojection['from'].y + offset.y + ((nrows / 2) * cellsize))
             if rprj:
                 centre = rprjToScene.pt(*centre)
             geoscn.setOriginPrj(*centre)
             dx, dy = geoscn.getOriginPrj()
 
-        # now set the correct offset for the mesh
-        if rprj:
-            message = {'from': llcorner}
-            llcorner = rprjToScene.pt(*llcorner)
-            message.update({'to': llcorner})
-            print('Lower left corner reprojected from {from} to {to}'.format(**message))
-            # so what's the extent?
-            # lrcorner = llcorner[0] + ncols * cellsize
-            urcorner = (message['from'][0] + ncols * cellsize, message['from'][1] + nrows * cellsize)
-            message['from'] = urcorner
-            urcorner = rprjToScene.pt(*urcorner)
-            message['to'] = urcorner
-            print('Upper right corner reprojected from {from} to {to}'.format(**message))
-            ob.scale = ((urcorner[0] - llcorner[0]) / ncols,
-                        (urcorner[1] - llcorner[1]) / nrows,
-                        1)
-        else:
-            ob.scale = (cellsize,) * 3
-        ob.location = (llcorner[0] - dx, llcorner[1] - dy, 0)
+        ob.location = (reprojection['to'].x - dx, reprojection['to'].y - dy, 0)
 
         # Link object to scene and make active
         scn = bpy.context.scene
@@ -202,10 +193,12 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
                 if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
-                    location = (x, y)
-                    # if rprj:
-                    #     location = rprjToScene.pt(*location)
-                    vertices.append(location + (coldata[x],))
+                    pt = (x * cellsize + offset.x, y * cellsize + offset.y)
+                    if rprj:
+                        # reproject world-space source coordinate, then transform back to target local-space
+                        pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
+                        pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
+                    vertices.append(pt + (coldata[x],))
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
