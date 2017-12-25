@@ -5,6 +5,7 @@ import os
 import string
 import bpy
 import math
+from pprint import pprint
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
@@ -121,6 +122,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         #Path
         filename = self.filepath
         name = os.path.splitext(os.path.basename(filename))[0]
+        print('Importing {}...'.format(filename))
 
         f = open(filename, 'r')
         meta_re = re.compile('^([^\s]+)\s+([^\s]+)$')  # 'abc  123'
@@ -130,6 +132,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             m = meta_re.match(line)
             if m:
                 meta[m.group(1).lower()] = m.group(2)
+        print(pprint(meta))
 
         # step allows reduction during import, only taking every Nth point
         step = self.step
@@ -142,7 +145,6 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         name = os.path.splitext(os.path.basename(filename))[0]
         me = bpy.data.meshes.new(name)
         ob = bpy.data.objects.new(name, me)
-        ob.scale = (cellsize,) * 3
         ob.show_name = True
 
         # options are lower left corner, or centre
@@ -166,7 +168,22 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
         # now set the correct offset for the mesh
         if rprj:
+            message = {'from': llcorner}
             llcorner = rprjToScene.pt(*llcorner)
+            message.update({'to': llcorner})
+            print('Lower left corner reprojected from {from} to {to}'.format(**message))
+            # so what's the extent?
+            # lrcorner = llcorner[0] + ncols * cellsize
+            urcorner = (message['from'][0] + ncols * cellsize, message['from'][1] + nrows * cellsize)
+            message['from'] = urcorner
+            urcorner = rprjToScene.pt(*urcorner)
+            message['to'] = urcorner
+            print('Upper right corner reprojected from {from} to {to}'.format(**message))
+            ob.scale = ((urcorner[0] - llcorner[0]) / ncols,
+                        (urcorner[1] - llcorner[1]) / nrows,
+                        1)
+        else:
+            ob.scale = (cellsize,) * 3
         ob.location = (llcorner[0] - dx, llcorner[1] - dy, 0)
 
         # Link object to scene and make active
@@ -185,7 +202,10 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
                 if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
-                    vertices.append((x, y, coldata[x]))
+                    location = (x, y)
+                    # if rprj:
+                    #     location = rprjToScene.pt(*location)
+                    vertices.append(location + (coldata[x],))
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
