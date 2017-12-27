@@ -5,6 +5,7 @@ import os
 import string
 import bpy
 import math
+import string
 from pprint import pprint
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
@@ -86,6 +87,174 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         '''Report error throught a Blender's message box'''
         self.report({'ERROR'}, msg)
         return {'FINISHED'}
+
+    def read_row0(self, f, ncols):
+        """
+        Read a row by columns separated by newline.
+        """
+        return f.readline().split(' ')
+
+    def read_row1(self, f, ncols):
+        """ 
+        Read a row by columns separated by whitespace (including newlines).
+        6x slower than readlines() method.
+        """
+        buffer = 4096
+
+        row = []
+        complete = False
+        while not complete:
+            chunk = f.read(buffer)
+            if not chunk:
+                return row  # eof without reaching ncols?
+            last = None
+            for m in re.finditer('([^\s]+)', chunk):
+                last = m
+                row.append(m.group(0))
+                if len(row) == ncols:
+                    # completed a row within this chunk, rewind the position to start at the beginning of the next row
+                    f.seek(f.tell() - (buffer - m.end()))
+                    complete = True
+                    break
+            if not complete and last:
+                # incomplete row from chunk, revert last value
+                f.seek(f.tell() - (buffer - last.start()))
+                del row[-1]
+        return row
+
+    def read_row2(self, f, ncols):
+        """ 
+        Read a row by columns separated by whitespace (including newlines).
+        2x slower than readlines() method, with potential side effects depending on input.
+        """
+        buffer = 4096
+        
+        row = []
+        complete = False
+        while not complete:
+            chunk = f.read(buffer)
+            if not chunk:
+                return row  # eof without reaching ncols?
+
+            # remove end of string up to last whitespace to avoid partial values
+            for i in range(len(chunk) - 1, -1, -1):
+                if chunk[i] in string.whitespace:
+                    f.seek(f.tell() - (buffer - i))
+                    chunk = chunk[:i]
+                    break
+
+            # split where we have a complete row
+            split_at = ncols - len(row)
+            parts = chunk.split()
+            row = row + parts[:split_at]
+            if len(row) == ncols:
+                # rewind the position to the location where we had enough chars to complete the row
+                # NOTE: if the file is newline separated with \r\n, and the filestream converted to \n on read or 
+                # there was more than one space between values, this seek will break
+                f.seek(f.tell() - len(' '.join(parts[split_at:])))
+                break
+        return row
+
+    def read_row3(self, f, ncols):
+        """ 
+        Read a row by columns separated by whitespace (including newlines).
+        20x slower than readlines() method.
+        """
+        buffer = 4096
+        
+        row = []
+        while True:
+            chunk = f.read(buffer)
+            if not chunk:
+                return row  # eof without reaching ncols?
+
+            # remove end of string up to last whitespace to avoid partial values
+            buffer_trunc = buffer
+            for i in range(len(chunk) - 1, -1, -1):
+                if chunk[i] in string.whitespace:
+                    buffer_trunc = i
+                    f.seek(f.tell() - (buffer - i))
+                    chunk = chunk[:i]
+                    break
+
+            # split where we have a complete row
+            i = 0
+            buf = []
+            for c in chunk:
+                i += 1
+                if c in string.whitespace:
+                    if buf:
+                        row.append(''.join(buf))
+                        buf = []
+                        if len(row) == ncols:
+                            f.seek(f.tell() - (buffer_trunc - i))
+                            return row
+                    # else we haven't started filling the buffer, so keep reading
+                else:
+                    buf.append(c)
+            # we finished the chunk loop with a value, add it to the row
+            if buf:
+                row.append(''.join(buf))
+                if len(row) == ncols:
+                    return row
+
+    def read_row4(self, f, ncols):
+        """
+        Read a row by columns separated by whitespace (including newlines).
+        20x slower than readlines() method.
+        """
+        with open(f.name, 'rb') as bf:
+            bf.seek(f.tell())
+            row = []
+            buffer = b''
+            byte = bf.read(1)
+            i = 0
+            while byte:
+                if byte.isspace():
+                    if buffer:
+                        row.append(buffer)
+                        if i == ncols:
+                            f.seek(bf.tell())
+                            return row
+                        buffer = b''
+                        i += 1
+                else:
+                    buffer += byte
+                byte = bf.read(1)
+
+    def read_row5(self, f, ncols):
+        """
+        Read a row by columns separated by whitespace (including newlines).
+        20x slower than readlines() method.
+        """
+        buffer = 4096
+        
+        with open(f.name, 'rb') as bf:
+            bf.seek(f.tell())
+            row = []
+            while True:
+                chunk = bf.read(buffer)
+                if not chunk:
+                    return row  # eof without reaching ncols?
+
+                # split where we have a complete row
+                i = 0
+                buf = ''
+                for byte in map(chr, chunk):
+                    i += 1
+                    if byte.isspace():
+                        if buf:
+                            row.append(buf)
+                            buf = ''
+                            if len(row) == ncols:
+                                f.seek(bf.tell() - (buffer - i))
+                                return row
+                        # else we haven't started filling the buffer, so keep reading
+                    else:
+                        buf += byte
+                # we finished the chunk loop with a value, rewind the bf position to try again
+                if buf:
+                    bf.seek(bf.tell() - len(buf))
 
     def execute(self, context):
         prefs = bpy.context.user_preferences.addons[PKG].preferences
@@ -186,10 +355,15 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         index = 0
         vertices = []
         faces = []
+        import time
+        t0 = time.time()
+        read = self.read_row5
         for y in range(nrows - 1, -1, -step):
-            coldata = list(map(float, f.readline().split(' ')))
+            # spec doesn't require newline separated rows so make it handle a single line of all values
+            coldata = list(map(float, read(f, ncols)))
             for i in range(step - 1):
-                _ = f.readline()
+                _ = read(f, ncols)
+                
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
                 if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
@@ -199,6 +373,8 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                         pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
                         pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
                     vertices.append(pt + (coldata[x],))
+        t1 = time.time()
+        print('execution time:', t1 - t0, 'seconds')
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
