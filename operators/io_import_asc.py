@@ -112,7 +112,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         """
         Read a row by columns separated by newline.
         """
-        return f.readline().split(' ')
+        return f.readline().split()
 
     def read_row_whitespace(self, f, ncols):
         """ 
@@ -242,9 +242,9 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
         for y in range(nrows - 1, -1, -step):
             # spec doesn't require newline separated rows so make it handle a single line of all values
-            coldata = list(map(float, read(f, ncols)))
+            coldata = read(f, ncols)
             if len(coldata) != ncols:
-                self.report({'ERROR'}, 'Incorrect number of columns for row {y}. Expected {expected}, got {actual}.'.format(y=y, expected=ncols, actual=len(coldata)))
+                self.report({'ERROR'}, 'Incorrect number of columns for row {row}. Expected {expected}, got {actual}.'.format(row=nrows-y, expected=ncols, actual=len(coldata)))
                 return {'FINISHED'}
 
             for i in range(step - 1):
@@ -258,7 +258,11 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                         # reproject world-space source coordinate, then transform back to target local-space
                         pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
                         pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
-                    vertices.append(pt + (coldata[x],))
+                    try:
+                        vertices.append(pt + (float(coldata[x]),))
+                    except ValueError as e:
+                        self.report({'ERROR'}, 'Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
+                        return {'FINISHED'}
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
