@@ -66,11 +66,20 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         min=1
     )
 
+    # Let the user decide whether to use the faster newline method
+    # Alternatively, use self.total_newlines(filename) to see whether total >= nrows and automatically decide (at the cost of time spent counting lines)
+    newlines = BoolProperty(
+        name="Newline-delimited rows",
+        description="Use this method if the file contains newline separated rows for faster import",
+        default=True,
+    )
+
     def draw(self, context):
         #Function used by blender to draw the panel.
         layout = self.layout
         layout.prop(self, 'importMode')
         layout.prop(self, 'step')
+        layout.prop(self, 'newlines')
         
         row = layout.row(align=True)
         split = row.split(percentage=0.35, align=True)
@@ -80,7 +89,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         scn = bpy.context.scene
         geoscn = GeoScene(scn)
         if geoscn.isPartiallyGeoref:
-        	georefManagerLayout(self, context)
+            georefManagerLayout(self, context)
 
 
     def err(self, msg):
@@ -88,173 +97,57 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         self.report({'ERROR'}, msg)
         return {'FINISHED'}
 
-    def read_row0(self, f, ncols):
+    def total_lines(self, filename):
+        """ 
+        Count newlines in file.
+        512MB file ~3 seconds.
+        """
+        with open(filename) as f:
+            lines = 0
+            for _ in f:
+                lines += 1
+            return lines
+
+    def read_row_newlines(self, f, ncols):
         """
         Read a row by columns separated by newline.
         """
         return f.readline().split(' ')
 
-    def read_row1(self, f, ncols):
+    def read_row_whitespace(self, f, ncols):
         """ 
         Read a row by columns separated by whitespace (including newlines).
-        6x slower than readlines() method.
+        6x slower than readlines() method but faster than any other method I can come up with. See commit 4d337c4 for alternatives.
         """
-        buffer = 4096
-
+        # choose a buffer that requires the least reads, but not too much memory (32MB max)
+        # cols * 6 allows us 5 chars plus space, approximating values such as '12345', '-1234', '12.34', '-12.3'
+        buf_size = min(1024 * 32, ncols * 6)
         row = []
-        complete = False
-        while not complete:
-            chunk = f.read(buffer)
+        read_f = f.read
+        while True:
+            chunk = read_f(buf_size)
+
+            # assuming we read a complete chunk, remove end of string up to last whitespace to avoid partial values
+            # if the chunk is smaller than our buffer size, then we've read to the end of file and 
+            #   can skip truncating the chunk since we know the last value will be complete
+            if len(chunk) == buf_size:
+                for i in range(len(chunk) - 1, -1, -1):
+                    if chunk[i].isspace():
+                        f.seek(f.tell() - (len(chunk) - i))
+                        chunk = chunk[:i]
+                        break
+
+            # either read was EOF or chunk was all whitespace
             if not chunk:
                 return row  # eof without reaching ncols?
-            last = None
+
+            # find each value separated by any whitespace char
             for m in re.finditer('([^\s]+)', chunk):
-                last = m
                 row.append(m.group(0))
                 if len(row) == ncols:
                     # completed a row within this chunk, rewind the position to start at the beginning of the next row
-                    f.seek(f.tell() - (buffer - m.end()))
-                    complete = True
-                    break
-            if not complete and last:
-                # incomplete row from chunk, revert last value
-                f.seek(f.tell() - (buffer - last.start()))
-                del row[-1]
-        return row
-
-    def read_row2(self, f, ncols):
-        """ 
-        Read a row by columns separated by whitespace (including newlines).
-        2x slower than readlines() method, with potential side effects depending on input.
-        """
-        buffer = 4096
-        
-        row = []
-        complete = False
-        while not complete:
-            chunk = f.read(buffer)
-            if not chunk:
-                return row  # eof without reaching ncols?
-
-            # remove end of string up to last whitespace to avoid partial values
-            for i in range(len(chunk) - 1, -1, -1):
-                if chunk[i] in string.whitespace:
-                    f.seek(f.tell() - (buffer - i))
-                    chunk = chunk[:i]
-                    break
-
-            # split where we have a complete row
-            split_at = ncols - len(row)
-            parts = chunk.split()
-            row = row + parts[:split_at]
-            if len(row) == ncols:
-                # rewind the position to the location where we had enough chars to complete the row
-                # NOTE: if the file is newline separated with \r\n, and the filestream converted to \n on read or 
-                # there was more than one space between values, this seek will break
-                f.seek(f.tell() - len(' '.join(parts[split_at:])))
-                break
-        return row
-
-    def read_row3(self, f, ncols):
-        """ 
-        Read a row by columns separated by whitespace (including newlines).
-        20x slower than readlines() method.
-        """
-        buffer = 4096
-        
-        row = []
-        while True:
-            chunk = f.read(buffer)
-            if not chunk:
-                return row  # eof without reaching ncols?
-
-            # remove end of string up to last whitespace to avoid partial values
-            buffer_trunc = buffer
-            for i in range(len(chunk) - 1, -1, -1):
-                if chunk[i] in string.whitespace:
-                    buffer_trunc = i
-                    f.seek(f.tell() - (buffer - i))
-                    chunk = chunk[:i]
-                    break
-
-            # split where we have a complete row
-            i = 0
-            buf = []
-            for c in chunk:
-                i += 1
-                if c in string.whitespace:
-                    if buf:
-                        row.append(''.join(buf))
-                        buf = []
-                        if len(row) == ncols:
-                            f.seek(f.tell() - (buffer_trunc - i))
-                            return row
-                    # else we haven't started filling the buffer, so keep reading
-                else:
-                    buf.append(c)
-            # we finished the chunk loop with a value, add it to the row
-            if buf:
-                row.append(''.join(buf))
-                if len(row) == ncols:
+                    f.seek(f.tell() - (len(chunk) - m.end()))
                     return row
-
-    def read_row4(self, f, ncols):
-        """
-        Read a row by columns separated by whitespace (including newlines).
-        20x slower than readlines() method.
-        """
-        with open(f.name, 'rb') as bf:
-            bf.seek(f.tell())
-            row = []
-            buffer = b''
-            byte = bf.read(1)
-            i = 0
-            while byte:
-                if byte.isspace():
-                    if buffer:
-                        row.append(buffer)
-                        if i == ncols:
-                            f.seek(bf.tell())
-                            return row
-                        buffer = b''
-                        i += 1
-                else:
-                    buffer += byte
-                byte = bf.read(1)
-
-    def read_row5(self, f, ncols):
-        """
-        Read a row by columns separated by whitespace (including newlines).
-        20x slower than readlines() method.
-        """
-        buffer = 4096
-        
-        with open(f.name, 'rb') as bf:
-            bf.seek(f.tell())
-            row = []
-            while True:
-                chunk = bf.read(buffer)
-                if not chunk:
-                    return row  # eof without reaching ncols?
-
-                # split where we have a complete row
-                i = 0
-                buf = ''
-                for byte in map(chr, chunk):
-                    i += 1
-                    if byte.isspace():
-                        if buf:
-                            row.append(buf)
-                            buf = ''
-                            if len(row) == ncols:
-                                f.seek(bf.tell() - (buffer - i))
-                                return row
-                        # else we haven't started filling the buffer, so keep reading
-                    else:
-                        buf += byte
-                # we finished the chunk loop with a value, rewind the bf position to try again
-                if buf:
-                    bf.seek(bf.tell() - len(buf))
 
     def execute(self, context):
         prefs = bpy.context.user_preferences.addons[PKG].preferences
@@ -273,17 +166,17 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             dx, dy = geoscn.getOriginPrj()
         scale = geoscn.scale #TODO
         if not geoscn.hasCRS:
-        	try:
-        		geoscn.crs = self.fileCRS
-        	except Exception as e:
-        		self.report({'ERROR'}, str(e))
-        		return {'FINISHED'}
+            try:
+                geoscn.crs = self.fileCRS
+            except Exception as e:
+                self.report({'ERROR'}, str(e))
+                return {'FINISHED'}
 
         #build reprojector objects
         if geoscn.crs != self.fileCRS:
-        	rprj = True
-        	rprjToRaster = Reproj(geoscn.crs, self.fileCRS)
-        	rprjToScene = Reproj(self.fileCRS, geoscn.crs)
+            rprj = True
+            rprjToRaster = Reproj(geoscn.crs, self.fileCRS)
+            rprjToScene = Reproj(self.fileCRS, geoscn.crs)
         else:
             rprj = False
             rprjToRaster = None
@@ -310,12 +203,6 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         ncols = int(meta['ncols'])
         cellsize = float(meta['cellsize'])
         nodata = float(meta['nodata_value'])
-        
-        # Create mesh
-        name = os.path.splitext(os.path.basename(filename))[0]
-        me = bpy.data.meshes.new(name)
-        ob = bpy.data.objects.new(name, me)
-        ob.show_name = True
 
         # options are lower left cell corner, or lower left cell centre
         reprojection = {}
@@ -344,23 +231,22 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             geoscn.setOriginPrj(*centre)
             dx, dy = geoscn.getOriginPrj()
 
-        ob.location = (reprojection['to'].x - dx, reprojection['to'].y - dy, 0)
-
-        # Link object to scene and make active
-        scn = bpy.context.scene
-        scn.objects.link(ob)
-        scn.objects.active = ob
-        ob.select = True
-
         index = 0
         vertices = []
         faces = []
-        import time
-        t0 = time.time()
-        read = self.read_row5
+
+        # determine row read method
+        read = self.read_row_whitespace
+        if self.newlines:
+            read = self.read_row_newlines
+
         for y in range(nrows - 1, -1, -step):
             # spec doesn't require newline separated rows so make it handle a single line of all values
             coldata = list(map(float, read(f, ncols)))
+            if len(coldata) != ncols:
+                self.report({'ERROR'}, 'Incorrect number of columns for row {y}. Expected {expected}, got {actual}.'.format(y=y, expected=ncols, actual=len(coldata)))
+                return {'FINISHED'}
+
             for i in range(step - 1):
                 _ = read(f, ncols)
                 
@@ -373,8 +259,6 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                         pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
                         pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
                     vertices.append(pt + (coldata[x],))
-        t1 = time.time()
-        print('execution time:', t1 - t0, 'seconds')
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
@@ -387,6 +271,17 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                     faces.append((v1, v2, v3, v4))
                     index += 1
                 index += 1
+
+        # Create mesh
+        me = bpy.data.meshes.new(name)
+        ob = bpy.data.objects.new(name, me)
+        ob.location = (reprojection['to'].x - dx, reprojection['to'].y - dy, 0)
+
+        # Link object to scene and make active
+        scn = bpy.context.scene
+        scn.objects.link(ob)
+        scn.objects.active = ob
+        ob.select = True
 
         me.from_pydata(vertices, [], faces)
         me.update()
