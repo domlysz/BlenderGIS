@@ -126,11 +126,13 @@ def register():
 	bpy.types.INFO_MT_file_import.append(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
 
-	#shortcuts
-	wm = bpy.context.window_manager
-	km = wm.keyconfigs.active.keymaps['3D View']
-	kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
-
+	#shortcuts (fails when blender is run headless)
+	try:
+		wm = bpy.context.window_manager
+		km = wm.keyconfigs.active.keymaps['3D View']
+		kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+	except:
+		pass
 	#config core settings
 	prefs = bpy.context.user_preferences.addons[__package__].preferences
 	cfg = getSettings()
@@ -146,12 +148,13 @@ def unregister():
 
 	bpy.types.INFO_MT_file_import.remove(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
-
-	wm = bpy.context.window_manager
-	km = wm.keyconfigs.active.keymaps['3D View']
-	kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
-	#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
-
+	try:
+		wm = bpy.context.window_manager
+		km = wm.keyconfigs.active.keymaps['3D View']
+		kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
+		#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
+	except:
+		pass
 	nodes_terrain_analysis_reclassify.unregister()
 	bpy.utils.unregister_module(__name__)
 
