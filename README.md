@@ -1,6 +1,8 @@
 Blender GIS
 ==========
 
+Python3.6 is required for proper functionality (many distros still distribute python3.5 by default)
+
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
 
 Minimal version of Blender required : v2.78
