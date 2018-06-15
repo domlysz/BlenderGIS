@@ -563,8 +563,8 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		api = overpy.Overpass()
 
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
-
-		print(query)
+                # print sometimes fail with non utf8 chars (lon -8.73915, lat 40.332, zoom 12)
+		# print(query)
 		try:
 			result = api.query(query)
 		except Exception as e:
