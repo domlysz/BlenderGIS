@@ -58,7 +58,7 @@ def lonLatToWebMerc(lon, lat):
 ######################################
 # Raster reproj using GDAL
 
-def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=False, resamplAlg='BL'):
+def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=False, resamplAlg='BL', path=None, geoTiffOptions={'TFW':'YES', 'TILED':'YES', 'BIGTIFF':'YES', 'COMPRESS':'JPEG', 'JPEG_QUALITY':80, 'PHOTOMETRIC':'YCBCR'}):
 	'''
 	Use GDAL Python binding to reproject an image
 	crs1, crs2 >> epsg code
@@ -67,7 +67,9 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=Fa
 	out_size >> |tuple], output raster size (same as input is None)
 	out_res >> [number], output raster resolution (same as input if None) (resx = resy)
 	sqPx >> [boolean] force square pixel resolution when resoltion is automatically computed
-	return ds2 >> output GDAL dataset object
+	path >> a geotiff file path to store the result into (optional)
+	geoTiffOptions >> GDAL create option for tiff format (optional)
+	return ds2 >> output GDAL dataset object. If path is None, the dataset will be stored in memory however into a geotiff file on disk
 	'''
 
 	if not HAS_GDAL:
@@ -141,7 +143,15 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=Fa
 			resx = max(resx, abs(resy))
 			resy = -resx
 
-	ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GetDataTypeByName(dtype))
+	if path is None:
+		ds2 = gdal.GetDriverByName('MEM').Create('', img_w, img_h, nbBands, gdal.GetDataTypeByName(dtype))
+	else:
+		gdal.SetConfigOption('GDAL_TIFF_INTERNAL_MASK', 'YES')
+		options = [str(k) + '=' + str(v) for k, v in geoTiffOptions.items()]
+		ds2 = gdal.GetDriverByName('GTiff').Create(path, img_w, img_h, nbBands, gdal.GetDataTypeByName(dtype), options)
+		if geoTiffOptions.get('COMPRESS', None) == 'JPEG':
+			ds2.CreateMaskBand(gdal.GMF_PER_DATASET)
+			ds2.GetRasterBand(1).GetMaskBand().Fill(255) #WARNING, it seems gdal.ReprojectImage does not honor internal mask !
 	geoTrans = (xmin, resx, 0, ymax, 0, resy)
 	ds2.SetGeoTransform(geoTrans)
 	prj2 = SRS(crs2).getOgrSpatialRef()
@@ -168,8 +178,8 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=Fa
 	else:
 		gdal.ReprojectImage(ds1, ds2, wkt1, wkt2, alg, memLimit, threshold)
 
-	# Close
-	ds1 = None
+	#ds1 = None
+
 	return ds2
 
 

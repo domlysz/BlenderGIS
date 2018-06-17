@@ -24,11 +24,12 @@ import queue
 import time
 import urllib.request
 import imghdr
+import sys, time
 
 #core imports
 from .servicesDefs import GRIDS, SOURCES
 from .gpkg import GeoPackage
-from ..georaster import NpImage, GeoRef
+from ..georaster import NpImage, GeoRef, BigTiffWriter
 from ..utils import BBOX
 from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
@@ -315,6 +316,13 @@ class MapService():
 			zmin & zmax
 		urlTemplate
 		referer
+
+	Service status code
+		0 = no running tasks
+		1 = getting cache (create a new db if needed)
+		2 = downloading
+		3 = building mosaic
+		4 = reprojecting
 	"""
 
 	# resampling algo for reprojection
@@ -367,17 +375,26 @@ class MapService():
 		self.cptTiles = 0
 
 		#codes that indicate the current status of the service
-		# 0 = no running tasks
-		# 1 = getting cache (create a new db if needed)
-		# 2 = downloading
-		# 3 = building mosaic
-		# 4 = reprojecting
 		self.status = 0
 
 		self.lock = threading.RLock()
 
+	def reportLoop(self):
+		msg = self.report
+		while self.running:
+			time.sleep(0.05)
+			if self.report != msg:
+				#sys.stdout.write("\033[F") #back to previous line
+				sys.stdout.write("\033[K") #clear line
+				sys.stdout.flush()
+				print(self.report, end='\r') #'\r' will move the cursor back to the beginning of the line
+				msg = self.report
+
 	def start(self):
 		self.running = True
+		reporter = threading.Thread(target=self.reportLoop)
+		reporter.setDaemon(True) #daemon threads will die when the main non-daemon thread have exited.
+		reporter.start()
 
 	def stop(self):
 		self.running = False
@@ -738,86 +755,104 @@ class MapService():
 		"""
 		#Select tile matrix set
 		tm = self.getTM(toDstGrid)
-
 		rq = BBoxRequest(tm, bbox, zoom)
-		#self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, buffSize=5000)
-
-		#seedCache is a client method and must report progress
-		t = threading.Thread(target=self.seedTiles, kwargs={'laykey':laykey, 'tiles':rq.tiles, 'toDstGrid':toDstGrid, 'nbThread':nbThread, 'buffSize':buffSize})
-		t.start()
-		while t.is_alive():
-			print('\r' + self.report, end='')
-			#Writing '\r' will move the cursor back to the beginning of the line
-			#specify empty end character to avoid default newline of print function
-		print('')#will print a newline
+		self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, buffSize=5000)
 
 
-	def getImage(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, cpt=True, outCRS=None, allowEmptyTile=True):
+	def getImage(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, cpt=True, outCRS=None, path=None):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
-		return a georeferenced NpImage object or None
+		if path is None then return a georeferenced NpImage object
+		if path is not None, then the resulting output will be writen as geotif file on disk and the function will return None
 		"""
 
 		#Select tile matrix set
 		tm = self.getTM(toDstGrid)
 
+		#Get request
 		rq = BBoxRequest(tm, bbox, zoom)
 		tileSize = rq.tileSize
 		res = rq.res
 		cols, rows = rq.cols, rq.rows
+		rqTiles = rq.tiles #[(x,y,z)]
 
-		#Create numpy image in memory
+		##method 1) Seed the cache with all required tiles
+		self.seedCache(laykey, bbox, zoom, toDstGrid=toDstGrid, nbThread=nbThread, buffSize=5000)
+		cache = self.getCache(laykey, toDstGrid)
+
+		#Get georef parameters
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
 		xmin, ymin, xmax, ymax = rq.bbox
 		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=tm.crs)
-		mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 
-		#Get tiles from www or cache (all tiles must fit in memory)
-		tiles = self.getTiles(laykey, rq.tiles, toDstGrid, nbThread, cpt)
+		if path is None:
+			#Create numpy image in memory
+			mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
+			chunkSize = rq.nbTiles
+		else:
+			#Create bigtiff file on disk
+			mosaic = BigTiffWriter(path, img_w, img_h, georef)
+			ds = mosaic.ds
+			chunkSize = 5 #number of tiles to extract in one cache request
 
 		#Build mosaic
-		if cpt:
-			self.status = 3
-		for tile in tiles:
+		for i in range(0, rq.nbTiles, chunkSize):
+			chunkTiles = rqTiles[i:i+chunkSize]
 
-			if not self.running:
-				if cpt:
-					self.status = 0
-				return None
+			##method 1) Get cached tiles
+			tiles = cache.getTiles(chunkTiles) #[(x,y,z,data)]
 
-			col, row, z, data = tile
-			if data is None:
-				#create an empty tile
-				if allowEmptyTile:
+			##method 2) Get tiles from www or cache (all tiles must fit in memory)
+			#tiles = self.getTiles(laykey, chunkTiles, toDstGrid, nbThread, cpt)
+
+			if cpt:
+				self.status = 3
+			for tile in tiles:
+
+				if not self.running:
+					if cpt:
+						self.status = 0
+					return None
+
+				col, row, z, data = tile
+				if data is None:
+					#create an empty tile
 					img = NpImage.new(tileSize, tileSize, bkgColor=(128,128,128,255))
 				else:
-					return None
-			else:
-				try:
-					img = NpImage(data)
-				except Exception as e:
-					print(str(e))
-					if allowEmptyTile:
+					try:
+						img = NpImage(data)
+					except Exception as e:
+						print(str(e))
 						#create an empty tile if we are unable to get a valid stream
 						img = NpImage.new(tileSize, tileSize, bkgColor=(255,192,203,255))
-					else:
-						return None
 
-			posx = (col - rq.firstCol) * tileSize
-			posy = abs((row - rq.firstRow)) * tileSize
-			mosaic.paste(img, posx, posy)
+
+				posx = (col - rq.firstCol) * tileSize
+				posy = abs((row - rq.firstRow)) * tileSize
+				mosaic.paste(img, posx, posy)
 
 		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
 			if cpt:
 				self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
-			mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), sqPx=True, resamplAlg=self.RESAMP_ALG))
+
+			if path is None:
+				mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), sqPx=True, resamplAlg=self.RESAMP_ALG))
+			else:
+				outPath = path[:-4] + '_' + str(outCRS) + '.tif'
+				ds = reprojImg(tm.CRS, outCRS, mosaic.ds, sqPx=True, resamplAlg=self.RESAMP_ALG, path=outPath)
+
+
+		#build overviews for file output
+		if path is not None:
+			ds.BuildOverviews(overviewlist=[2,4,8,16,32])
+			ds = None
 
 		#Finish
 		if cpt:
 			self.status = 0
-		if self.running:
+		if self.running and path is None:
 			return mosaic
 		else:
 			return None
