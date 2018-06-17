@@ -78,6 +78,7 @@ class bgisPanel(bpy.types.Panel):
 		row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
 		row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
 		row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
+		row.operator("importgis.asc_file", icon_value=icons_dict["lidar"].icon_id, text='')
 		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
 
 		col = layout.column(align=True)
@@ -103,6 +104,7 @@ def menu_func_import(self, context):
 	self.layout.operator('importgis.georaster', text="Georeferenced raster")
 	self.layout.operator('importgis.shapefile_file_dialog', text="Shapefile (.shp)")
 	self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
+	self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
 
 def menu_func_export(self, context):
 	self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
