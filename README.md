@@ -1,15 +1,24 @@
 Blender GIS
 ==========
-
-[Wiki](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage) available for further information.
-
 Minimal version of Blender required : v2.78
+
+[Full documentation](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage)
+--------------------
+
+[FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start)
+
 
 [Basemaps](https://github.com/domlysz/BlenderGIS/wiki/Basemaps)
 --------------------
 Display web map service like OpenStreetMap directly in Blender
 
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
+
+[SRTM download](https://github.com/domlysz/BlenderGIS/wiki/SRTM)
+--------------------
+Get SRTM topographic data and apply it as height texture
+
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/srtm_demo.gif)
 
 
 [ESRI Shapefile import / export](https://github.com/domlysz/BlenderGIS/wiki/Shapefile-import)
@@ -29,6 +38,7 @@ Import geotiff or common image format georeferenced with a [world file](http://e
 
 You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or [as DEM](https://github.com/domlysz/BlenderGIS/wiki/Import-DEM-grid) for warp a mesh with the displace modifier.
 
+ESRI ASCII GRID format is also supported through a dedicated import tool.
 
 [OpenStreetMap import](https://github.com/domlysz/BlenderGIS/wiki/OSM-import)
 --------------------
