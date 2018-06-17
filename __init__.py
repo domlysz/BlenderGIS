@@ -106,7 +106,8 @@ def menu_func_import(self, context):
 
 def menu_func_export(self, context):
 	self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
-
+	self.layout.operator('exportgis.kml_file', text="path as KML (.kml)")	
+	self.layout.operator('exportgis.kmz_file', text="path as KMZ (.kmz)")	
 
 def register():
 
