@@ -78,7 +78,7 @@ class bgisPanel(bpy.types.Panel):
 		row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
 		row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
 		row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
-		row.operator("importgis.asc_file", icon_value=icons_dict["lidar"].icon_id, text='')
+		row.operator("importgis.asc_file", icon_value=icons_dict["asc"].icon_id, text='')
 		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
 
 		col = layout.column(align=True)
@@ -150,7 +150,7 @@ def unregister():
 
 	bpy.types.INFO_MT_file_import.remove(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
-	try:
+	try: #windows manager may be unavailable (for example whne running Blender command line)
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
 		kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
