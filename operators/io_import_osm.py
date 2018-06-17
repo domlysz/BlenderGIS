@@ -39,7 +39,7 @@ def queryBuilder(bbox, tags=['building', 'highway'], types=['node', 'way', 'rela
 
 		'''
 		QL template syntax :
-		[out:json][bbox:ymin,xmin,ymax,xmax];(node[tag1];node[tag2];((way[tag1];way[tag2]);>);relation);out;
+		[out:json][bbox:ymin,xmin,ymax,xmax];(node[tag1];node[tag2];((way[tag1];way[tag2];);>;);relation;);out;
 		'''
 
 		#s,w,n,e <--> ymin,xmin,ymax,xmax
@@ -62,13 +62,13 @@ def queryBuilder(bbox, tags=['building', 'highway'], types=['node', 'way', 'rela
 		if 'way' in types:
 			union += '(('
 			if tags:
-				union += ';'.join( ['way['+tag+']' for tag in tags] ) + ');'
+				union += ';'.join( ['way['+tag+']' for tag in tags] ) + ';);'
 			else:
-				union += 'way);'
-			union += '>);'
+				union += 'way;);'
+			union += '>;);'
 		#all relations (no filter tag applied)
 		if 'relation' in types or 'rel' in types:
-			union += 'relation'
+			union += 'relation;'
 		union += ')'
 
 		output = ';out;'
