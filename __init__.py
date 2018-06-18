@@ -128,13 +128,12 @@ def register():
 	bpy.types.INFO_MT_file_import.append(menu_func_import)
 	bpy.types.INFO_MT_file_export.append(menu_func_export)
 
-	#shortcuts (fails when blender is run headless)
-	try:
-		wm = bpy.context.window_manager
-		km = wm.keyconfigs.active.keymaps['3D View']
+	#shortcuts
+	wm = bpy.context.window_manager
+	kc =  wm.keyconfigs.active
+	if kc is not None: #no keyconfig when Blender from commandline with background flag
+		km = kc.keymaps['3D View']
 		kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
-	except:
-		pass
 	#config core settings
 	prefs = bpy.context.user_preferences.addons[__package__].preferences
 	cfg = getSettings()
