@@ -142,11 +142,19 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#Basemaps
 
+	def getCacheFolder(self):
+		return bpy.path.abspath(self["cacheFolder"])
+
+	def setCacheFolder(self, value):
+		self["cacheFolder"] = value
+
 	cacheFolder = StringProperty(
 		name = "Cache folder",
 		default = "",
 		description = "Define a folder where to store Geopackage SQlite db",
-		subtype = 'DIR_PATH'
+		subtype = 'DIR_PATH',
+		get = getCacheFolder,
+		set = setCacheFolder
 		)
 
 	fontColor = FloatVectorProperty(
