@@ -967,7 +967,7 @@ class Reclass_exportSVG(Operator):
 			color = Color(list(stop.color), 'rgba')
 			colorRamp.addStop(stop.position, color)
 		#write svg
-		svgPath = folder + self.name + '.svg'
+		svgPath = svgGradientFolder + self.name + '.svg'
 		if self.gradientType == "INTERPOLATE":
 			interpoGradient = colorRamp.getRangeColor(self.n, self.colorSpace, self.method)
 			interpoGradient.exportSVG(svgPath, self.makeDiscrete)
@@ -975,5 +975,5 @@ class Reclass_exportSVG(Operator):
 			colorRamp.exportSVG(svgPath, self.makeDiscrete)
 		#update svg files list
 		global svgFiles
-		svgFiles = filesList(folder, '.svg')
+		svgFiles = filesList(svgGradientFolder , '.svg')
 		return {'FINISHED'}
