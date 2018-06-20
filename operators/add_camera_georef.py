@@ -42,6 +42,7 @@ class SetGeorenderCam(bpy.types.Operator):
 
 	name = bpy.props.StringProperty(name = "Camera name", default="Georef cam", description="")
 	target_res = bpy.props.FloatProperty(name = "Pixel size", default=5, description="Pixel size in map units/pixel", min=0.00001)
+	zLocOffset = bpy.props.FloatProperty(name = "Z loc. off.", default=50, description="Camera z location offet, defined as percentage of z dimension of the target mesh", min=0)
 	redo = 0
 
 	def check(self, context):
@@ -52,7 +53,7 @@ class SetGeorenderCam(bpy.types.Operator):
 		layout = self.layout
 		layout.prop(self, 'name')
 		layout.prop(self, 'target_res')
-
+		layout.prop(self, 'zLocOffset')
 
 
 	def execute(self, context):#every times operator redo options are modified
@@ -132,7 +133,7 @@ class SetGeorenderCam(bpy.types.Operator):
 
 		#General offset used to set cam z loc and clip end distance
 		#needed to avoid clipping/black hole effects
-		offset = dimz * 50/100
+		offset = dimz * self.zLocOffset/100
 
 		#Set camera location
 		camLocZ = bbox['zmin'] + dimz + offset
