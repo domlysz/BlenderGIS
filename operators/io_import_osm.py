@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import random
 
 import bpy
 import bmesh
@@ -130,6 +131,7 @@ class OSM_IMPORT():
 
 	defaultHeight = FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
 	levelHeight = FloatProperty(name='Level height', description='Set a height for a building level, using for compute extrude height based on number of levels', default=3)
+	randomHeightThreshold = FloatProperty(name='Random height threshold', description='Threshold value for randomize default height', default=0)
 
 	def draw(self, context):
 		layout = self.layout
@@ -139,6 +141,7 @@ class OSM_IMPORT():
 		col = row.column()
 		col.prop(self, "filterTags", expand=True)
 		layout.prop(self, 'defaultHeight')
+		layout.prop(self, 'randomHeightThreshold')
 		layout.prop(self, 'levelHeight')
 		layout.prop(self, 'separate')
 
@@ -215,7 +218,11 @@ class OSM_IMPORT():
 				elif "building:levels" in tags:
 					offset = int(tags["building:levels"]) * self.levelHeight
 				else:
-					offset = self.defaultHeight
+					minH = self.defaultHeight - self.randomHeightThreshold
+					if minH < 0 :
+						minH = 0
+					maxH = self.defaultHeight + self.randomHeightThreshold
+					offset = random.randint(minH, maxH)
 
 				#Extrude
 				"""
