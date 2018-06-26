@@ -108,7 +108,7 @@ class BigTiffWriter():
 		#Process alpha
 		hasAlpha = data.shape[2] == 4
 		if hasAlpha:
-			alpha = img[:,:,3]
+			alpha = data[:,:,3]
 			if self.useMask:
 				self.mask.WriteArray(alpha, x, y)
 			else:

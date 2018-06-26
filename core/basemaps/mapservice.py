@@ -24,7 +24,7 @@ import queue
 import time
 import urllib.request
 import imghdr
-import sys, time
+import sys, time, os
 
 #core imports
 from .servicesDefs import GRIDS, SOURCES
@@ -250,6 +250,29 @@ class TileMatrix():
 	def bboxRequest(self, bbox, zoom):
 		return BBoxRequest(self, bbox, zoom)
 
+class BBoxRequestMZ():
+	'''Multiple Zoom BBox request'''
+	def __init__(self, tm, bbox, zooms):
+
+		self.tm = tm
+		self.bboxrequests = {}
+		for z in zooms:
+			self.bboxrequests[z] = BBoxRequest(tm, bbox, z)
+
+	@property
+	def tiles(self):
+		tiles = []
+		for bboxrequest in self.bboxrequests.values():
+			tiles.extend(bboxrequest.tiles)
+		return tiles
+
+	@property
+	def nbTiles(self):
+		return len(self.tiles)
+
+	def __getitem__(self, z):
+		return self.bboxrequests[z]
+
 
 class BBoxRequest():
 
@@ -292,7 +315,7 @@ class BBoxRequest():
 	def nbTiles(self):
 		return self.nbTilesX * self.nbTilesY
 
-	#n tiles, megapixel, geosize
+	#megapixel, geosize
 
 
 
@@ -438,7 +461,7 @@ class MapService():
 		mapKey = self.srckey + '_' + laykey + '_' + grdkey
 		cache = self.caches.get(mapKey)
 		if cache is None:
-			dbPath = self.cacheFolder + mapKey + ".gpkg"
+			dbPath = os.path.join(self.cacheFolder, mapKey + ".gpkg")
 			self.caches[mapKey] = GeoPackage(dbPath, tm)
 			return self.caches[mapKey]
 		else:
@@ -755,15 +778,28 @@ class MapService():
 		"""
 		#Select tile matrix set
 		tm = self.getTM(toDstGrid)
-		rq = BBoxRequest(tm, bbox, zoom)
+		if isinstance(zoom, list):
+			rq = BBoxRequestMZ(tm, bbox, zoom)
+		else:
+			rq = BBoxRequest(tm, bbox, zoom)
 		self.seedTiles(laykey, rq.tiles, toDstGrid=toDstGrid, nbThread=10, buffSize=5000)
 
 
-	def getImage(self, laykey, bbox, zoom, toDstGrid=True, nbThread=10, cpt=True, outCRS=None, path=None):
+	def getImage(self, laykey, bbox, zoom, path=None, bigTiff=False, outCRS=None, toDstGrid=True, nbThread=10, cpt=True):
 		"""
 		Build a mosaic of tiles covering the requested bounding box
-		if path is None then return a georeferenced NpImage object
-		if path is not None, then the resulting output will be writen as geotif file on disk and the function will return None
+		#laykey (str)
+		#bbox
+		#zoom (int)
+		#path (str): if None the function will return a georeferenced NpImage object. If not None, then the resulting output will be
+		writen as geotif file on disk and the function will return None
+		#bigTiff (bool): if true then the raster will be writen by small part with the help of GDAL API. If false the raster will be
+		writen at one, in this case all the tiles must fit in memory otherwise it will raise a memory overflow error
+		#outCRS : destination CRS if a reprojection if expected (require GDAL support)
+		#toDstGrid (bool) : decide if the function will seed the destination tile matrix sets for this MapService instance
+		(different from the source tile matrix set)
+		#nbThread (int) : nimber of threads that will be used for downloading tiles
+		#cpt (bool) : define if the service must report or not tiles downloading count for this request
 		"""
 
 		#Select tile matrix set
@@ -780,12 +816,20 @@ class MapService():
 		self.seedCache(laykey, bbox, zoom, toDstGrid=toDstGrid, nbThread=nbThread, buffSize=5000)
 		cache = self.getCache(laykey, toDstGrid)
 
+		if not self.running:
+			if cpt:
+				self.status = 0
+			return
+
 		#Get georef parameters
 		img_w, img_h = len(cols) * tileSize, len(rows) * tileSize
 		xmin, ymin, xmax, ymax = rq.bbox
 		georef = GeoRef((img_w, img_h), (res, -res), (xmin, ymax), pxCenter=False, crs=tm.crs)
 
-		if path is None:
+		if bigTiff and path is None:
+			raise ValueError('No output path defined for creating bigTiff')
+
+		if not bigTiff:
 			#Create numpy image in memory
 			mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
 			chunkSize = rq.nbTiles
@@ -831,28 +875,35 @@ class MapService():
 				posy = abs((row - rq.firstRow)) * tileSize
 				mosaic.paste(img, posx, posy)
 
+		if not self.running:
+			if cpt:
+				self.status = 0
+			return None
+
 		#Reproject if needed
 		if outCRS is not None and outCRS != tm.CRS:
 			if cpt:
 				self.status = 4
 			time.sleep(0.1) #make sure client have enough time to get the new status...
 
-			if path is None:
+			if not bigTiff:
 				mosaic = NpImage(reprojImg(tm.CRS, outCRS, mosaic.toGDAL(), sqPx=True, resamplAlg=self.RESAMP_ALG))
 			else:
 				outPath = path[:-4] + '_' + str(outCRS) + '.tif'
 				ds = reprojImg(tm.CRS, outCRS, mosaic.ds, sqPx=True, resamplAlg=self.RESAMP_ALG, path=outPath)
 
-
 		#build overviews for file output
-		if path is not None:
+		if bigTiff:
 			ds.BuildOverviews(overviewlist=[2,4,8,16,32])
 			ds = None
+
+		if not bigTiff and path is not None:
+			mosaic.save(path)
 
 		#Finish
 		if cpt:
 			self.status = 0
-		if self.running and path is None:
+		if path is None:
 			return mosaic
 		else:
 			return None

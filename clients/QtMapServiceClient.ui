@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>QtMapService</class>
+ <widget class="QDialog" name="QtMapService">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>350</width>
+    <height>380</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>350</width>
+    <height>380</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>350</width>
+    <height>380</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>MapService Qt Client</string>
+  </property>
+  <widget class="QProgressBar" name="pBar1">
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>316</y>
+     <width>291</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="statusTip">
+    <string/>
+   </property>
+   <property name="value">
+    <number>0</number>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="inName">
+   <property name="geometry">
+    <rect>
+     <x>106</x>
+     <y>252</y>
+     <width>135</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btOkMosaic">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>310</y>
+     <width>41</width>
+     <height>35</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Go</string>
+   </property>
+   <property name="autoDefault">
+    <bool>true</bool>
+   </property>
+   <property name="default">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_60">
+   <property name="geometry">
+    <rect>
+     <x>128</x>
+     <y>95</y>
+     <width>81</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>false</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Zoom</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="cbZoom">
+   <property name="geometry">
+    <rect>
+     <x>164</x>
+     <y>91</y>
+     <width>77</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btCancel">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>354</y>
+     <width>41</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Stop</string>
+   </property>
+   <property name="autoDefault">
+    <bool>true</bool>
+   </property>
+   <property name="default">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btBrowseOutFolder">
+   <property name="geometry">
+    <rect>
+     <x>302</x>
+     <y>280</y>
+     <width>31</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>...</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btExtentShp">
+   <property name="geometry">
+    <rect>
+     <x>305</x>
+     <y>63</y>
+     <width>29</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_55">
+   <property name="geometry">
+    <rect>
+     <x>6</x>
+     <y>280</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Output folder</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="inOutFolder">
+   <property name="geometry">
+    <rect>
+     <x>105</x>
+     <y>280</y>
+     <width>195</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="cbLayer">
+   <property name="geometry">
+    <rect>
+     <x>5</x>
+     <y>92</y>
+     <width>117</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="processInfo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>354</y>
+     <width>286</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_69">
+   <property name="geometry">
+    <rect>
+     <x>6</x>
+     <y>254</y>
+     <width>83</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Basename</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="chkReproj">
+   <property name="geometry">
+    <rect>
+     <x>11</x>
+     <y>171</y>
+     <width>101</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Reprojection</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="cbOutProj">
+   <property name="geometry">
+    <rect>
+     <x>112</x>
+     <y>168</y>
+     <width>153</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="inVectorFile">
+   <property name="geometry">
+    <rect>
+     <x>82</x>
+     <y>63</y>
+     <width>219</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="requestInfos">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>5</x>
+     <y>124</y>
+     <width>331</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lbRes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>248</x>
+     <y>92</y>
+     <width>85</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_61">
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>10</y>
+     <width>55</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Provider</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="cbProvider">
+   <property name="geometry">
+    <rect>
+     <x>82</x>
+     <y>8</y>
+     <width>147</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_59">
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>62</y>
+     <width>71</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Extent file</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_70">
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>198</y>
+     <width>153</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Tiff format options</string>
+   </property>
+  </widget>
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>11</x>
+     <y>216</y>
+     <width>337</width>
+     <height>33</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QCheckBox" name="chkBuildOverview">
+      <property name="font">
+       <font>
+        <family>Liberation Sans</family>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Build pyramids for speed up display performance</string>
+      </property>
+      <property name="text">
+       <string>Pyramids</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="chkJPG">
+      <property name="font">
+       <font>
+        <family>Liberation Sans</family>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Use JPEG compression (destructive, no alpha channel)</string>
+      </property>
+      <property name="text">
+       <string>Comp. jpeg</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="chkMask">
+      <property name="font">
+       <font>
+        <family>Liberation Sans</family>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Use an internal mask to store alpha and nodata values (useful with jpeg compression)</string>
+      </property>
+      <property name="text">
+       <string>Mask</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="chkBigtiff">
+      <property name="font">
+       <font>
+        <family>Liberation Sans</family>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Allows creating raster greater than 4GB</string>
+      </property>
+      <property name="text">
+       <string>Bigtiff</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QCheckBox" name="chkSeedCache">
+   <property name="geometry">
+    <rect>
+     <x>11</x>
+     <y>146</y>
+     <width>135</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Only seed cache</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="inCacheFolder">
+   <property name="geometry">
+    <rect>
+     <x>82</x>
+     <y>39</y>
+     <width>217</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btCacheFolder">
+   <property name="geometry">
+    <rect>
+     <x>304</x>
+     <y>39</y>
+     <width>29</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_62">
+   <property name="geometry">
+    <rect>
+     <x>8</x>
+     <y>38</y>
+     <width>79</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+     <underline>true</underline>
+    </font>
+   </property>
+   <property name="text">
+    <string>Cache folder</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="chkRecurseUpZoomLevels">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>163</x>
+     <y>146</y>
+     <width>215</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Liberation Sans</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Get recurse up zoom levels</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>inVectorFile</tabstop>
+  <tabstop>btExtentShp</tabstop>
+  <tabstop>cbLayer</tabstop>
+  <tabstop>cbZoom</tabstop>
+  <tabstop>lbRes</tabstop>
+  <tabstop>requestInfos</tabstop>
+  <tabstop>chkReproj</tabstop>
+  <tabstop>cbOutProj</tabstop>
+  <tabstop>chkBuildOverview</tabstop>
+  <tabstop>inName</tabstop>
+  <tabstop>inOutFolder</tabstop>
+  <tabstop>btBrowseOutFolder</tabstop>
+  <tabstop>btOkMosaic</tabstop>
+  <tabstop>processInfo</tabstop>
+  <tabstop>btCancel</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+ <designerdata>
+  <property name="gridDeltaX">
+   <number>2</number>
+  </property>
+  <property name="gridDeltaY">
+   <number>2</number>
+  </property>
+  <property name="gridSnapX">
+   <bool>true</bool>
+  </property>
+  <property name="gridSnapY">
+   <bool>true</bool>
+  </property>
+  <property name="gridVisible">
+   <bool>true</bool>
+  </property>
+ </designerdata>
+</ui>
