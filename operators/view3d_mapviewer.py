@@ -204,7 +204,7 @@ class BaseMap(GeoScene):
 		else:
 			toDstGrid = True
 
-		mosaic = self.srv.getImage(self.laykey, bbox, self.zoom, toDstGrid, outCRS=self.crs)
+		mosaic = self.srv.getImage(self.laykey, bbox, self.zoom, toDstGrid=toDstGrid, outCRS=self.crs)
 
 		return mosaic
 
