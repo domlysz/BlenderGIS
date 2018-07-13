@@ -383,6 +383,9 @@ class GeoRef():
 			self.origin = self.subBoxGeoOrigin
 			self.subBoxGeo = None
 
+	def getSubBoxGeoRef(self):
+		return GeoRef(self.subBoxPxSize, self.pxSize, self.subBoxGeoOrigin, pxCenter=True, crs=self.crs)
+
 	@property
 	def subBoxPx(self):
 		'''return the subbox as bbox object in pixels coordinates space'''

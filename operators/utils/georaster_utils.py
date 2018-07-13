@@ -22,8 +22,116 @@
 import os
 import numpy as np
 import bpy, bmesh
+import math
 
 from ...core.georaster import GeoRaster
+
+
+def _exportAsMesh(georaster, dx=0, dy=0, step=1, buildFaces=True, flat=False, subset=False, reproj=None):
+	'''Numpy test'''
+
+	if subset and georaster.subBoxGeo is None:
+		subset = False
+
+	if not subset:
+		georef = georaster.georef
+	else:
+		georef = georaster.getSubBoxGeoRef()
+
+	x0, y0 = georef.origin #pxcenter
+	pxSizeX, pxSizeY = georef.pxSize.x, georef.pxSize.y
+	w, h = georef.rSize.x, georef.rSize.y
+
+	#adjust against step
+	w, h = math.ceil(w/step), math.ceil(h/step)
+	pxSizeX, pxSizeY = pxSizeX * step, pxSizeY * step
+
+	x = np.array([(x0 + (pxSizeX * i)) - dx for i in range(0, w)])
+	y = np.array([(y0 + (pxSizeY * i)) - dy for i in range(0, h)])
+	xx, yy = np.meshgrid(x, y)
+	#TODO reproj
+
+	if flat:
+		zz = np.zeros((h, w))
+	else:
+		zz = georaster.readAsNpArray(subset=subset).data[::step,::step] #TODO raise error if multiband
+
+	verts = np.column_stack((xx.ravel(), yy.ravel(), zz.ravel()))
+	if buildFaces:
+		faces = [(x+y*w, x+y*w+1, x+y*w+1+w, x+y*w+w) for x in range(0, w-1) for y in range(0, h-1)]
+	else:
+		faces = []
+	mesh = bpy.data.meshes.new("DEM")
+	mesh.from_pydata(verts, [], faces)
+	mesh.update()
+	return mesh
+
+
+def exportAsMesh(georaster, dx=0, dy=0, step=1, buildFaces=True, subset=False, reproj=None, flat=False):
+	if subset and georaster.subBoxGeo is None:
+		subset = False
+
+	if not subset:
+		georef = georaster.georef
+	else:
+		georef = georaster.getSubBoxGeoRef()
+
+	if not flat:
+		img = georaster.readAsNpArray(subset=subset)
+		#TODO raise error if multiband
+		data = img.data
+
+	x0, y0 = georef.origin #pxcenter
+	pxSizeX, pxSizeY = georef.pxSize.x, georef.pxSize.y
+	w, h = georef.rSize.x, georef.rSize.y
+
+	#Build the mesh (Note : avoid using bmesh because it's very slow with large mesh, use from_pydata instead)
+	verts = []
+	faces = []
+	nodata = []
+	idxMap = {}
+	for py in range(0, h, step):
+		for px in range(0, w, step):
+			x = x0 + (pxSizeX * px)
+			y = y0 + (pxSizeY * py)
+
+			if reproj is not None:
+				x, y = reproj.pt(x, y)
+
+			#shift
+			x -= dx
+			y -= dy
+
+			if flat:
+				z = 0
+			else:
+				z = data[py, px]
+
+			#vertex index
+			v1 = px + py * w #bottom right
+
+			#Filter nodata
+			if z == georaster.noData:
+				nodata.append(v1)
+			else:
+				verts.append((x, y, z))
+				idxMap[v1] = len(verts) - 1
+
+				#build face from bottomright to topright (using only points already created)
+				if buildFaces and px > 0 and py > 0: #filter first row and column
+					v2 = v1 - step #bottom left
+					v3 = v2 - w * step #topleft
+					v4 = v3 + step #topright
+					f = [v4, v3, v2, v1] #anticlockwise --> face up
+					if not any(v in f for v in nodata): #TODO too slow ?
+						f = [idxMap[v] for v in f]
+						faces.append(f)
+
+	mesh = bpy.data.meshes.new("DEM")
+	mesh.from_pydata(verts, [], faces)
+	mesh.update()
+
+	return mesh
 
 
 def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER', reproj=None, subdivise=False):
@@ -196,6 +304,31 @@ class bpyGeoRaster(GeoRaster):
 		data = img.data
 		x0, y0 = self.origin
 
+		h, w = data.shape
+		print(data.shape)
+		x = np.array([(x0 + (self.pxSize.x * i)) - dx for i in range(w)])
+		y = np.array([(y0 + (self.pxSize.y * i)) - dy for i in range(h)])
+		xx, yy = np.meshgrid(x, y)
+		#TODO reproj
+		verts = np.column_stack((xx.ravel(), yy.ravel(), data.ravel()))
+		#print([(i,x) for i, x in np.ndenumerate(verts)])
+		print(verts.shape)
+		print(verts[0])
+		print(verts[249:251])
+		faces = []
+		#faces = [[i, i+1, i+w+1, i+w] for i in range(len(verts))]# if (i+1)%w > 0 and (i+1)%h > 0]
+		#faces = faces[0:10]
+		#print(faces)
+		#x+y*w, x+y*w+1 for x in range(w) for y in range(h)
+		for x in range(0, w-1):
+			for y in range(0, h-1):
+				v1 = x + y * w
+				v2 = v1 + 1
+				v3 = v2 + w
+				v4 = v1 + w
+				faces.append([v1, v2, v3, v4]) #clockwise
+
+		'''
 		#Avoid using bmesh because it's very slow with large mesh
 		#use from_pydata instead
 		#bm = bmesh.new()
@@ -203,7 +336,7 @@ class bpyGeoRaster(GeoRaster):
 		for px in range(0, self.size.x, step):
 			for py in range(0, self.size.y, step):
 				x = x0 + (self.pxSize.x * px)
-				y = y0 +(self.pxSize.y * py)
+				y = y0 + (self.pxSize.y * py)
 
 				if reproj is not None:
 					x, y = reproj.pt(x, y)
@@ -216,11 +349,12 @@ class bpyGeoRaster(GeoRaster):
 				if z != self.noData:
 					#bm.verts.new((x, y, z))
 					verts.append((x, y, z))
+		'''
 
 		mesh = bpy.data.meshes.new("DEM")
 		#bm.to_mesh(mesh)
 		#bm.free()
-		mesh.from_pydata(verts, [], [])
+		mesh.from_pydata(verts, [], faces)
 		mesh.update()
 
 		return mesh
