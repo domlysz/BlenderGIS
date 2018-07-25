@@ -114,7 +114,6 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 			fieldsItems.append( (field[0], field[0], '') )
 		return fieldsItems
 
-
 	# Shapefile CRS definition
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
@@ -122,7 +121,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	shpCRS = EnumProperty(
 		name = "Shapefile CRS",
 		description = "Choose a Coordinate Reference System",
-		items = listPredefCRS )
+		items = listPredefCRS)
 
 	# Elevation field
 	useFieldElev = BoolProperty(
@@ -299,7 +298,7 @@ class IMPORT_SHP(Operator):
 		fieldsNames = [field[0] for field in fields]
 		#print("DBF fields : "+str(fieldsNames))
 
-		if self.fieldElevName or (self.fieldObjName and self.separateObjects) or self.fieldExtrudeName:
+		if self.separateObjects or self.fieldElevName or self.fieldObjName or self.fieldExtrudeName:
 			self.useDbf = True
 		else:
 			self.useDbf = False
@@ -583,10 +582,12 @@ class IMPORT_SHP(Operator):
 
 				#write attributes data
 				for i, field in enumerate(shp.fields):
-					fieldName = field[0]
+					fieldName, fieldType, fieldLength, fieldDecLength = field
 					if fieldName != 'DeletionFlag':
-						obj[fieldName] = record[i-1]
-
+						if fieldType in ('N', 'F'):
+							obj[fieldName] = float(record[i-1]) #cast to float to avoid overflow error
+						else:
+							obj[fieldName] = record[i-1]
 
 			elif self.fieldExtrudeName:
 				#Join to final bmesh (use from_mesh method hack)
