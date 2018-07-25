@@ -585,7 +585,7 @@ class IMPORT_SHP(Operator):
 					fieldName, fieldType, fieldLength, fieldDecLength = field
 					if fieldName != 'DeletionFlag':
 						if fieldType in ('N', 'F'):
-							obj[fieldName] = float(record[i-1]) #cast to float to avoid overflow error
+							obj[fieldName] = float(record[i-1]) #cast to float to avoid overflow error when affecting custom property
 						else:
 							obj[fieldName] = record[i-1]
 
