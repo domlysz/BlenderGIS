@@ -90,7 +90,10 @@ class SRTM_QUERY(Operator):
 
 		# Download the file from url and save it locally
 		# opentopo return a geotiff object in wgs84
-		filePath = bpy.app.tempdir + 'srtm.tif'
+		if bpy.data.is_saved:
+			filePath = os.path.join(os.path.dirname(bpy.data.filepath), 'srtm.tif')
+		else:
+			filePath = os.path.join(bpy.app.tempdir, 'srtm.tif')
 
 		#we can directly init NpImg from blob but if gdal is not used as image engine then georef will not be extracted
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
