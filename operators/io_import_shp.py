@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
 import os, sys, time
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
 import bmesh
 import math
-import mathutils
+from mathutils import Vector
 
 
 from ..core.lib.shapefile import Reader as shpReader
@@ -15,7 +15,7 @@ from ..prefs import PredefCRS
 from ..core import BBOX
 from ..core.proj import Reproj
 
-from .utils import adjust3Dview, getBBOX
+from .utils import adjust3Dview, getBBOX, DropToGround
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -118,18 +118,47 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
 
+	def listObjects(self, context):
+		objs = []
+		for index, object in enumerate(bpy.context.scene.objects):
+			if object.type == 'MESH':
+				#put each object in a tuple (key, label, tooltip) and add this to the objects list
+				objs.append((str(index), object.name, "Object named " +object.name))
+		return objs
+
 	shpCRS = EnumProperty(
 		name = "Shapefile CRS",
 		description = "Choose a Coordinate Reference System",
 		items = listPredefCRS)
 
+
+	# Elevation source
+	vertsElevSource = EnumProperty(
+			name="Elevation source",
+			description="Select the source of vertices z value",
+			items=[
+			('NONE', 'None', "Flat geometry"),
+			('GEOM', 'Geometry', "Use z value from shape geometry if exists"),
+			('FIELD', 'Field', "Extract z elevation value from an attribute field"),
+			('OBJ', 'Object', "Get z elevation value from an existing ground mesh")
+			],
+			default='GEOM')
+
+	# Elevation object
+	objElevLst = EnumProperty(
+		name="Elev. object",
+		description="Choose the mesh from which extract z elevation",
+		items=listObjects )
+
 	# Elevation field
+	'''
 	useFieldElev = BoolProperty(
 			name="Elevation from field",
 			description="Extract z elevation value from an attribute field",
 			default=False )
+	'''
 	fieldElevName = EnumProperty(
-		name = "Field",
+		name = "Elev. field",
 		description = "Choose field",
 		items = listFields )
 
@@ -173,9 +202,13 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		layout = self.layout
 
 		#
-		layout.prop(self, 'useFieldElev')
-		if self.useFieldElev:
+		layout.prop(self, 'vertsElevSource')
+		#
+		#layout.prop(self, 'useFieldElev')
+		if self.vertsElevSource == 'FIELD':
 			layout.prop(self, 'fieldElevName')
+		elif self.vertsElevSource == 'OBJ':
+			layout.prop(self, 'objElevLst')
 		#
 		layout.prop(self, 'useFieldExtrude')
 		if self.useFieldExtrude:
@@ -208,21 +241,20 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 	def execute(self, context):
 
-		elevField = self.fieldElevName if self.useFieldElev else ""
+		#elevField = self.fieldElevName if self.useFieldElev else ""
+		elevField = self.fieldElevName if self.vertsElevSource == 'FIELD' else ""
 		extrudField = self.fieldExtrudeName if self.useFieldExtrude else ""
 		nameField = self.fieldObjName if self.useFieldName else ""
 
 		try:
-			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=self.shpCRS,
-				fieldElevName=elevField, fieldExtrudeName=extrudField, fieldObjName=nameField,
+			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=self.shpCRS, elevSource=self.vertsElevSource,
+				fieldElevName=elevField, objElevIdx=int(self.objElevLst), fieldExtrudeName=extrudField, fieldObjName=nameField,
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			return {'FINISHED'}
 
 		return{'FINISHED'}
-
-
 
 
 class IMPORT_SHP(Operator):
@@ -238,9 +270,12 @@ class IMPORT_SHP(Operator):
 
 	shpCRS = StringProperty(name = "Shapefile CRS", description = "Coordinate Reference System")
 
-	fieldElevName = StringProperty(name = "Field", description = "Field name")
-	fieldExtrudeName = StringProperty(name = "Field", description = "Field name")
-	fieldObjName = StringProperty(name = "Field", description = "Field name")
+	elevSource = StringProperty(name = "Elevation source", description = "Elevation source", default='GEOM') # [NONE, GEOM, OBJ, FIELD]
+	objElevIdx = IntProperty(name = "Elevation object index", description = "")
+
+	fieldElevName = StringProperty(name = "Elevation field", description = "Field name")
+	fieldExtrudeName = StringProperty(name = "Extrusion field", description = "Field name")
+	fieldObjName = StringProperty(name = "Objects names field", description = "Field name")
 
 	#Extrusion axis
 	extrusionAxis = EnumProperty(
@@ -292,6 +327,14 @@ class IMPORT_SHP(Operator):
 		if shpType not in ['Point','PolyLine','Polygon','PointZ','PolyLineZ','PolygonZ']:
 			self.report({'ERROR'}, "Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 			return {'FINISHED'}
+
+		if self.elevSource != 'FIELD':
+			self.fieldElevName = ''
+
+		if self.elevSource == 'OBJ':
+			scn = bpy.context.scene
+			elevObj = scn.objects[self.objElevIdx]
+			rayCaster = DropToGround(scn, elevObj)
 
 		#Get fields
 		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
@@ -370,12 +413,6 @@ class IMPORT_SHP(Operator):
 			geoscn.setOriginPrj(dx, dy)
 		else:
 			dx, dy = geoscn.getOriginPrj()
-
-		#Tag if z will be extracted from shp geoms
-		if shpType[-1] == 'Z' and not self.fieldElevName:
-			self.useZGeom = True
-		else:
-			self.useZGeom = False
 
 		#Get reader iterator (using iterator avoids loading all data in memory)
 		#warn, shp with zero field will return an empty shapeRecords() iterator
@@ -463,19 +500,32 @@ class IMPORT_SHP(Operator):
 
 				#Build 3d geom
 				for k, pt in enumerate(pts[idx1:idx2]):
-					if self.fieldElevName:
+
+					if self.elevSource == 'OBJ':
+						hit = rayCaster.rayCast(x=pt[0]-dx, y=pt[1]-dy)
+						if hit is not None:
+							z = hit[2]
+						else:
+							#print('not hit')
+							z = 0
+
+					elif self.elevSource == 'FIELD':
 						try:
 							z = float(record[zFieldIdx])
 						except:
 							z = 0 #null values will be set to zero
-					elif self.useZGeom:
+
+					elif shpType[-1] == 'Z' and self.elevSource == 'GEOM':
 						z = shape.z[idx1:idx2][k]
+
 					else:
 						z = 0
+
 					geom.append((pt[0], pt[1], z))
 
 				#Shift coords
 				geom = [(pt[0]-dx, pt[1]-dy, pt[2]) for pt in geom]
+
 
 				# BUILD BMESH
 
@@ -530,9 +580,15 @@ class IMPORT_SHP(Operator):
 								vect = (0, 0, offset)
 							faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
 							verts = faces['faces'][0].verts
-							##result = bmesh.ops.extrude_face_region(bm, geom=[face]) #return dict {"geom":[BMVert, BMEdge, BMFace]}
-							##verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)] #geom type filter
-							bmesh.ops.translate(bm, verts=verts, vec=vect)
+							if self.elevSource == 'OBJ':
+								# Making flat roof (TODO add an user input parameter to setup this behaviour)
+								z = max([v.co.z for v in verts]) + offset #get max z coord
+								for v in verts:
+									v.co.z = z
+							else:
+								##result = bmesh.ops.extrude_face_region(bm, geom=[face]) #return dict {"geom":[BMVert, BMEdge, BMFace]}
+								##verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)] #geom type filter
+								bmesh.ops.translate(bm, verts=verts, vec=vect)
 
 
 			if self.separateObjects:

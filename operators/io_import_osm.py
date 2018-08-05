@@ -11,7 +11,7 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from .lib.osm import overpy
 
 from ..geoscene import GeoScene
-from .utils import adjust3Dview, getBBOX
+from .utils import adjust3Dview, getBBOX, DropToGround
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
 
@@ -127,6 +127,26 @@ class OSM_IMPORT():
 			options = {"ENUM_FLAG"}
 			)
 
+	# Elevation object
+	def listObjects(self, context):
+		objs = []
+		for index, object in enumerate(bpy.context.scene.objects):
+			if object.type == 'MESH':
+				#put each object in a tuple (key, label, tooltip) and add this to the objects list
+				objs.append((str(index), object.name, "Object named " + object.name))
+		return objs
+
+	objElevLst = EnumProperty(
+		name="Elev. object",
+		description="Choose the mesh from which extract z elevation",
+		items=listObjects )
+
+	useElevObj = BoolProperty(
+			name="Elevation from object",
+			description="Get z elevation value from an existing ground mesh",
+			default=False )
+
+
 	separate = BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features')
 
 	defaultHeight = FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
@@ -140,6 +160,9 @@ class OSM_IMPORT():
 		row = layout.row()
 		col = row.column()
 		col.prop(self, "filterTags", expand=True)
+		layout.prop(self, 'useElevObj')
+		if self.useElevObj:
+			layout.prop(self, 'objElevLst')
 		layout.prop(self, 'defaultHeight')
 		layout.prop(self, 'randomHeightThreshold')
 		layout.prop(self, 'levelHeight')
@@ -159,6 +182,9 @@ class OSM_IMPORT():
 			self.report({'ERROR'}, "Unable to reproject data. " + str(e))
 			return {'FINISHED'}
 
+		if self.useElevObj:
+			elevObj = scn.objects[int(self.objElevLst)]
+			rayCaster = DropToGround(scn, elevObj)
 
 		bmeshes = {}
 		vgroupsObj = {}
@@ -185,7 +211,11 @@ class OSM_IMPORT():
 			#reproj and shift coords
 			pts = rprj.pts(pts)
 			dx, dy = geoscn.crsx, geoscn.crsy
-			pts = [ (v[0]-dx, v[1]-dy, 0) for v in pts]
+
+			if self.useElevObj:
+				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy, elseZero=True) for v in pts]
+			else:
+				pts = [ (v[0]-dx, v[1]-dy, 0) for v in pts]
 
 			#Create a new bmesh
 			#>using an intermediate bmesh object allows some extra operation like extrusion
@@ -194,7 +224,7 @@ class OSM_IMPORT():
 			if len(pts) == 1:
 				verts = [bm.verts.new(pt) for pt in pts]
 
-			elif closed:
+			elif closed: #faces
 				verts = [bm.verts.new(pt) for pt in pts]
 				face = bm.faces.new(verts)
 				#ensure face is up (anticlockwise order)
@@ -234,7 +264,14 @@ class OSM_IMPORT():
 				vect = (0, 0, offset)
 				faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
 				verts = faces['faces'][0].verts
-				bmesh.ops.translate(bm, verts=verts, vec=vect)
+				if self.useElevObj:
+					#Making flat roof
+					z = max([v.co.z for v in verts]) + offset #get max z coord
+					for v in verts:
+						v.co.z = z
+				else:
+					bmesh.ops.translate(bm, verts=verts, vec=vect)
+
 
 			elif len(pts) > 1: #edge
 				#Split polyline to lines
@@ -519,6 +556,10 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 	bl_description = 'Query for Open Street Map data covering the current view3d area'
 	bl_label = "Get OSM"
 	bl_options = {"UNDO"}
+
+	#special function to auto redraw an operator popup called through invoke_props_dialog
+	def check(self, context):
+		return True
 
 	def invoke(self, context, event):
 

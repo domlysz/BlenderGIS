@@ -5,6 +5,28 @@ from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vecto
 
 from ...core import BBOX
 
+class DropToGround():
+	'''A class to perform raycasting accross z axis'''
+
+	def __init__(self, scn, ground):
+		self.scn = scn
+		self.ground = ground
+		self.bbox = getBBOX.fromObj(ground)
+		#self.mw = self.ground.matrix_world
+		#self.mwi = self.mw.inverted()
+
+	def rayCast(self, x, y, elseZero=False):
+		offset = 100
+		origin = Vector((x, y, self.bbox.zmax + offset)) #* self.mwi
+		direction = Vector((0,0,-1)) #down
+		hit, hitLoc, hitNormal, hitFaceIdx = self.ground.ray_cast(origin, direction)
+		if not hit:
+			if elseZero:
+				return Vector((x,y,0))
+			else:
+				return None
+		else:
+			return hitLoc #* self.mw
 
 def placeObj(mesh, objName):
 	'''Build and add a new object from a given mesh'''
