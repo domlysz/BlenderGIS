@@ -126,6 +126,10 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 				objs.append((str(index), object.name, "Object named " +object.name))
 		return objs
 
+	reprojection = BoolProperty(
+			name="Specifiy shapefile CRS",
+			description="Specifiy shapefile CRS if it's different from scene CRS",
+			default=False )
 	shpCRS = EnumProperty(
 		name = "Shapefile CRS",
 		description = "Choose a Coordinate Reference System",
@@ -223,17 +227,26 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
 		#
+		geoscn = GeoScene()
 		#geoscnPrefs = context.user_preferences.addons['geoscene'].preferences
+		if geoscn.isPartiallyGeoref:
+			layout.prop(self, 'reprojection')
+			if self.reprojection:
+				self.shpCRSInputLayout(context)
+			#
+			georefManagerLayout(self, context)
+		else:
+			self.shpCRSInputLayout(context)
+
+
+	def shpCRSInputLayout(self, context):
+		layout = self.layout
 		row = layout.row(align=True)
 		#row.prop(self, "shpCRS", text='CRS')
 		split = row.split(percentage=0.35, align=True)
 		split.label('CRS:')
 		split.prop(self, "shpCRS", text='')
 		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
-		#
-		geoscn = GeoScene()
-		if geoscn.isPartiallyGeoref:
-			georefManagerLayout(self, context)
 
 
 	def invoke(self, context, event):
@@ -246,8 +259,21 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		extrudField = self.fieldExtrudeName if self.useFieldExtrude else ""
 		nameField = self.fieldObjName if self.useFieldName else ""
 
+		geoscn = GeoScene()
+		if geoscn.isBroken:
+				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+				return {'CANCELLED'}
+
+		if geoscn.isGeoref:
+			if self.reprojection:
+				shpCRS = self.shpCRS
+			else:
+				shpCRS = geoscn.crs
+		else:
+			shpCRS = self.shpCRS
+
 		try:
-			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=self.shpCRS, elevSource=self.vertsElevSource,
+			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
 				fieldElevName=elevField, objElevIdx=int(self.objElevLst), fieldExtrudeName=extrudField, fieldObjName=nameField,
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
@@ -381,8 +407,10 @@ class IMPORT_SHP(Operator):
 		if geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'FINISHED'}
+
 		scale = geoscn.scale #TODO
-		if not geoscn.hasCRS:
+
+		if not geoscn.hasCRS: #if not geoscn.isGeoref:
 			try:
 				geoscn.crs = shpCRS
 			except Exception as e:
