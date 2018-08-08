@@ -35,7 +35,6 @@ from ..core.georaster import getImgFormat
 from ..core.lib import Tyf
 
 
-
 def newEmpty(scene, name, location):
     """Create a new empty"""
     target = bpy.data.objects.new(name, None)
@@ -120,59 +119,63 @@ class SetGeophotosCam(Operator):
             filepath = os.path.join(directory, file_elem.name)
 
             if not os.path.isfile(filepath):
-                    self.report({'ERROR'},"Invalid file")
-                    return {'FINISHED'}
+                self.report({'ERROR'},"Invalid file")
+                return {'CANCELLED'}
 
             imgFormat = getImgFormat(filepath)
             if imgFormat not in ['JPEG', 'TIFF']:
-                    self.report({'ERROR'},"Invalid format " + str(imgFormat))
-                    return {'FINISHED'}
+                self.report({'ERROR'},"Invalid format " + str(imgFormat))
+                return {'CANCELLED'}
 
             try:
                 exif = Tyf.open(filepath)
-                #tags = {t.key:exif[t.key] for t in exif.exif.tags() if t.key != 'Unknown' }
             except Exception as e:
                 self.report({'ERROR'},"Unable to open file. " + str(e))
-                return {'FINISHED'}
+                return {'CANCELLED'}
 
-            try:
+            #tags = {t.key:exif[t.key] for t in exif.exif.tags() if t.key != 'Unknown' }
+            #print(tags)
+
+            #Warning : Tyf object does not totally behave like a python dictionnary
+            #testing if a tags exists with the syntax "if k in exif" does not works
+            #using the get method does not work either. For example : alt = exif.get("GPSAltitude", 0)
+            #that's why we proceed with "try except KeyError" blocks instead of conditional block or get() method
+
+            try: #if not any([k in exif for k in ('GPSLatitude', 'GPSLatitudeRef', 'GPSLongitude', 'GPSLongitudeRef')]):
                 lat = exif["GPSLatitude"] * exif["GPSLatitudeRef"]
                 lon = exif["GPSLongitude"] * exif["GPSLongitudeRef"]
-            except:
-                self.report({'ERROR'},"Can't find gps longitude or latitude")
-                return {'FINISHED'}
+            except KeyError:
+                self.report({'ERROR'},"Can't find GPS longitude or latitude.")
+                return {'CANCELLED'}
 
+            #alt = exif.get("GPSAltitude", 0)
             try:
                 alt = exif["GPSAltitude"]
-            except:
+            except KeyError:
                 alt = 0
 
             try:
                 x, y = reprojPt(4326, geoscn.crs, lon, lat)
             except Exception as e:
                 self.report({'ERROR'},"Reprojection error. " + str(e))
-                return {'FINISHED'}
+                return {'CANCELLED'}
 
             try:
-                print(exif["FocalLengthIn35mmFilm"])
                 focalLength = exif["FocalLengthIn35mmFilm"]
-            except:
+            except KeyError:
                 focalLength = 35
 
-            try:
-                location = (x-geoscn.crsx, y-geoscn.crsy, alt)
-                name = bpy.path.display_name_from_filepath(filepath)
-                if self.exifMode == "TARGET_CAMERA":
-                    cam, cam_obj = newTargetCamera(scn, name, location, focalLength)
-                elif self.exifMode == "CAMERA":
-                    cam, cam_obj = newCamera(scn, name, location, focalLength)
-                elif self.exifMode == "EMPTY":
-                    newEmpty(scn,name,location)
-                else:
-                    scn.cursor_location = location
-            except Exception as e:
-                self.report({'ERROR'},"Can't perform action. " + str(e))
-                return {'FINISHED'}
+            location = (x-geoscn.crsx, y-geoscn.crsy, alt)
+            name = bpy.path.display_name_from_filepath(filepath)
+            if self.exifMode == "TARGET_CAMERA":
+                cam, cam_obj = newTargetCamera(scn, name, location, focalLength)
+            elif self.exifMode == "CAMERA":
+                cam, cam_obj = newCamera(scn, name, location, focalLength)
+            elif self.exifMode == "EMPTY":
+                newEmpty(scn, name, location)
+            else:
+                scn.cursor_location = location
+
 
             if self.exifMode in ["TARGET_CAMERA","CAMERA"]:
                 cam['background']  = filepath
@@ -181,18 +184,18 @@ class SetGeophotosCam(Operator):
                 try:
                     cam['imageWidth']  = exif["PixelXDimension"] #for jpg, in tif tag is named imageWidth...
                     cam['imageHeight'] = exif["PixelYDimension"]
-                except:
+                except KeyError:
                     pass
                 '''
 
                 img = bpy.data.images.load(filepath)
                 w, h = img.size
-                cam['imageWidth']  = w #exif["PixelXDimension"] #for jpg, in tif tag is named imageWidth...
+                cam['imageWidth']  = w #exif["PixelXDimension"] #for jpg, in tif file the tag is named imageWidth...
                 cam['imageHeight'] = h
 
                 try:
                     cam['orientation'] = exif["Orientation"]
-                except:
+                except KeyError:
                     cam['orientation'] = 1 #no rotation
 
                 #Set camera rotation (NOT TESTED)
@@ -256,7 +259,7 @@ class SetActiveGeophotoCam(Operator):
         filepath = cam['background']
         try:
             img = [img for img in bpy.data.images if img.filepath == filepath][0]
-        except:
+        except IndexError:
             img = bpy.data.images.load(filepath)
 
         #Activate view3d background
@@ -271,7 +274,7 @@ class SetActiveGeophotoCam(Operator):
         bkgs = [bkg for bkg in view3d.background_images if bkg.image is not None]
         try:
             bkg = [bkg for bkg in bkgs if bkg.image.filepath == filepath][0]
-        except:
+        except IndexError:
             bkg = view3d.background_images.new()
             bkg.image = img
 

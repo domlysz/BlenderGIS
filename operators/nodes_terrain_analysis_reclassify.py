@@ -393,7 +393,7 @@ class Reclass_addStop(bpy.types.Operator):
 		lst = bpy.context.scene.uiListCollec
 		currentIdx = bpy.context.scene.uiListIndex
 		if currentIdx > len(lst)-1:
-			#return {'FINISHED'}
+			#return {'CANCELLED'}
 			currentIdx = 0 #move ui selection to first idx
 		#lst.add()
 		#
@@ -402,7 +402,7 @@ class Reclass_addStop(bpy.types.Operator):
 		stops = cr.elements
 		if len(stops) >=32:
 			self.report({'ERROR'}, "Ramp is limited to 32 colors")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		currentPos = stops[currentIdx].position
 		if currentIdx == len(stops)-1:#last stop
 			nextPos = 1.0
@@ -426,7 +426,7 @@ class Reclass_rmStop(bpy.types.Operator):
 		currentIdx = bpy.context.scene.uiListIndex
 		lst = bpy.context.scene.uiListCollec
 		if currentIdx > len(lst)-1:
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#lst.remove(currentIdx)
 		#
 		node = context.active_node
@@ -549,7 +549,7 @@ class Reclass_auto(Operator):
 			nbClasses = math.ceil(delta/interval)
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			clearRamp(stops, startColor, endColor)
 			nextStop = inMin + interval - (inMin % interval)
 			while nextStop < inMax:
@@ -563,7 +563,7 @@ class Reclass_auto(Operator):
 			nbClasses = math.ceil(delta/interval)
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			clearRamp(stops, startColor, endColor)
 			val = inMin
 			for i in range(nbClasses-1):
@@ -575,11 +575,11 @@ class Reclass_auto(Operator):
 			nbClasses = self.value
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			delta = inMax-inMin
 			if nbClasses >= delta:
 				self.report({'ERROR'}, "Too many classes")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			clearRamp(stops, startColor, endColor)
 			interval = delta/nbClasses
 			val = inMin
@@ -595,7 +595,7 @@ class Reclass_auto(Operator):
 			nbClasses = self.value #math.ceil(delta/interval)
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			first, last = clearRamp(stops, startColor, endColor)
 			offset = interval/2
 			intervalNorm = scale(interval, inMin, inMax, 0, 1)
@@ -621,10 +621,10 @@ class Reclass_auto(Operator):
 			values = getValues()
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			if nbClasses >= len(values):
 				self.report({'ERROR'}, "Too many classes")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			clearRamp(stops, startColor, endColor)
 			n = len(values)
 			q = int(n/nbClasses) #number of value per quantile
@@ -643,10 +643,10 @@ class Reclass_auto(Operator):
 			values = getValues()
 			if nbClasses >= 32:
 				self.report({'ERROR'}, "Ramp is limited to 32 colors")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			if nbClasses >= len(values):
 				self.report({'ERROR'}, "Too many classes")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			clearRamp(stops, startColor, endColor)
 			#compute clusters
 			#clusters = jenksCaspall(values, nbClasses, 4)
@@ -882,7 +882,7 @@ class Reclass_svgGradient(Operator):
 
 	def execute(self, context):
 		if len(self.colorPresets) == 0:
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#build gradient
 		enumIdx = int(self.colorPresets)
 		path = svgGradientFolder + svgFiles[enumIdx]

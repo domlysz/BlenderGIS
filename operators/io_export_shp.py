@@ -60,23 +60,24 @@ class EXPORT_SHP(Operator, ExportHelper):
 		if len(objs) == 0 or len(objs)>1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		obj = objs[0]
 		if obj.type != 'MESH':
 			self.report({'INFO'}, "Selection isn't a mesh")
 			print("Selection isn't a mesh")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
 			crs = SRS(geoscn.crs)
 			try:
 				wkt = crs.getWKT()
-			except:
+			except Exception as e:
+				print('Warning : cannot convert crs to wkt. {}'.format(e))
 				wkt = None
 		elif geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 		else:
 			dx, dy = (0, 0)
 			wkt = None
@@ -93,7 +94,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 			if len(bm.verts) == 0:
 				self.report({'ERROR'}, "No vertice to export")
 				print("No vertice to export")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			for id, vert in enumerate(bm.verts):
 				#Extract coords & adjust values against object location & shift against georef deltas
 				outShp.point(vert.co.x+loc.x+dx, vert.co.y+loc.y+dy, vert.co.z+loc.z)
@@ -106,7 +107,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 			if len(bm.edges) == 0:
 				self.report({'ERROR'}, "No edge to export")
 				print("No edge to export")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			for id, edge in enumerate(bm.edges):
 				#Extract coords & adjust values against object location & shift against georef deltas
 				line=[(vert.co.x+loc.x+dx, vert.co.y+loc.y+dy, vert.co.z+loc.z) for vert in edge.verts]
@@ -120,7 +121,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 			if len(bm.faces) == 0:
 				self.report({'ERROR'}, "No face to export")
 				print("No face to export")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			for id, face in enumerate(bm.faces):
 				#Extract coords & adjust values against object location & shift against georef deltas
 				poly=[(vert.co.x+loc.x+dx, vert.co.y+loc.y+dy, vert.co.z+loc.z) for vert in face.verts]

@@ -42,12 +42,12 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		if len(objs) == 0 or len(objs)>1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		obj = objs[0]
 		if obj.type != 'MESH':
 			self.report({'INFO'}, "Selection isn't a mesh")
 			print("Selection isn't a mesh")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Get points coodinates
 		#bpy.ops.object.transform_apply(rotation=True, scale=True)
 		r = obj.rotation_euler
@@ -62,13 +62,13 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		print(str(nZcolinear)+" z colinear points excluded")
 		if nVerts < 3:
 			self.report({'ERROR'}, "Not enough points")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Check colinear
 		xValues=[pt[0] for pt in verts]
 		yValues=[pt[1] for pt in verts]
 		if checkEqual(xValues) or checkEqual(yValues):
 			self.report({'ERROR'}, "Points are colinear")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Triangulate
 		print("Triangulate "+str(nVerts)+" points...")
 		vertsPts= [Point(vert[0], vert[1], vert[2]) for vert in verts]
@@ -117,12 +117,12 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		if len(objs) == 0 or len(objs)>1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		obj = objs[0]
 		if obj.type != 'MESH':
 			self.report({'INFO'}, "Selection isn't a mesh")
 			print("Selection isn't a mesh")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Get points coodinates
 		r = obj.rotation_euler
 		s = obj.scale
@@ -136,13 +136,13 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		print(str(nZcolinear)+" z colinear points excluded")
 		if nVerts < 3:
 			self.report({'ERROR'}, "Not enough points")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Check colinear
 		xValues=[pt[0] for pt in verts]
 		yValues=[pt[1] for pt in verts]
 		if checkEqual(xValues) or checkEqual(yValues):
 			self.report({'ERROR'}, "Points are colinear")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#Create diagram
 		print("Tesselation... ("+str(nVerts)+" points)")
 		xbuff, ybuff = 5, 5 # %

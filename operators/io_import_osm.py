@@ -490,7 +490,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 
 		if not os.path.exists(self.filepath):
 			self.report({'ERROR'}, "Invalid file")
-			return{'FINISHED'}
+			return{'CANCELLED'}
 
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -506,7 +506,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 		geoscn = GeoScene(scn)
 		if geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		#Parse file
 		t0 = time.clock()
@@ -527,7 +527,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 				geoscn.crs = utm.lonlat_to_epsg(lon, lat)
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
-				return {'FINISHED'}
+				return {'CANCELLED'}
 		#Set scene origin georef
 		if not geoscn.hasOriginPrj:
 			x, y = reprojPt(4326, geoscn.crs, lon, lat)
@@ -571,16 +571,16 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		reg3d = context.region_data
 		if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
 			self.report({'ERROR'}, "View3d must be in top ortho")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		#check georef
 		geoscn = GeoScene(context.scene)
 		if not geoscn.isGeoref:
 				self.report({'ERROR'}, "Scene is not georef")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 		if geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		return context.window_manager.invoke_props_dialog(self)
 
@@ -604,21 +604,20 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
 		#Download from overpass api
 		api = overpy.Overpass()
 
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
-                # print sometimes fail with non utf8 chars (lon -8.73915, lat 40.332, zoom 12)
-		# print(query)
+		# print(query) # can fails with non utf8 chars
 		try:
 			result = api.query(query)
 		except Exception as e:
 			print(str(e))
 			self.report({'ERROR'}, "Overpass query failed")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		else:
 			print('Overpass query success')
 

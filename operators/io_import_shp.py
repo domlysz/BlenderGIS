@@ -105,8 +105,8 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		fieldsItems = []
 		try:
 			shp = shpReader(self.filepath)
-		except:
-			self.report({'ERROR'}, "Unable to read shapefile")
+		except Exception as e:
+			print("Warning : unable to read shapefile {}".format(e))
 			return fieldsItems
 		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
 		for i, field in enumerate(fields):
@@ -278,7 +278,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		return{'FINISHED'}
 
@@ -331,7 +331,8 @@ class IMPORT_SHP(Operator):
 		#Toogle object mode and deselect all
 		try:
 			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
+		except Exception as e:
+			print('Warning : ' + str(e))
 			pass
 
 		bpy.ops.object.select_all(action='DESELECT')
@@ -343,16 +344,16 @@ class IMPORT_SHP(Operator):
 		print("Read shapefile...")
 		try:
 			shp = shpReader(self.filepath)
-		except:
-			self.report({'ERROR'}, "Unable to read shapefile")
-			return {'FINISHED'}
+		except Exception as e:
+			self.report({'ERROR'}, "Unable to read shapefile : " + str(e))
+			return {'CANCELLED'}
 
 		#Check shape type
 		shpType = featureType[shp.shapeType]
-		print('Feature type : '+shpType)
+		print('Feature type : ' + shpType)
 		if shpType not in ['Point','PolyLine','Polygon','PointZ','PolyLineZ','PolygonZ']:
 			self.report({'ERROR'}, "Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		if self.elevSource != 'FIELD':
 			self.fieldElevName = ''
@@ -375,38 +376,38 @@ class IMPORT_SHP(Operator):
 		if self.fieldObjName and self.separateObjects:
 			try:
 				nameFieldIdx = fieldsNames.index(self.fieldObjName)
-			except:
-				self.report({'ERROR'}, "Unable to find name field")
-				return {'FINISHED'}
+			except Exception as e:
+				self.report({'ERROR'}, "Unable to find name field. " + str(e))
+				return {'CANCELLED'}
 
 		if self.fieldElevName:
 			try:
 				zFieldIdx = fieldsNames.index(self.fieldElevName)
-			except:
-				self.report({'ERROR'}, "Unable to find elevation field")
-				return {'FINISHED'}
+			except Exception as e:
+				self.report({'ERROR'}, "Unable to find elevation field. " + str(e))
+				return {'CANCELLED'}
 
 			if fields[zFieldIdx][1] not in ['N', 'F', 'L'] :
 				self.report({'ERROR'}, "Elevation field do not contains numeric values")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		if self.fieldExtrudeName:
 			try:
 				extrudeFieldIdx = fieldsNames.index(self.fieldExtrudeName)
 			except ValueError:
 				self.report({'ERROR'}, "Unable to find extrusion field")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 			if fields[extrudeFieldIdx][1] not in ['N', 'F', 'L'] :
 				self.report({'ERROR'}, "Extrusion field do not contains numeric values")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		#Get shp and scene georef infos
 		shpCRS = self.shpCRS
 		geoscn = GeoScene()
 		if geoscn.isBroken:
-				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+			return {'CANCELLED'}
 
 		scale = geoscn.scale #TODO
 
@@ -415,7 +416,7 @@ class IMPORT_SHP(Operator):
 				geoscn.crs = shpCRS
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		#Init reprojector class
 		if geoscn.crs != shpCRS:
@@ -424,11 +425,11 @@ class IMPORT_SHP(Operator):
 				rprj = Reproj(shpCRS, geoscn.crs)
 			except Exception as e:
 				self.report({'ERROR'}, "Unable to reproject data. " + str(e))
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			if rprj.iproj == 'EPSGIO':
 				if shp.numRecords > 100:
 					self.report({'ERROR'}, "Reprojection through online epsg.io engine is limited to 100 features. \nPlease install GDAL or pyproj module.")
-					return {'FINISHED'}
+					return {'CANCELLED'}
 
 		#Get bbox
 		bbox = BBOX(shp.bbox)
@@ -489,7 +490,8 @@ class IMPORT_SHP(Operator):
 			else:
 				try: #prevent "_shape object has no attribute parts" error
 					partsIdx = shape.parts
-				except:
+				except Exception as e:
+					print('Warning feature {} : {}'.format(i, e))
 					partsIdx = [0]
 			nbParts = len(partsIdx)
 
@@ -509,7 +511,8 @@ class IMPORT_SHP(Operator):
 			if self.fieldExtrudeName:
 				try:
 					offset = float(record[extrudeFieldIdx])
-				except:
+				except Exception as e:
+					print('Warning feature {} : cannot extract extrusion value. Error {}'.format(i, e))
 					offset = 0 #null values will be set to zero
 
 			#Iter over parts
@@ -540,7 +543,8 @@ class IMPORT_SHP(Operator):
 					elif self.elevSource == 'FIELD':
 						try:
 							z = float(record[zFieldIdx])
-						except:
+						except Exception as e:
+							print('Warning feature {}: cannot extract elevation value. Error {}'.format(i, e))
 							z = 0 #null values will be set to zero
 
 					elif shpType[-1] == 'Z' and self.elevSource == 'GEOM':
@@ -624,7 +628,8 @@ class IMPORT_SHP(Operator):
 				if self.fieldObjName:
 					try:
 						name = record[nameFieldIdx]
-					except:
+					except Exception as e:
+						print('Warning feature {}: cannot extract name value. Error {}'.format(i, e))
 						name = ''
 					# null values will return a bytes object containing a blank string of length equal to fields length definition
 					if isinstance(name, bytes):

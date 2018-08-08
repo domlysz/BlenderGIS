@@ -31,10 +31,10 @@ class SRTM_QUERY(Operator):
 		geoscn = GeoScene(context.scene)
 		if not geoscn.isGeoref:
 				self.report({'ERROR'}, "Scene is not georef")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 		if geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		return self.execute(context)#context.window_manager.invoke_props_dialog(self)
 
@@ -58,7 +58,7 @@ class SRTM_QUERY(Operator):
 			reg3d = context.region_data
 			if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
 				self.report({'ERROR'}, "View3d must be in top ortho")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		elif len(objs) > 2 or (len(objs) == 1 and not objs[0].type == 'MESH'):
 			self.report({'ERROR'}, "Pre-selection is incorrect")
@@ -69,7 +69,7 @@ class SRTM_QUERY(Operator):
 
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 

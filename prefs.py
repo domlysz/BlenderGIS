@@ -397,7 +397,7 @@ class PREDEF_CRS_EDIT(Operator):
 		prefs = context.user_preferences.addons[PKG].preferences
 		key = prefs.predefCrs
 		if key == '':
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		data = json.loads(prefs.predefCrsJson)
 		self.crs = key
 		self.desc = data[key]
@@ -486,7 +486,7 @@ class OSM_TAG_EDIT(Operator):
 		prefs = context.user_preferences.addons[PKG].preferences
 		self.tag = prefs.osmTags
 		if self.tag == '':
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):

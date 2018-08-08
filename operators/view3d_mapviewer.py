@@ -215,7 +215,7 @@ class BaseMap(GeoScene):
 		#Get or load bpy image
 		try:
 			self.img = [img for img in bpy.data.images if img.filepath == self.imgPath and len(img.packed_files) == 0][0]
-		except:
+		except IndexError:
 			self.img = bpy.data.images.load(self.imgPath)
 
 		#Activate view3d background
@@ -230,7 +230,7 @@ class BaseMap(GeoScene):
 		bkgs = [bkg for bkg in self.view3d.background_images if bkg.image is not None]
 		try:
 			self.bkg = [bkg for bkg in bkgs if bkg.image.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
-		except:
+		except IndexError:
 			self.bkg = self.view3d.background_images.new()
 			self.bkg.image = self.img
 
@@ -519,20 +519,20 @@ class MAP_START(bpy.types.Operator):
 		folder = prefs.cacheFolder
 		if folder == "" or not os.path.exists(folder):
 			self.report({'ERROR'}, "Please define a valid cache folder path")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 
 		if self.dialog == 'MAP':
 			grdCRS = GRIDS[self.grd]['CRS']
 			if geoscn.isBroken:
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 			#set scene crs as grid crs
 			#if not geoscn.hasCRS:
 				#geoscn.crs = grdCRS
 			#Check if raster reproj is needed
 			if geoscn.hasCRS and geoscn.crs != grdCRS and not HAS_GDAL:
 				self.report({'ERROR'}, "Please install gdal to enable raster reprojection support")
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		#Move scene origin to the researched place
 		if self.dialog == 'SEARCH':

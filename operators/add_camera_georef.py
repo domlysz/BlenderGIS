@@ -117,13 +117,13 @@ class SetGeorenderCam(bpy.types.Operator):
 			scn.camera = camObj
 			try:
 				self.target_res = cam['mapRes']
-			except:
+			except KeyError:
 				self.report({'ERROR'}, "This camera has not map resolution property")
 				return {'CANCELLED'}
 		else: #following exec, set camera res in redo panel
 			try:
 				cam['mapRes'] = self.target_res
-			except:
+			except KeyError:
 				self.report({'ERROR'}, "This camera has not map resolution property")
 				return {'CANCELLED'}
 

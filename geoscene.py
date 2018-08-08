@@ -392,6 +392,7 @@ class GEOSCENE_SET_CRS(Operator):
 			geoscn.crs = prefs.predefCrs
 		except Exception as err:
 			self.report({'ERROR'}, 'Cannot update crs. '+str(err))
+			return {'CANCELLED'}
 		#
 		context.area.tag_redraw()
 		return {'FINISHED'}
@@ -407,7 +408,7 @@ class GEOSCENE_INIT_ORG(Operator):
 		geoscn = GeoScene(context.scene)
 		if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
 			print('Warning, cannot init scene origin because it already exist')
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		else:
 			geoscn.lon, geoscn.lat = 0, 0
 			geoscn.crsx, geoscn.crsy = 0, 0
@@ -479,8 +480,10 @@ class GEOSCENE_LINK_ORG_GEO(Operator):
 				geoscn.lon, geoscn.lat = reprojPt(geoscn.crs, 4326, geoscn.crsx, geoscn.crsy)
 			except Exception as err:
 				self.report({'ERROR'}, str(err))
+				return {'CANCELLED'}
 		else:
 			self.report({'ERROR'}, 'No enough infos')
+			return {'CANCELLED'}
 		return {'FINISHED'}
 
 
@@ -498,8 +501,10 @@ class GEOSCENE_LINK_ORG_PRJ(Operator):
 				geoscn.crsx, geoscn.crsy = reprojPt(4326, geoscn.crs, geoscn.lon, geoscn.lat)
 			except Exception as err:
 				self.report({'ERROR'}, str(err))
+				return {'CANCELLED'}
 		else:
 			self.report({'ERROR'}, 'No enough infos')
+			return {'CANCELLED'}
 		return {'FINISHED'}
 
 

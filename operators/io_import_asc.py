@@ -80,7 +80,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         layout.prop(self, 'importMode')
         layout.prop(self, 'step')
         layout.prop(self, 'newlines')
-        
+
         row = layout.row(align=True)
         split = row.split(percentage=0.35, align=True)
         split.label('CRS:')
@@ -95,10 +95,10 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
     def err(self, msg):
         '''Report error throught a Blender's message box'''
         self.report({'ERROR'}, msg)
-        return {'FINISHED'}
+        return {'CANCELLED'}
 
     def total_lines(self, filename):
-        """ 
+        """
         Count newlines in file.
         512MB file ~3 seconds.
         """
@@ -115,7 +115,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         return f.readline().split()
 
     def read_row_whitespace(self, f, ncols):
-        """ 
+        """
         Read a row by columns separated by whitespace (including newlines).
         6x slower than readlines() method but faster than any other method I can come up with. See commit 4d337c4 for alternatives.
         """
@@ -128,7 +128,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             chunk = read_f(buf_size)
 
             # assuming we read a complete chunk, remove end of string up to last whitespace to avoid partial values
-            # if the chunk is smaller than our buffer size, then we've read to the end of file and 
+            # if the chunk is smaller than our buffer size, then we've read to the end of file and
             #   can skip truncating the chunk since we know the last value will be complete
             if len(chunk) == buf_size:
                 for i in range(len(chunk) - 1, -1, -1):
@@ -161,7 +161,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         geoscn = GeoScene(scn)
         if geoscn.isBroken:
             self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-            return {'FINISHED'}
+            return {'CANCELLED'}
         if geoscn.isGeoref:
             dx, dy = geoscn.getOriginPrj()
         scale = geoscn.scale #TODO
@@ -170,7 +170,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                 geoscn.crs = self.fileCRS
             except Exception as e:
                 self.report({'ERROR'}, str(e))
-                return {'FINISHED'}
+                return {'CANCELLED'}
 
         #build reprojector objects
         if geoscn.crs != self.fileCRS:
@@ -224,7 +224,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
         if not geoscn.isGeoref:
             # use the centre of the imported grid as scene origin (calculate only if grid file specified llcorner)
-            centre = (reprojection['from'].x + offset.x + ((ncols / 2) * cellsize), 
+            centre = (reprojection['from'].x + offset.x + ((ncols / 2) * cellsize),
                       reprojection['from'].y + offset.y + ((nrows / 2) * cellsize))
             if rprj:
                 centre = rprjToScene.pt(*centre)
@@ -245,11 +245,11 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             coldata = read(f, ncols)
             if len(coldata) != ncols:
                 self.report({'ERROR'}, 'Incorrect number of columns for row {row}. Expected {expected}, got {actual}.'.format(row=nrows-y, expected=ncols, actual=len(coldata)))
-                return {'FINISHED'}
+                return {'CANCELLED'}
 
             for i in range(step - 1):
                 _ = read(f, ncols)
-                
+
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
                 if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
@@ -262,7 +262,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
                         vertices.append(pt + (float(coldata[x]),))
                     except ValueError as e:
                         self.report({'ERROR'}, 'Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
-                        return {'FINISHED'}
+                        return {'CANCELLED'}
 
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
@@ -294,5 +294,5 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         if prefs.adjust3Dview:
             bb = getBBOX.fromObj(ob)
             adjust3Dview(context, bb)
-            
+
         return {'FINISHED'}

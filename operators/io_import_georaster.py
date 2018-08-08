@@ -185,7 +185,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	def err(self, msg):
 		'''Report error throught a Blender's message box'''
 		self.report({'ERROR'}, msg)
-		return {'FINISHED'}
+		return {'CANCELLED'}
 
 	def execute(self, context):
 		prefs = bpy.context.user_preferences.addons[PKG].preferences
@@ -199,7 +199,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		geoscn = GeoScene(scn)
 		if geoscn.isBroken:
 			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
 		scale = geoscn.scale #TODO
@@ -208,7 +208,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				geoscn.crs = self.rastCRS
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
-				return {'FINISHED'}
+				return {'CANCELLED'}
 
 		#Raster reprojection throught UV mapping
 		#build reprojector objects

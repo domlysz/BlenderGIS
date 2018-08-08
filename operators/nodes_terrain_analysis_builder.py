@@ -20,7 +20,7 @@ class Analysis_nodes(Operator):
 		obj = scn.objects.active
 		if obj is None:
 			self.report({'ERROR'}, "No active object")
-			return {'FINISHED'}
+			return {'CANCELLED'}
 		#######################
 		#HEIGHT
 		#######################
