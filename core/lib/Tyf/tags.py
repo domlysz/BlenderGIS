@@ -1,45 +1,45 @@
 # -*- encoding:utf-8 -*-
-# Copyright © 2015-2016, THOORENS Bruno - http://bruno.thoorens.free.fr/licences/tyf.html
-# ~ http://www.awaresystems.be/imaging/tiff.html
+# Copyright 2012-2015, THOORENS Bruno - http://bruno.thoorens.free.fr/licences/tyf.html
+# ~ http://wwwawaresystemsbe/imaging/tiff/tifftagshtml
 from . import values
 
 # Baseline TIFF tags
 bTT = {
-	254:   ("NewSubfileType", [1], (0,), "A general indication of the kind of data contained in this subfile"),
+	254:   ("NewSubfileType", [1], 0, "A general indication of the kind of data contained in this subfile"),
 	255:   ("SubfileType", [1], None, "Deprecated, use NewSubfiletype instead"),
 	256:   ("ImageWidth", [1,4], None, "Number of columns in the image, ie, the number of pixels per row"),
 	257:   ("ImageLength", [1,4], None, "Number of rows of pixels in the image"),
-	258:   ("BitsPerSample", [1], (1,), "Array size = SamplesPerPixel, number of bits per component"),
-	259:   ("Compression", [1], (1,), "Compression scheme used on the image data"),
+	258:   ("BitsPerSample", [1], 1, "Array size = SamplesPerPixel, number of bits per component"),
+	259:   ("Compression", [1], 1, "Compression scheme used on the image data"),
 	262:   ("PhotometricInterpretation", [1], None, "The color space of the image data"),
-	263:   ("Thresholding", [1], (1,), "For black and white TIFF files that represent shades of gray, the technique used to convert from gray to black and white pixels"),
+	263:   ("Thresholding", [1], 1, "For black and white TIFF files that represent shades of gray, the technique used to convert from gray to black and white pixels"),
 	264:   ("CellWidth", [1], None, "The width of the dithering or halftoning matrix used to create a dithered or halftoned bilevel file"),
 	265:   ("CellLength", [1], None, "The length of the dithering or halftoning matrix used to create a dithered or halftoned bilevel file"),
-	266:   ("FillOrder", [1], (1,), "The logical order of bits within a byt"),
+	266:   ("FillOrder", [1], 1, "The logical order of bits within a byt"),
 	270:   ("ImageDescription", [2], None, "A string that describes the subject of the image"),
 	271:   ("Make", [2], None, "The scanner manufacturer"),
 	272:   ("Model", [2], None, "The scanner model name or number"),
 	273:   ("StripOffsets", [1,4], None, "For each strip, the byte offset of that strip"),
-	274:   ("Orientation", [1], (1,), "The orientation of the image with respect to the rows and columns"),
-	277:   ("SamplesPerPixel", [1], (1,), "The number of components per pixel"),
-	278:   ("RowsPerStrip", [1,4], (2**32-1,), "The number of rows per strip"),
+	274:   ("Orientation", [1], 1, "The orientation of the image with respect to the rows and columns"),
+	277:   ("SamplesPerPixel", [1], 1, "The number of components per pixel"),
+	278:   ("RowsPerStrip", [1,4], 2**32-1, "The number of rows per strip"),
 	279:   ("StripByteCounts", [1,4], None, "For each strip, the number of bytes in the strip after compression"),
-	280:   ("MinSampleValue", [1], (0,), "The minimum component value used"),
-	281:   ("MaxSampleValue", [1], (1,), "The maximum component value used"),
+	280:   ("MinSampleValue", [1], 0, "The minimum component value used"),
+	281:   ("MaxSampleValue", [1], 1, "The maximum component value used"),
 	282:   ("XResolution", [5], None, "The number of pixels per ResolutionUnit in the ImageWidth direction"),
 	283:   ("YResolution", [5], None, "The number of pixels per ResolutionUnit in the ImageLength direction"),
-	284:   ("PlanarConfiguration", [1], (1,), "How the components of each pixel are stored"),
+	284:   ("PlanarConfiguration", [1], 1, "How the components of each pixel are stored"),
 	288:   ("FreeOffsets", [4], None, "For each string of contiguous unused bytes in a TIFF file, the byte offset of the string"),
 	289:   ("FreeByteCounts", [4], None, "For each string of contiguous unused bytes in a TIFF file, the number of bytes in the string"),
-	290:   ("GrayResponseUnit", [1], (2,), "The precision of the information contained in the GrayResponseCurve"),
-	291:   ("GrayResponseCurve", [1], (2,), "Array size = 2**SamplesPerPixel"),
-	296:   ("ResolutionUnit", [4], (2,), "The unit of measurement for XResolution and YResolution"),
+	290:   ("GrayResponseUnit", [1], 2, "The precision of the information contained in the GrayResponseCurve"),
+	291:   ("GrayResponseCurve", [1], 2, "Array size = 2**SamplesPerPixel"),
+	296:   ("ResolutionUnit", [4], 2, "The unit of measurement for XResolution and YResolution"),
 	305:   ("Software", [2], None, "Name and version number of the software package(s) used to create the image"),
 	306:   ("DateTime", [2], None, "Date and time of image creation, aray size = 20, 'YYYY:MM:DD HH:MM:SS\0'"),
 	315:   ("Artist", [2], None, "Person who created the image"),
 	316:   ("HostComputer", [2], None, "The computer and/or operating system in use at the time of image creation"),
 	320:   ("ColorMap", [1], None, "A color map for palette color images"),
-	338:   ("ExtraSamples", [1], (1,), "Description of extra components"),
+	338:   ("ExtraSamples", [1], 1, "Description of extra components"),
 	33432: ("Copyright", [2], None, "Copyright notice"),
 }
 
@@ -49,11 +49,11 @@ xTT = {
 	285:   ("PageName", [2], None, "The name of the page from which this image was scanned"),
 	286:   ("XPosition", [5], None, "X position of the image"),
 	287:   ("YPosition", [5], None, "Y position of the image"),
-	292:   ("T4Options", [4], (0,), "Options for Group 3 Fax compression"),
-	293:   ("T6Options", [4], (0,), "Options for Group 6 Fax compression"),
+	292:   ("T4Options", [4], 0, "Options for Group 3 Fax compression"),
+	293:   ("T6Options", [4], 0, "Options for Group 6 Fax compression"),
 	297:   ("PageNumber", [1], None, "The page number of the page from which this image was scanned"),
-	301:   ("TransferFunction", [1], (1*(1<<1),), "Describes a transfer function for the image in tabular style"),
-	317:   ("Predictor", [3], (1,), "A mathematical operator that is applied to the image data before an encoding scheme is applied"),
+	301:   ("TransferFunction", [1], 1*(1<<1), "Describes a transfer function for the image in tabular style"),
+	317:   ("Predictor", [3], 1, "A mathematical operator that is applied to the image data before an encoding scheme is applied"),
 	318:   ("WhitePoint", [5], None, "The chromaticity of the white point of the image"),
 	319:   ("PrimaryChromaticies", [5], None, "The chromaticities of the primaries of the image"),
 	321:   ("HalftoneHints", [1], None, "Conveys to the halftone function the range of gray levels within a colorimetrically-specified image that should retain tonal detail"),
@@ -67,19 +67,19 @@ xTT = {
 	328:   ("SubIFDs", [2,4], None, "Offset to child IFDs"), # ???
 	332:   ("InkSet", [1], None, "The set of inks used in a separated (PhotometricInterpretation=5) image"),
 	333:   ("InkNames", [2], None, "The name of each ink used in a separated image"),
-	334:   ("NumberOfInks", [1], (4,), "The number of inks"),
+	334:   ("NumberOfInks", [1], 4, "The number of inks"),
 	336:   ("DotRange", [1,3], (0,1), "The component values that correspond to a 0%% dot and 100%% dot"),
 	337:   ("TargetPrinter", [2], None, "A description of the printing environment for which this separation is intended"),
-	339:   ("SampleFormat", [1], (1,), "Specifies how to interpret each data sample in a pixel"),
+	339:   ("SampleFormat", [1], 1, "Specifies how to interpret each data sample in a pixel"),
 	340:   ("SMinSampleValue", [3,7,8,12], None, "Specifies the minimum sample value"),
 	341:   ("SMaxSampleValue", [3,7,8,12], None, "Specifies the maximum sample value"),
 	342:   ("TransferRange", [1], None, "Expands the range of the TransferFunction"),
 	343:   ("ClipPath", [3], None, "Mirrors the essentials of PostScript's path creation functionality"),
 	344:   ("XClipPathUnits", [4], None, "The number of units that span the width of the image, in terms of integer ClipPath coordinates"),
 	345:   ("YClipPathUnits", [4], None, "The number of units that span the height of the image, in terms of integer ClipPath coordinates"),
-	346:   ("Indexed", [1], (0,), "Aims to broaden the support for indexed images to include support for any color space"),
+	346:   ("Indexed", [1], 0, "Aims to broaden the support for indexed images to include support for any color space"),
 	347:   ("JPEGTables", [7], None, "JPEG quantization and/or Huffman tables"),
-	351:   ("OPIProxy", [1], (0,), "OPI-related"),
+	351:   ("OPIProxy", [1], 0, "OPI-related"),
 	400:   ("GlobalParametersIFD", [2,4], None, "Used in the TIFF-FX standard to point to an IFD containing tags that are globally applicable to the complete TIFF file"),
 	401:   ("ProfileType", [4], None, "Used in the TIFF-FX standard, denotes the type of data stored in this file or IFD"),
 	402:   ("FaxProfile", [3], None, "Used in the TIFF-FX standard, denotes the 'profile' that applies to this file"),
@@ -99,7 +99,7 @@ xTT = {
 	521:   ("JPEGACTables", [4], None, "Old-style JPEG compression field TechNote2 invalidates this part of the specification"),
 	529:   ("YCbCrCoefficients", [5], (299,1000,587,1000,114,1000), "The transformation from RGB to YCbCr image data"),
 	530:   ("YCbCrSubSampling", [1], (2,2), "Specifies the subsampling factors used for the chrominance components of a YCbCr image"),
-	531:   ("YCbCrPositioning", [1], (1,), "Specifies the positioning of subsampled chrominance components relative to luminance samples"),
+	531:   ("YCbCrPositioning", [1], 1, "Specifies the positioning of subsampled chrominance components relative to luminance samples"),
 	532:   ("ReferenceBlackWhite", [5], (0,1,1,1,0,1,1,1,0,1,1,1), "Specifies a pair of headroom and footroom image data values (codes) for each pixel component"),
 	559:   ("StripRowCounts", [4], None, "Defined in the Mixed Raster Content part of RFC 2301, used to replace RowsPerStrip for IFDs with variable-sized strips"),
 	700:   ("XMP", [3], None, "XML packet containing XMP metadata"),
@@ -195,7 +195,7 @@ pTT = {
 exfT = {
 	33434: ("ExposureTime", [5], None, "Exposure time, given in seconds"),
 	33437: ("FNumber", [5], None, "The F number"),
-	34850: ("ExposureProgram", [1], (0,), "The class of the program used by the camera to set exposure when the picture is taken"),
+	34850: ("ExposureProgram", [1], 0, "The class of the program used by the camera to set exposure when the picture is taken"),
 	34852: ("SpectralSensitivity", [2], None, "Indicates the spectral sensitivity of each channel of the camera used"),
 	34855: ("ISOSpeedRatings", [1], None, "Indicates the ISO Speed and ISO Latitude of the camera or input device as specified in ISO 12232"),
 	34856: ("OECF", [7], None, "Indicates the Opto-Electric Conversion Function (OECF) specified in ISO 14524"),
@@ -210,8 +210,8 @@ exfT = {
 	37380: ("ExposureBiasValue", [11], None, "The exposure bias"),
 	37381: ("MaxApertureValue", [5], None, "The smallest F number of the lens"),
 	37382: ("SubjectDistance", [5], None, "The distance to the subject, given in meters"),
-	37383: ("MeteringMode", [1], (0,), "The metering mode"),
-	37384: ("LightSource", [1], (0,), "The kind of light source"),
+	37383: ("MeteringMode", [1], 0, "The metering mode"),
+	37384: ("LightSource", [1], 0, "The kind of light source"),
 	37385: ("Flash", [1], None, "Indicates the status of flash when the image was shot"),
 	37386: ("FocalLength", [5], None, "The actual focal length of the lens, in mm"),
 	37396: ("SubjectArea", [1], None, "Indicates the location and area of the main subject in the overall scene"),
@@ -225,32 +225,30 @@ exfT = {
 	40962: ("PixelXDimension", [1,4], None, "Specific to compressed data; the valid width of the meaningful image"),
 	40963: ("PixelYDimension", [1,4], None, "Specific to compressed data; the valid height of the meaningful image"),
 	40964: ("RelatedSoundFile", [2], None, "Used to record the name of an audio file related to the image data"),
-	40965: ("Interoperability IFD", [4], None, "A pointer to the Exif-related Interoperability IFD"),
 	41483: ("FlashEnergy", [5], None, "Indicates the strobe energy at the time the image is captured, as measured in Beam Candle Power Seconds"),
 	41484: ("SpatialFrequencyResponse", [7], None, "Records the camera or input device spatial frequency table and SFR values in the direction of image width, image height, and diagonal direction, as specified in ISO 12233"),
 	41486: ("FocalPlaneXResolution", [5], None, "Indicates the number of pixels in the image width (X) direction per FocalPlaneResolutionUnit on the camera focal plane"),
 	41487: ("FocalPlaneYResolution", [5], None, "Indicates the number of pixels in the image height (Y) direction per FocalPlaneResolutionUnit on the camera focal plane"),
-	41488: ("FocalPlaneResolutionUnit", [1], (2,), "Indicates the unit for measuring FocalPlaneXResolution and FocalPlaneYResolution"),
+	41488: ("FocalPlaneResolutionUnit", [1], 2, "Indicates the unit for measuring FocalPlaneXResolution and FocalPlaneYResolution"),
 	41492: ("SubjectLocation", [2], None, "Indicates the location of the main subject in the scene"),
 	41493: ("ExposureIndex", [5], None, "Indicates the exposure index selected on the camera or input device at the time the image is captured"),
 	41495: ("SensingMethod", [1], None, "Indicates the image sensor type on the camera or input device"),
 	41728: ("FileSource", [7], b"3", "Indicates the image source"),
 	41729: ("SceneType", [7], b"1", "Indicates the type of scene"),
 	41730: ("CFAPattern", [7], None, "Indicates the color filter array (CFA) geometric pattern of the image sensor when a one-chip color area sensor is used"),
-	41985: ("CustomRendered", [1], (0,), "Indicates the use of special processing on image data, such as rendering geared to output"),
+	41985: ("CustomRendered", [1], 0, "Indicates the use of special processing on image data, such as rendering geared to output"),
 	41986: ("ExposureMode", [1], None, "Indicates the exposure mode set when the image was shot"),
 	41987: ("WhiteBalance", [1], None, "Indicates the white balance mode set when the image was shot"),
 	41988: ("DigitalZoomRatio", [5], None, "Indicates the digital zoom ratio when the image was shot"),
 	41989: ("FocalLengthIn35mmFilm", [1], None, "Indicates the equivalent focal length assuming a 35mm film camera, in mm"),
-	41990: ("SceneCaptureType", [1], (0,), "Indicates the type of scene that was shot"),
+	41990: ("SceneCaptureType", [1], 0, "Indicates the type of scene that was shot"),
 	41991: ("GainControl", [1], None, "Indicates the degree of overall image gain adjustment"),
-	41992: ("Contrast", [1], (0,), "Indicates the direction of contrast processing applied by the camera when the image was shot"),
-	41993: ("Saturation", [1], (0,), "Indicates the direction of saturation processing applied by the camera when the image was shot"),
-	41994: ("Sharpness", [1], (0,), "Indicates the direction of sharpness processing applied by the camera when the image was shot"),
+	41992: ("Contrast", [1], 0, "Indicates the direction of contrast processing applied by the camera when the image was shot"),
+	41993: ("Saturation", [1], 0, "Indicates the direction of saturation processing applied by the camera when the image was shot"),
+	41994: ("Sharpness", [1], 0, "Indicates the direction of sharpness processing applied by the camera when the image was shot"),
 	41995: ("DeviceSettingDescription", [7], None, "This tag indicates information on the picture-taking conditions of a particular camera model"),
 	41996: ("SubjectDistanceRange", [1], None, "Indicates the distance to the subject"),
 	42016: ("ImageUniqueID", [2], None, "Indicates an identifier assigned uniquely to each image"),
-	0xea1c: ("Padding", [7], None, ""),
 }
 
 gpsT = {
@@ -287,23 +285,32 @@ gpsT = {
 	30: ("GPSDifferential", [1], None, "Indicates whether differential correction is applied to the GPS receiver"),
 }
 
-itrT = {
-	0x0001: ("InteropIndex", [2], b"R03\x00", ""),
-	0x0002: ("InteropVersion", [7], None, ""),
-	0x1000: ("RelatedImageFileFormat", [2], None, ""),
-	0x1001: ("RelatedImageWidth", [4], None, ""),
-	0x1002: ("RelatedImageHeight", [4], None, ""),
-}
-
 _TAG_FAMILIES = [bTT, xTT, pTT, exfT, gpsT]
 _TAG_FAMILIES_2TAG = [dict((v[0], t) for t,v in dic.items()) for dic in _TAG_FAMILIES]
 _TAG_FAMILIES_2KEY = [dict((v, k) for k,v in dic.items()) for dic in _TAG_FAMILIES_2TAG]
 
 def get(tag):
+	idx = 0
 	for dic in _TAG_FAMILIES:
-		family = _TAG_FAMILIES_2TAG[_TAG_FAMILIES.index(dic)]
-		if isinstance(tag, (bytes, str)) and tag in family:
-			tag = family[tag]
+		if isinstance(tag, (bytes, str)):
+			tag = _TAG_FAMILIES_2TAG[idx][tag]
 		if tag in dic:
-			return tag, dic[tag]
-	return False, ("Undefined", [7], None, "Undefined tag %r"%tag)
+			return dic[tag]
+	return ("Unknown", [4], None, "Undefined tag 0x%x"%tag)
+
+def _2tag(tag, family=None):
+	if family != None:
+		idx = _TAG_FAMILIES.index(family)
+		if isinstance(tag, (bytes, str)):
+			if tag in _TAG_FAMILIES_2TAG[idx]:
+				return _TAG_FAMILIES_2TAG[idx][tag]
+			return tag
+		else:
+			return tag
+	elif isinstance(tag, (bytes, str)):
+		for dic in _TAG_FAMILIES_2TAG:
+			if tag in dic:
+				return dic[tag]
+		return tag
+	else:
+		return tag

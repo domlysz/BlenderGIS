@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-# Copyright © 2015-2016, THOORENS Bruno - http://bruno.thoorens.free.fr/licences/tyf.html
+# Copyright 2012-2015, THOORENS Bruno - http://bruno.thoorens.free.fr/licences/tyf.html
 # ~ http://www.remotesensing.org/geotiff/spec/geotiffhome.html
 
 from . import ifd, tags, values, __geotiff__, __PY3__
@@ -82,8 +82,7 @@ if __PY3__:
 	reduce = functools.reduce
 	long = int
 
-# class GkdTag(ifd.TiffTag):
-class GkdTag(ifd.Tag):
+class GkdTag(ifd.TiffTag):
 	strict = True
 
 	def __init__(self, tag=0x0, value=None, name="GeoTiff Tag"):
