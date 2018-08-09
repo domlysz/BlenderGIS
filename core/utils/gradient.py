@@ -237,8 +237,8 @@ class Gradient():
 	def __readSVG(self, svg):
 		try:
 			domData = parse(svg)
-		except:
-			print("There was a problem with parsing svg file")
+		except Exception as e:
+			print("Cannot parse svg file : " + str(e))
 			return False
 		linearGradients = domData.getElementsByTagName('linearGradient')
 		nbGradients = len(linearGradients)
@@ -325,8 +325,8 @@ class Gradient():
 			return False
 		try:
 			idx = self.colors.index(color)
-		except:
-			print('Color does not exists in this gradient')
+		except ValueError as e :
+			print('Cannot remove color from this gradient : {}'.format(e))
 			return False
 		else:
 			self.stops.pop(idx)
@@ -335,8 +335,8 @@ class Gradient():
 	def rmPosition(self, pos):
 		try:
 			idx = self.positions.index(pos)
-		except:
-			print('Position does not exists in this gradient')
+		except ValueError as e:
+			print('Cannot remove position from this gradient : {}'.format(e))
 			return False
 		else:
 			self.stops.pop(idx)

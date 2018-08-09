@@ -263,8 +263,8 @@ class bpyGeoRaster(GeoRaster):
 		'''Load the georaster in Blender'''
 		try:
 			self.bpyImg = bpy.data.images.load(self.path)
-		except:
-			raise IOError("Unable to open raster")
+		except Exception as e:
+			raise IOError("Unable to open raster : {}".format(e))
 		if pack:
 			#WARN : packed image can only be stored as png and this format does not support float32 datatype
 			self.bpyImg.pack()

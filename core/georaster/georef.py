@@ -93,18 +93,34 @@ class GeoRef():
 			rotation = xy(float(wf[1].replace(',','.')), float(wf[2].replace(',','.')))
 			origin = xy(float(wf[4].replace(',','.')), float(wf[5].replace(',','.')))
 			return cls(rasterSize, pxSize, origin, rot=rotation, pxCenter=True, crs=None)
-		except:
-			raise IOError("Unable to read worldfile")
+		except Exception as e:
+			raise IOError("Unable to read worldfile. {}".format(e))
 
 	@classmethod
 	def fromTyf(cls, tif):
 		'''read geotags from Tyf instance'''
+		#Warning : Tyf object does not support k in dict test syntax nor get() method, use try block instead
 		w, h = tif['ImageWidth'], tif['ImageLength']
-		#First search for a matrix transfo
+
+		#Search for a transformation matrix
 		try:
 			#34264: ("ModelTransformation", "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p")
 			# 4x4 transform matrix in 3D space
 			transfoMatrix = tif['ModelTransformationTag']
+		except KeyError:
+			transfoMatrix = None
+
+		#Search for upper left coord and pixel scales
+		try:
+			#33922: ("ModelTiepoint", "I,J,K,X,Y,Z")
+			modelTiePoint = tif['ModelTiepointTag']
+			#33550 ("ModelPixelScale", "ScaleX, ScaleY, ScaleZ")
+			modelPixelScale = tif['ModelPixelScaleTag']
+		except KeyError:
+			modelTiePoint = None
+			modelPixelScale = None
+
+		if transfoMatrix is not None:
 			a,b,c,d, \
 			e,f,g,h, \
 			i,j,k,l, \
@@ -113,19 +129,14 @@ class GeoRef():
 			origin = xy(d, h)
 			pxSize = xy(a, f)
 			rotation = xy(e, b)
-		except:
-			#If no matrix, search for upper left coord and pixel scales
-			try:
-				#33922: ("ModelTiepoint", "I,J,K,X,Y,Z")
-				modelTiePoint = tif['ModelTiepointTag']
-				#33550 ("ModelPixelScale", "ScaleX, ScaleY, ScaleZ")
-				modelPixelScale = tif['ModelPixelScaleTag']
-				origin = xy(*modelTiePoint[3:5])
-				pxSize = xy(*modelPixelScale[0:2])
-				pxSize[1] = -pxSize.y #make negative value
-				rotation = xy(0, 0)
-			except:
-				raise IOError("Unable to read geotags")
+		elif modelTiePoint is not None and modelPixelScale is not None:
+			origin = xy(*modelTiePoint[3:5])
+			pxSize = xy(*modelPixelScale[0:2])
+			pxSize[1] = -pxSize.y #make negative value
+			rotation = xy(0, 0)
+		else:
+			raise IOError("Unable to read geotags")
+
 		#Define anchor point for top left coord
 		#	http://www.remotesensing.org/geotiff/spec/geotiff2.5.html#2.5.2
 		#	http://www.remotesensing.org/geotiff/spec/geotiff6.html#6.3.1.2
@@ -135,15 +146,18 @@ class GeoRef():
 		#cellAnchor = geotags['GTRasterTypeGeoKey']
 		try:
 			geotags = tif['GeoKeyDirectoryTag']
+		except KeyError:
+			cellAnchor = 1 #if this key is missing then RasterPixelIsArea is the default
+		else:
 			#get GTRasterTypeGeoKey value
 			cellAnchor = geotags[geotags.index(1025)+3] #http://www.remotesensing.org/geotiff/spec/geotiff2.4.html
-		except:
-			cellAnchor = 1 #if this key is missing then RasterPixelIsArea is the default
 		if cellAnchor == 1:
 			#adjust topleft coord to pixel center
 			origin[0] += abs(pxSize.x/2)
 			origin[1] -= abs(pxSize.y/2)
+
 		#TODO extract crs (transcript geokeys to proj4 string)
+		
 		return cls((w, h), pxSize, origin, rot=rotation, pxCenter=True, crs=None)
 
 	############################################

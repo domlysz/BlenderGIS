@@ -120,6 +120,7 @@ class GeoRaster():
 		if not self.isTiff or not self.fileExists:
 			return
 		tif = Tyf.open(self.path)[0]
+		#Warning : Tyf object does not support k in dict test syntax nor get() method, use try block instead
 		self.size = xy(tif['ImageWidth'], tif['ImageLength'])
 		self.nbBands = tif['SamplesPerPixel']
 		self.depth = tif['BitsPerSample']
@@ -128,16 +129,17 @@ class GeoRaster():
 		sampleFormatMap = {1:'uint', 2:'int', 3:'float', None:'uint', 6:'complex'}
 		try:
 			self.dtype = sampleFormatMap[tif['SampleFormat']]
-		except:
+		except KeyError:
 			self.dtype = 'uint'
 		try:
 			self.noData = float(tif['GDAL_NODATA'])
-		except:
+		except KeyError:
 			self.noData = None
 		#Get Georef
 		try:
 			self.georef = GeoRef.fromTyf(tif)
-		except:
+		except Exception as e:
+			print('Warning : cannot extract georefencing informations from tif tags. {}'.format(e))
 			pass
 
 

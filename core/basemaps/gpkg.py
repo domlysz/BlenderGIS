@@ -76,7 +76,8 @@ class GeoPackage():
 			db.execute('SELECT table_name FROM gpkg_tile_matrix_set LIMIT 1')
 			db.execute('SELECT table_name FROM gpkg_tile_matrix LIMIT 1')
 			db.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM gpkg_tiles LIMIT 1')
-		except:
+		except Exception as e:
+			print('Incorrect GPKG schema ' + str(e))
 			db.close()
 			return False
 		else:

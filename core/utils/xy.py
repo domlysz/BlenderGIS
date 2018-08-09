@@ -59,7 +59,7 @@ class XY(object):
 	def z(self):
 		try:
 			return self.data[2]
-		except:
+		except IndexError:
 			return None
 	@property
 	def xy(self):

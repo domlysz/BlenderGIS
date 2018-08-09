@@ -1,7 +1,8 @@
 import os
 import time
 
-import urllib.request
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 import bpy
 import bmesh
@@ -97,10 +98,15 @@ class SRTM_QUERY(Operator):
 
 		#we can directly init NpImg from blob but if gdal is not used as image engine then georef will not be extracted
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
-		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-		with urllib.request.urlopen(rq) as response, open(filePath, 'wb') as outFile:
-			data = response.read() # a `bytes` object
-			outFile.write(data) #
+		rq = Request(url, headers={'User-Agent': USER_AGENT})
+		try:
+			with urlopen(rq) as response, open(filePath, 'wb') as outFile:
+				data = response.read() # a `bytes` object
+				outFile.write(data) #
+		except (URLError, HTTPError) as err:
+			#print(err.code, err.reason, err.headers)
+			self.report({'ERROR'}, "Cannot reach OpenTopography web service at {} : {}".format(url, err))
+			return {'CANCELLED'}
 
 		if not onMesh:
 			bpy.ops.importgis.georaster(

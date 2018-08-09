@@ -39,7 +39,8 @@ class SRS():
 		try:
 			cls(crs)
 			return True
-		except:
+		except Exception as e:
+			print('Cannot initialize crs : ' + str(e))
 			return False
 
 	def __init__(self, crs):
@@ -163,8 +164,8 @@ class SRS():
 			raise ImportError('PYPROJ not available')
 		try:
 			return pyproj.Proj(self.proj4)
-		except:
-			raise ValueError('Cannot initialize pyproj : ' + self.proj4)
+		except Exception as e:
+			raise ValueError('Cannot initialize pyproj object for projection {}. Error : {}'.format(self.proj4, e))
 
 
 	def loadProj4(self):
@@ -173,16 +174,15 @@ class SRS():
 		if self.proj4 is None:
 			return dc
 		for param in self.proj4.split(' '):
-			try:
-				k,v = param.split('=')
-			except:
-				pass
-			else:
+			if param.count('=') == 1:
+				k, v = param.split('=')
 				try:
 					v = float(v)
-				except:
+				except ValueError:
 					pass
 				dc[k] = v
+			else:
+				pass
 		return dc
 
 	@property

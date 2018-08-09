@@ -575,8 +575,8 @@ class MapService():
 			#open image stream
 			data = handle.read()
 			handle.close()
-		except:
-			print("Can't download tile x"+str(col)+" y"+str(row))
+		except Exception as e:
+			print("Can't download tile x{} y{}. Error {}".format(col, row, e))
 			#print(url)
 			data = None
 

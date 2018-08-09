@@ -19,7 +19,8 @@
 
 
 
-import urllib.request
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 import json
 from ..settings import getSetting
 
@@ -36,10 +37,14 @@ class EPSGIO():
 	def ping():
 		url = "http://epsg.io"
 		try:
-			rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-			urllib.request.urlopen(rq, timeout=1)
+			rq = Request(url, headers={'User-Agent': USER_AGENT})
+			urlopen(rq, timeout=1)
 			return True
-		except urllib.request.URLError:
+		except URLError as e:
+			print('Cannot ping {} web service, {}'.format(url, e.reason))
+			return False
+		except HTTPError as e:
+			print('Cannot ping {} web service, http error {}'.format(url, e.code))
 			return False
 		except:
 			raise
@@ -56,8 +61,14 @@ class EPSGIO():
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
 
-		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-		response = urllib.request.urlopen(rq).read().decode('utf8')
+		try:
+			rq = Request(url, headers={'User-Agent': USER_AGENT})
+			response = urlopen(rq).read().decode('utf8')
+		except (URLError, HTTPError) as err:
+			#print(err.code, err.reason, err.headers)
+			print(url)
+			raise
+
 		obj = json.loads(response)
 
 		return (float(obj['x']), float(obj['y']))
@@ -95,10 +106,10 @@ class EPSGIO():
 			url = urlTemplate.replace("{POINTS}", part)
 
 			try:
-				rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-				response = urllib.request.urlopen(rq).read().decode('utf8')
-			except urllib.error.HTTPError as err:
-				print(err.code, err.reason, err.headers)
+				rq = Request(url, headers={'User-Agent': USER_AGENT})
+				response = urlopen(rq).read().decode('utf8')
+			except (URLError, HTTPError) as err:
+				#print(err.code, err.reason, err.headers)
 				print(url)
 				raise
 
