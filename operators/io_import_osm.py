@@ -233,8 +233,10 @@ class OSM_IMPORT():
 				if face.normal.z < 0:
 					face.normal_flip()
 
+				offset = None
 				if "height" in tags:
 						htag = tags["height"]
+						htag.replace(',', '.')
 						try:
 							offset = int(htag)
 						except:
@@ -243,11 +245,18 @@ class OSM_IMPORT():
 							except:
 								for i, c in enumerate(htag):
 									if not c.isdigit():
-										offset, unit = float(htag[:i]), htag[i:].strip()
-										#todo : parse unit  25, 25m, 25 ft, etc.
+										try:
+											offset, unit = float(htag[:i]), htag[i:].strip()
+											#todo : parse unit  25, 25m, 25 ft, etc.
+										except:
+											offset = None
 				elif "building:levels" in tags:
-					offset = int(tags["building:levels"]) * self.levelHeight
-				else:
+					try:
+						offset = int(tags["building:levels"]) * self.levelHeight
+					except ValueError as e:
+						offset = None
+
+				if offset is None:
 					minH = self.defaultHeight - self.randomHeightThreshold
 					if minH < 0 :
 						minH = 0
