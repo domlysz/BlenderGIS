@@ -533,12 +533,8 @@ class IMPORT_SHP(Operator):
 				for k, pt in enumerate(pts[idx1:idx2]):
 
 					if self.elevSource == 'OBJ':
-						hit = rayCaster.rayCast(x=pt[0]-dx, y=pt[1]-dy)
-						if hit is not None:
-							z = hit[2]
-						else:
-							#print('not hit')
-							z = 0
+						rcHit = rayCaster.rayCast(x=pt[0]-dx, y=pt[1]-dy)
+						z = rcHit.loc.z #will be automatically set to zero if not rcHit.hit
 
 					elif self.elevSource == 'FIELD':
 						try:

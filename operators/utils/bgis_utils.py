@@ -1,9 +1,10 @@
 
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
 
 from ...core import BBOX
+
 
 class DropToGround():
 	'''A class to perform raycasting accross z axis'''
@@ -11,22 +12,27 @@ class DropToGround():
 	def __init__(self, scn, ground):
 		self.scn = scn
 		self.ground = ground
-		self.bbox = getBBOX.fromObj(ground)
-		#self.mw = self.ground.matrix_world
-		#self.mwi = self.mw.inverted()
+		self.bbox = getBBOX.fromObj(ground, applyTransform=True)
+		self.mw = self.ground.matrix_world
+		self.mwi = self.mw.inverted()
 
 	def rayCast(self, x, y, elseZero=False):
+		#Hit vector
 		offset = 100
-		origin = Vector((x, y, self.bbox.zmax + offset)) #* self.mwi
+		orgWldSpace = Vector((x, y, self.bbox.zmax + offset))
+		orgObjSpace = self.mwi * orgWldSpace
 		direction = Vector((0,0,-1)) #down
-		hit, hitLoc, hitNormal, hitFaceIdx = self.ground.ray_cast(origin, direction)
-		if not hit:
-			if elseZero:
-				return Vector((x,y,0))
-			else:
-				return None
-		else:
-			return hitLoc #* self.mw
+		#build ray cast hit namespace object
+		class RayCastHit(): pass
+		rcHit = RayCastHit()
+		#raycast
+		rcHit.hit, rcHit.loc, rcHit.normal, rcHit.faceIdx = self.ground.ray_cast(orgObjSpace, direction)
+		#adjust values
+		if not rcHit.hit:
+			rcHit.loc = Vector((orgWldSpace.x, orgWldSpace.y, 0))
+		rcHit.loc = self.mw * rcHit.loc
+
+		return rcHit
 
 def placeObj(mesh, objName):
 	'''Build and add a new object from a given mesh'''

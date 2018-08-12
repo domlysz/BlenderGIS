@@ -213,7 +213,7 @@ class OSM_IMPORT():
 			dx, dy = geoscn.crsx, geoscn.crsy
 
 			if self.useElevObj:
-				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy, elseZero=True) for v in pts]
+				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
 			else:
 				pts = [ (v[0]-dx, v[1]-dy, 0) for v in pts]
 
