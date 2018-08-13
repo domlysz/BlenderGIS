@@ -78,6 +78,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		description = "Choose a Coordinate Reference System",
 		items = listPredefCRS,
 		)
+	reprojection = BoolProperty(
+			name="Specifiy raster CRS",
+			description="Specifiy raster CRS if it's different from scene CRS",
+			default=False )
 
 	# List of operator properties, the attributes will be assigned
 	# to the class instance from the operator settings before calling.
@@ -172,15 +176,22 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				else:
 					layout.label("There isn't georef mesh to refer")
 		#
+		if geoscn.isPartiallyGeoref:
+			layout.prop(self, 'reprojection')
+			if self.reprojection:
+				self.crsInputLayout(context)
+			#
+			georefManagerLayout(self, context)
+		else:
+			self.crsInputLayout(context)
+
+	def crsInputLayout(self, context):
+		layout = self.layout
 		row = layout.row(align=True)
-		#row.prop(self, "rastCRS", text='CRS')
 		split = row.split(percentage=0.35, align=True)
 		split.label('CRS:')
 		split.prop(self, "rastCRS", text='')
 		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
-		if geoscn.isPartiallyGeoref:
-			georefManagerLayout(self, context)
-
 
 	def err(self, msg):
 		'''Report error throught a Blender's message box'''
@@ -200,22 +211,29 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		if geoscn.isBroken:
 			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 			return {'CANCELLED'}
+
+		scale = geoscn.scale #TODO
+
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
-		scale = geoscn.scale #TODO
-		if not geoscn.hasCRS:
+			if self.reprojection:
+				rastCRS = self.rastCRS
+			else:
+				rastCRS = geoscn.crs
+		else: #if not geoscn.hasCRS
+			rastCRS = self.rastCRS
 			try:
-				geoscn.crs = self.rastCRS
+				geoscn.crs = rastCRS
 			except Exception as e:
 				self.report({'ERROR'}, str(e))
 				return {'CANCELLED'}
 
 		#Raster reprojection throught UV mapping
 		#build reprojector objects
-		if geoscn.crs != self.rastCRS:
+		if geoscn.crs != rastCRS:
 			rprj = True
-			rprjToRaster = Reproj(geoscn.crs, self.rastCRS)
-			rprjToScene = Reproj(self.rastCRS, geoscn.crs)
+			rprjToRaster = Reproj(geoscn.crs, rastCRS)
+			rprjToScene = Reproj(rastCRS, geoscn.crs)
 		else:
 			rprj = False
 			rprjToRaster = None
