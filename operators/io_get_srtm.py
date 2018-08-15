@@ -112,6 +112,7 @@ class SRTM_QUERY(Operator):
 			bpy.ops.importgis.georaster(
 			'EXEC_DEFAULT',
 			filepath = filePath,
+			reprojection = True,
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
 			subdivision = 'subsurf')
@@ -119,6 +120,7 @@ class SRTM_QUERY(Operator):
 			bpy.ops.importgis.georaster(
 			'EXEC_DEFAULT',
 			filepath = filePath,
+			reprojection = True,
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
 			subdivision = 'subsurf',
