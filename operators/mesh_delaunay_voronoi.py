@@ -5,7 +5,7 @@ from .utils import computeVoronoiDiagram, computeDelaunayTriangulation
 
 class Point:
 	def __init__(self, x, y, z):
-		self.x, self.y, self.z= x, y, z
+		self.x, self.y, self.z = x, y, z
 
 def unique(L):
 	"""Return a list of unhashable elements in s, but without duplicates.
@@ -24,7 +24,7 @@ def unique(L):
 			del L[i]
 		else:
 			last = L[i]
-	return (nDupli,nZcolinear)#list data type is mutable, input list will automatically update and doesn't need to be returned
+	return (nDupli, nZcolinear)#list data type is mutable, input list will automatically update and doesn't need to be returned
 
 def checkEqual(lst):
 	return lst[1:] == lst[:-1]
@@ -39,7 +39,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 	def execute(self, context):
 		#Get selected obj
 		objs = bpy.context.selected_objects
-		if len(objs) == 0 or len(objs)>1:
+		if len(objs) == 0 or len(objs) > 1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
 			return {'CANCELLED'}
@@ -56,25 +56,25 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		vertsPts = [vertex.co for vertex in mesh.vertices]
 		#Remove duplicate
 		verts= [[vert.x, vert.y, vert.z] for vert in vertsPts]
-		nDupli,nZcolinear = unique(verts)
-		nVerts=len(verts)
-		print(str(nDupli)+" duplicates points ignored")
-		print(str(nZcolinear)+" z colinear points excluded")
+		nDupli, nZcolinear = unique(verts)
+		nVerts = len(verts)
+		print(str(nDupli) + " duplicates points ignored")
+		print(str(nZcolinear) + " z colinear points excluded")
 		if nVerts < 3:
 			self.report({'ERROR'}, "Not enough points")
 			return {'CANCELLED'}
 		#Check colinear
-		xValues=[pt[0] for pt in verts]
-		yValues=[pt[1] for pt in verts]
+		xValues = [pt[0] for pt in verts]
+		yValues = [pt[1] for pt in verts]
 		if checkEqual(xValues) or checkEqual(yValues):
 			self.report({'ERROR'}, "Points are colinear")
 			return {'CANCELLED'}
 		#Triangulate
-		print("Triangulate "+str(nVerts)+" points...")
+		print("Triangulate " + str(nVerts) + " points...")
 		vertsPts= [Point(vert[0], vert[1], vert[2]) for vert in verts]
-		triangles=computeDelaunayTriangulation(vertsPts)
-		triangles=[tuple(reversed(tri)) for tri in triangles]#reverse point order --> if all triangles are specified anticlockwise then all faces up
-		print(str(len(triangles))+" triangles")
+		triangles = computeDelaunayTriangulation(vertsPts)
+		triangles = [tuple(reversed(tri)) for tri in triangles]#reverse point order --> if all triangles are specified anticlockwise then all faces up
+		print(str(len(triangles)) + " triangles")
 		#Create new mesh structure
 		print("Create mesh...")
 		tinMesh = bpy.data.meshes.new("TIN") #create a new mesh
@@ -92,7 +92,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		tinObj.select = True
 		obj.select = False
 		#Report
-		self.report({'INFO'}, "Mesh created ("+str(len(triangles))+" triangles)")
+		self.report({'INFO'}, "Mesh created (" + str(len(triangles)) + " triangles)")
 		return {'FINISHED'}
 
 class OBJECT_OT_VoronoiButton(bpy.types.Operator):
@@ -103,8 +103,8 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 	#options
 	meshType = bpy.props.EnumProperty(
 		items = [("Edges", "Edges", ""), ("Faces", "Faces", "")],#(Key, Label, Description)
-		name="Mesh type",
-		description=""
+		name = "Mesh type",
+		description = ""
 		)
 
 	"""
@@ -114,7 +114,7 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 	def execute(self, context):
 		#Get selected obj
 		objs = bpy.context.selected_objects
-		if len(objs) == 0 or len(objs)>1:
+		if len(objs) == 0 or len(objs) > 1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
 			return {'CANCELLED'}
@@ -129,31 +129,31 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		mesh = obj.data
 		vertsPts = [vertex.co for vertex in mesh.vertices]
 		#Remove duplicate
-		verts= [[vert.x, vert.y, vert.z] for vert in vertsPts]
-		nDupli,nZcolinear = unique(verts)
-		nVerts=len(verts)
-		print(str(nDupli)+" duplicates points ignored")
-		print(str(nZcolinear)+" z colinear points excluded")
+		verts = [[vert.x, vert.y, vert.z] for vert in vertsPts]
+		nDupli, nZcolinear = unique(verts)
+		nVerts = len(verts)
+		print(str(nDupli) + " duplicates points ignored")
+		print(str(nZcolinear) + " z colinear points excluded")
 		if nVerts < 3:
 			self.report({'ERROR'}, "Not enough points")
 			return {'CANCELLED'}
 		#Check colinear
-		xValues=[pt[0] for pt in verts]
-		yValues=[pt[1] for pt in verts]
+		xValues = [pt[0] for pt in verts]
+		yValues = [pt[1] for pt in verts]
 		if checkEqual(xValues) or checkEqual(yValues):
 			self.report({'ERROR'}, "Points are colinear")
 			return {'CANCELLED'}
 		#Create diagram
-		print("Tesselation... ("+str(nVerts)+" points)")
+		print("Tesselation... (" + str(nVerts) + " points)")
 		xbuff, ybuff = 5, 5 # %
-		zPosition=0
-		vertsPts= [Point(vert[0], vert[1], vert[2]) for vert in verts]
+		zPosition = 0
+		vertsPts = [Point(vert[0], vert[1], vert[2]) for vert in verts]
 		if self.meshType == "Edges":
 			pts, edgesIdx = computeVoronoiDiagram(vertsPts, xbuff, ybuff, polygonsOutput=False, formatOutput=True)
 		else:
 			pts, polyIdx = computeVoronoiDiagram(vertsPts, xbuff, ybuff, polygonsOutput=True, formatOutput=True, closePoly=False)
 		#
-		pts=[[pt[0], pt[1], zPosition] for pt in pts]
+		pts = [[pt[0], pt[1], zPosition] for pt in pts]
 		#Create new mesh structure
 		print("Create mesh...")
 		voronoiDiagram = bpy.data.meshes.new("VoronoiDiagram") #create a new mesh
