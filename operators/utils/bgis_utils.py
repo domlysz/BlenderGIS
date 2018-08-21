@@ -6,6 +6,17 @@ from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vecto
 from ...core import BBOX
 
 
+def mouseTo3d(context, x, y):
+	'''Convert event.mouse_region to world coordinates'''
+	if context.area.type != 'VIEW_3D':
+		raise Exception('Wrong context')
+	coords = (x, y)
+	reg = context.region
+	reg3d = context.region_data
+	vec = region_2d_to_vector_3d(reg, reg3d, coords)
+	loc = region_2d_to_location_3d(reg, reg3d, coords, vec) #WARNING, this function return indeterminate value when view3d clip distance is too large
+	return loc
+
 class DropToGround():
 	'''A class to perform raycasting accross z axis'''
 

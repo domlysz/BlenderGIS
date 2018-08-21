@@ -26,6 +26,7 @@ from .prefs import PredefCRS
 from .core.proj.reproj import reprojPt
 from .core.proj.srs import SRS
 
+from .operators.utils import mouseTo3d
 
 PKG = __package__
 
@@ -66,6 +67,24 @@ class GeoScene():
 			self.scn['_RNA_UI'] = {}
 			rna_ui = self.scn['_RNA_UI']
 		return rna_ui
+
+	def view3dToProj(self, dx, dy):
+		'''Convert view3d coords to crs coords'''
+		if self.hasOriginPrj:
+			x = self.crsx + (dx * self.scale)
+			y = self.crsy + (dy * self.scale)
+			return x, y
+		else:
+			raise Exception("Scene origin coordinate is unset")
+
+	def projToView3d(self, dx, dy):
+		'''Convert view3d coords to crs coords'''
+		if self.hasOriginPrj:
+			x = (dx * self.scale) - self.crsx
+			y = (dy * self.scale) - self.crsy
+			return x, y
+		else:
+			raise Exception("Scene origin coordinate is unset")
 
 	@property
 	def hasCRS(self):
@@ -346,6 +365,40 @@ class GeoScene():
 
 
 ################
+from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
+
+class GEOSCENE_COORDS_VIEWER(Operator):
+	bl_idname = "geoscene.coords"
+	bl_description = ''
+	bl_label = ""
+	bl_options = {'INTERNAL', 'UNDO'}
+
+	coords = FloatVectorProperty(subtype='XYZ')
+
+	@classmethod
+	def poll(cls, context):
+		return bpy.context.mode == 'OBJECT' and context.area.type == 'VIEW_3D'
+
+	def invoke(self, context, event):
+		self.geoscn = GeoScene(context.scene)
+		if not self.geoscn.isGeoref or self.geoscn.isBroken:
+				self.report({'ERROR'}, "Scene is not correctly georeferencing")
+				return {'CANCELLED'}
+		#Add modal handler and init a timer
+		context.window_manager.modal_handler_add(self)
+		self.timer = context.window_manager.event_timer_add(0.05, context.window)
+		context.window.cursor_set('CROSSHAIR')
+		return {'RUNNING_MODAL'}
+
+	def modal(self, context, event):
+		if event.type == 'MOUSEMOVE':
+			loc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+			x, y = self.geoscn.view3dToProj(loc.x, loc.y)
+			context.area.header_text_set("x {:.3f}, y {:.3f}, z {:.3f}".format(x, y, loc.z))
+		if event.type == 'ESC' and event.value == 'PRESS':
+			context.window.cursor_set('DEFAULT')
+			return {'CANCELLED'}
+		return {'RUNNING_MODAL'}
 
 
 class GEOSCENE_SET_CRS(Operator):
@@ -552,6 +605,7 @@ class GEOSCENE_PANEL(Panel):
 
 		georefManagerLayout(self, context)
 
+		layout.operator("geoscene.coords", icon='WORLD', text='Geo-coordinates')
 
 #hidden props used as display options in georef manager panel
 bpy.types.WindowManager.displayOriginGeo = BoolProperty(name='Geo', description='Display longitude and latitude of scene origin')
