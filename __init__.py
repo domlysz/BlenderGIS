@@ -78,7 +78,7 @@ class bgisPanel(bpy.types.Panel):
 		row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
 		row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
 		row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
-		row.operator("importgis.asc_file", icon_value=icons_dict["asc"].icon_id, text='')
+		#row.operator("importgis.asc_file", icon_value=icons_dict["asc"].icon_id, text='')
 		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
 
 		col = layout.column(align=True)
