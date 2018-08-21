@@ -5,6 +5,12 @@ from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vecto
 
 from ...core import BBOX
 
+def isTopView(context):
+	if context.area.type == 'VIEW_3D':
+		reg3d = context.region_data
+	else:
+		return False
+	return reg3d.view_perspective == 'ORTHO' and tuple(reg3d.view_matrix.to_euler()) == (0,0,0)
 
 def mouseTo3d(context, x, y):
 	'''Convert event.mouse_region to world coordinates'''
@@ -213,15 +219,10 @@ class getBBOX():
 			print("View3d must be in top ortho")
 			return None
 		#
-		w, h = area.width, area.height
-		coords = (w, h)
-		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc_ne = region_2d_to_location_3d(reg, reg3d, coords, vec)
-		xmax, ymax = loc_ne.x, loc_ne.y
+		loc = mouseTo3d(context, area.width, area.height)
+		xmax, ymax = loc.x, loc.y
 		#
-		coords = (0, 0)
-		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc_sw = region_2d_to_location_3d(reg, reg3d, coords, vec)
-		xmin, ymin = loc_sw.x, loc_sw.y
+		loc = mouseTo3d(context, 0, 0)
+		xmin, ymin = loc.x, loc.y
 		#
 		return BBOX(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
