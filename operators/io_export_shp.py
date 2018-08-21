@@ -40,6 +40,9 @@ class EXPORT_SHP(Operator, ExportHelper):
 			('POLYGONZ', 'Polygon', "")]
 			)
 
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'OBJECT'
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
@@ -52,10 +55,6 @@ class EXPORT_SHP(Operator, ExportHelper):
 		scn = bpy.context.scene
 		geoscn = GeoScene(scn)
 		#Get selected obj
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
-			pass
 		objs = bpy.context.selected_objects
 		if len(objs) == 0 or len(objs)>1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")

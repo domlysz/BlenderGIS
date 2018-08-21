@@ -198,12 +198,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		self.report({'ERROR'}, msg)
 		return {'CANCELLED'}
 
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'OBJECT'
+
 	def execute(self, context):
 		prefs = bpy.context.user_preferences.addons[PKG].preferences
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
-			pass
+
 		bpy.ops.object.select_all(action='DESELECT')
 		#Get scene and some georef data
 		scn = bpy.context.scene

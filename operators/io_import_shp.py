@@ -317,7 +317,9 @@ class IMPORT_SHP(Operator):
 			default=False
 			)
 
-
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'OBJECT'
 
 	def execute(self, context):
 
@@ -327,13 +329,6 @@ class IMPORT_SHP(Operator):
 		w = context.window
 		w.cursor_set('WAIT')
 		t0 = time.clock()
-
-		#Toogle object mode and deselect all
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except Exception as e:
-			print('Warning : ' + str(e))
-			pass
 
 		bpy.ops.object.select_all(action='DESELECT')
 

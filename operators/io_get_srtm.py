@@ -39,17 +39,15 @@ class SRTM_QUERY(Operator):
 
 		return self.execute(context)#context.window_manager.invoke_props_dialog(self)
 
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'OBJECT'
 
 	def execute(self, context):
 
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		crs = SRS(geoscn.crs)
-
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
-			pass
 
 		#Validate selection
 		objs = bpy.context.selected_objects

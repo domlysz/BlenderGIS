@@ -55,6 +55,9 @@ class SetGeorenderCam(bpy.types.Operator):
 		layout.prop(self, 'target_res')
 		layout.prop(self, 'zLocOffset')
 
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'OBJECT'
 
 	def execute(self, context):#every times operator redo options are modified
 
@@ -67,12 +70,6 @@ class SetGeorenderCam(bpy.types.Operator):
 		if not geoscn.isGeoref:
 			self.report({'ERROR'}, "Scene isn't georef")
 			return {'CANCELLED'}
-
-		#Make sure we are in object mode
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
-			pass
 
 		#Validate selection
 		objs = bpy.context.selected_objects

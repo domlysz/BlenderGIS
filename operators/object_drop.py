@@ -82,7 +82,7 @@ class OBJECT_OT_drop_to_ground(Operator):
     @classmethod
     def poll(cls, context):
         act_obj = context.active_object
-        return (bpy.context.mode == 'OBJECT'
+        return (context.mode == 'OBJECT'
                 and len(context.selected_objects) >= 2
                 and act_obj
                 and act_obj.type in {'MESH', 'FONT', 'META', 'CURVE', 'SURFACE'}

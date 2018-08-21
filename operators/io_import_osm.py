@@ -573,7 +573,7 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 
 	@classmethod
 	def poll(cls, context):
-		return bpy.context.mode == 'OBJECT'
+		return context.mode == 'OBJECT'
 
 
 	def invoke(self, context, event):
