@@ -94,6 +94,10 @@ class bgisPanel(bpy.types.Panel):
 		col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
 		col = layout.column(align=True)
+		col.label('Object:')
+		col.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
+
+		col = layout.column(align=True)
 		col.label('Analysis:')
 		col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
 
