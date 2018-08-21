@@ -570,26 +570,16 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 	def check(self, context):
 		return True
 
-	def invoke(self, context, event):
 
+	@classmethod
+	def poll(cls, context):
+		return bpy.context.mode == 'OBJECT'
+
+
+	def invoke(self, context, event):
 		#workaround to enum callback bug (T48873, T38489)
 		global OSMTAGS
 		OSMTAGS = getTags()
-
-		#check if 3dview is top ortho
-		reg3d = context.region_data
-		if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
-			self.report({'ERROR'}, "View3d must be in top ortho")
-			return {'CANCELLED'}
-
-		#check georef
-		geoscn = GeoScene(context.scene)
-		if not geoscn.isGeoref:
-				self.report({'ERROR'}, "Scene is not georef")
-				return {'CANCELLED'}
-		if geoscn.isBroken:
-				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'CANCELLED'}
 
 		return context.window_manager.invoke_props_dialog(self)
 
@@ -598,23 +588,36 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 
 		scn = context.scene
 		geoscn = GeoScene(scn)
+		objs = context.selected_objects
+		aObj = context.active_object
 
-		try:
-			bpy.ops.object.mode_set(mode='OBJECT')
-		except:
-			pass
-		bpy.ops.object.select_all(action='DESELECT')
+		if not geoscn.isGeoref:
+				self.report({'ERROR'}, "Scene is not georef")
+				return {'CANCELLED'}
+		elif geoscn.isBroken:
+				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+				return {'CANCELLED'}
+
+		if context.area.type == 'VIEW_3D':
+			reg3d = context.region_data
+			if reg3d.view_perspective == 'ORTHO' and tuple(reg3d.view_matrix.to_euler()) == (0,0,0):
+				bbox = getBBOX.fromTopView(context).toGeo(geoscn)
+		elif len(objs) == 1 and aObj.type == 'MESH':
+			bbox = getBBOX.fromObj(aObj).toGeo(geoscn)
+		else:
+			self.report({'ERROR'}, "Please define the query extent in orthographic top view or by selecting a reference object")
+			return {'CANCELLED'}
+
+		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
+			self.report({'ERROR'}, "Too large extent")
+			return {'CANCELLED'}
+
+		#Get view3d bbox in lonlat
+		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
-
-		#Get view3d bbox in lonlat
-		bbox = getBBOX.fromTopView(context).toGeo(geoscn)
-		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
-			self.report({'ERROR'}, "Too large extent")
-			return {'CANCELLED'}
-		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
 		#Download from overpass api
 		api = overpy.Overpass()
