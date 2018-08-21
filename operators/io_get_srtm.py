@@ -10,7 +10,7 @@ from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
 from ..geoscene import GeoScene
-from .utils import adjust3Dview, getBBOX
+from .utils import adjust3Dview, getBBOX, isTopView
 from ..core.proj import SRS, reprojBbox
 
 from ..core.settings import getSetting
@@ -53,20 +53,16 @@ class SRTM_QUERY(Operator):
 
 		#Validate selection
 		objs = bpy.context.selected_objects
-		if not objs:
+		aObj = context.active_object
+		if isTopView(context):
 			onMesh = False
-			#check if 3dview is top ortho
-			reg3d = context.region_data
-			if reg3d.view_perspective != 'ORTHO' or tuple(reg3d.view_matrix.to_euler()) != (0,0,0):
-				self.report({'ERROR'}, "View3d must be in top ortho")
-				return {'CANCELLED'}
 			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
-		elif len(objs) > 2 or (len(objs) == 1 and not objs[0].type == 'MESH'):
-			self.report({'ERROR'}, "Pre-selection is incorrect")
-			return {'CANCELLED'}
-		else:
+		elif len(objs) == 1 and aObj.type == 'MESH':
 			onMesh = True
-			bbox = getBBOX.fromObj(objs[0]).toGeo(geoscn)
+			bbox = getBBOX.fromObj(aObj).toGeo(geoscn)
+		else:
+			self.report({'ERROR'}, "Please define the query extent in orthographic top view or by selecting a reference object")
+			return {'CANCELLED'}
 
 		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
 			self.report({'ERROR'}, "Too large extent")

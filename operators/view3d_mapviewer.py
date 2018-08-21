@@ -27,7 +27,6 @@ import bpy
 from mathutils import Vector
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
-from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
 import addon_utils
 import blf, bgl
 
@@ -41,7 +40,7 @@ from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
 
 #utilities
-from .utils import getBBOX
+from .utils import getBBOX, mouseTo3d
 from .utils import placeObj, adjust3Dview, showTextures, rasterExtentToMesh, geoRastUVmap, addTexture #for export to mesh tool
 
 #OSM Nominatim API module
@@ -152,12 +151,6 @@ class BaseMap(GeoScene):
 			#Place background image
 			self.place()
 		self.srv.stop()
-
-	def view3dToProj(self, dx, dy):
-		'''Convert view3d coords to crs coords'''
-		x = self.crsx + dx * self.scale
-		y = self.crsy + dy * self.scale
-		return x, y
 
 	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
 		'''Move scene origin and update props'''
@@ -643,17 +636,6 @@ class MAP_VIEWER(bpy.types.Operator):
 		return {'RUNNING_MODAL'}
 
 
-
-	def mouseTo3d(self, context, x, y):
-		'''Convert event.mouse_region to world coordinates'''
-		coords = (x, y)
-		reg = context.region
-		reg3d = context.region_data
-		vec = region_2d_to_vector_3d(reg, reg3d, coords)
-		loc = region_2d_to_location_3d(reg, reg3d, coords, vec) #WARNING, this function return indeterminate value when view3d clip distance is too large
-		return loc
-
-
 	def modal(self, context, event):
 
 		context.area.tag_redraw()
@@ -683,7 +665,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					dst = context.region_data.view_distance
 					context.region_data.view_distance -= dst * self.moveFactor
 					if self.prefs.zoomToMouse:
-						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						mouseLoc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						viewLoc = context.region_data.view_location
 						deltaVect = (mouseLoc - viewLoc) * self.moveFactor
 						viewLoc += deltaVect
@@ -700,7 +682,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								dst = context.region_data.view_distance
 								dst2 = dst * resFactor
 								context.region_data.view_distance = dst2
-								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								mouseLoc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 								viewLoc = context.region_data.view_location
 								moveFactor = (dst - dst2) / dst
 								deltaVect = (mouseLoc - viewLoc) * moveFactor
@@ -732,7 +714,7 @@ class MAP_VIEWER(bpy.types.Operator):
 					dst = context.region_data.view_distance
 					context.region_data.view_distance += dst * self.moveFactor
 					if self.prefs.zoomToMouse:
-						mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						mouseLoc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						viewLoc = context.region_data.view_location
 						deltaVect = (mouseLoc - viewLoc) * self.moveFactor
 						viewLoc -= deltaVect
@@ -749,7 +731,7 @@ class MAP_VIEWER(bpy.types.Operator):
 								dst = context.region_data.view_distance
 								dst2 = dst * resFactor
 								context.region_data.view_distance = dst2
-								mouseLoc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+								mouseLoc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 								viewLoc = context.region_data.view_location
 								moveFactor = (dst - dst2) / dst
 								deltaVect = (mouseLoc - viewLoc) * moveFactor
@@ -765,7 +747,7 @@ class MAP_VIEWER(bpy.types.Operator):
 		if event.type == 'MOUSEMOVE':
 
 			#Report mouse location coords in projeted crs
-			loc = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+			loc = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 			self.posx, self.posy = self.map.view3dToProj(loc.x, loc.y)
 
 			if self.zoomBoxMode:
@@ -773,8 +755,8 @@ class MAP_VIEWER(bpy.types.Operator):
 
 			#Drag background image (edit its offset values)
 			if self.inMove:
-				loc1 = self.mouseTo3d(context, self.x1, self.y1)
-				loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+				loc1 = mouseTo3d(context, self.x1, self.y1)
+				loc2 = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 				dlt = loc1 - loc2
 				if event.ctrl or self.prefs.lockOrigin:
 					context.region_data.view_location = self.viewLoc1 + dlt
@@ -816,8 +798,8 @@ class MAP_VIEWER(bpy.types.Operator):
 				if not event.ctrl:
 					if not self.prefs.lockOrigin:
 						#Compute final shift
-						loc1 = self.mouseTo3d(context, self.x1, self.y1)
-						loc2 = self.mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
+						loc1 = mouseTo3d(context, self.x1, self.y1)
+						loc2 = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						dlt = loc1 - loc2
 						#Update map
 						self.map.moveOrigin(dlt.x, dlt.y, updObjLoc=False, updBkgImg=False)
@@ -843,7 +825,7 @@ class MAP_VIEWER(bpy.types.Operator):
 				h = ymax - ymin
 				cx = xmin + w/2
 				cy = ymin + h/2
-				loc = self.mouseTo3d(context, cx, cy)
+				loc = mouseTo3d(context, cx, cy)
 				#Compute target resolution
 				px_diag = math.sqrt(context.area.width**2 + context.area.height**2)
 				mapRes = self.map.tm.getRes(self.map.zoom)

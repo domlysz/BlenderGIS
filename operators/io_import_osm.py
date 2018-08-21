@@ -11,7 +11,7 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from .lib.osm import overpy
 
 from ..geoscene import GeoScene
-from .utils import adjust3Dview, getBBOX, DropToGround
+from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
 
@@ -598,10 +598,8 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'CANCELLED'}
 
-		if context.area.type == 'VIEW_3D':
-			reg3d = context.region_data
-			if reg3d.view_perspective == 'ORTHO' and tuple(reg3d.view_matrix.to_euler()) == (0,0,0):
-				bbox = getBBOX.fromTopView(context).toGeo(geoscn)
+		if isTopView(context):
+			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		elif len(objs) == 1 and aObj.type == 'MESH':
 			bbox = getBBOX.fromObj(aObj).toGeo(geoscn)
 		else:
