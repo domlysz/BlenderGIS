@@ -258,6 +258,14 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		elevField = self.fieldElevName if self.vertsElevSource == 'FIELD' else ""
 		extrudField = self.fieldExtrudeName if self.useFieldExtrude else ""
 		nameField = self.fieldObjName if self.useFieldName else ""
+		if self.vertsElevSource == 'OBJ':
+			if not self.objElevLst:
+				self.report({'ERROR'}, "No elevation object")
+				return {'CANCELLED'}
+			else:
+				objElevIdx = int(self.objElevLst)
+		else:
+			objElevIdx = 0 #will not be used
 
 		geoscn = GeoScene()
 		if geoscn.isBroken:
@@ -274,7 +282,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 		try:
 			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
-				fieldElevName=elevField, objElevIdx=int(self.objElevLst), fieldExtrudeName=extrudField, fieldObjName=nameField,
+				fieldElevName=elevField, objElevIdx=objElevIdx, fieldExtrudeName=extrudField, fieldObjName=nameField,
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
