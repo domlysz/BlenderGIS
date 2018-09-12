@@ -123,8 +123,8 @@ class EPSGIO():
 		query = str(query).replace(' ', '+')
 		url = "http://epsg.io/?q={QUERY}&format=json"
 		url = url.replace("{QUERY}", query)
-		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-		response = urllib.request.urlopen(rq).read().decode('utf8')
+		rq = Request(url, headers={'User-Agent': USER_AGENT})
+		response = urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
 		'''
 		for res in obj['results']:
@@ -137,8 +137,8 @@ class EPSGIO():
 	def getEsriWkt(epsg):
 		url = "http://epsg.io/{CODE}.esriwkt"
 		url = url.replace("{CODE}", str(epsg))
-		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-		wkt = urllib.request.urlopen(rq).read().decode('utf8')
+		rq = Request(url, headers={'User-Agent': USER_AGENT})
+		wkt = urlopen(rq).read().decode('utf8')
 		return wkt
 
 
@@ -161,8 +161,8 @@ class TWCC():
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
 
-		rq = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-		response = urllib.request.urlopen(rq).read().decode('utf8')
+		rq = Request(url, headers={'User-Agent': USER_AGENT})
+		response = urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
 
 		return (float(obj['point']['x']), float(obj['point']['y']))
