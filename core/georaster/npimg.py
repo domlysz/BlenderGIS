@@ -59,10 +59,10 @@ class NpImage():
 				return 'IMGIO'
 		elif engine == 'GDAL'and HAS_GDAL:
 			return 'GDAL'
-		elif engine == 'PIL'and HAS_PIL:
-			return 'PIL'
 		elif engine == 'IMGIO' and HAS_IMGIO:
 			return 'IMGIO'
+		elif engine == 'PIL'and HAS_PIL:
+			return 'PIL'
 		else:
 			raise ImportError(str(engine) + " interface unavailable")
 
