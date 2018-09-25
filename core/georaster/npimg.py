@@ -53,10 +53,12 @@ class NpImage():
 		if engine == 'AUTO':
 			if HAS_GDAL:
 				return 'GDAL'
-			elif HAS_PIL:
-				return 'PIL'
 			elif HAS_IMGIO:
 				return 'IMGIO'
+			elif HAS_PIL:
+				return 'PIL'
+			else:
+				raise ImportError("No image engine available")
 		elif engine == 'GDAL'and HAS_GDAL:
 			return 'GDAL'
 		elif engine == 'IMGIO' and HAS_IMGIO:
