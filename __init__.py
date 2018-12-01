@@ -34,6 +34,21 @@ bl_info = {
 	'category': '3D View'
 	}
 
+#Modules
+CAM_GEOPHOTO = True
+CAM_GEOREF = True
+EXPORT_SHP = True
+GET_SRTM = True
+IMPORT_GEORASTER = True
+IMPORT_OSM = True
+IMPORT_SHP = True
+IMPORT_ASC = True
+DELAUNAY = True
+TERRAIN_NODES = True
+TERRAIN_RECLASS = True
+BASEMAPS = True
+DROP = True
+
 import bpy, os
 
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
@@ -42,7 +57,34 @@ from .core.settings import getSettings, setSettings
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
 from . import geoscene
-from .operators import * #see operators/__init__/__all__
+#from .operators import * #see operators/__init__/__all__
+
+if CAM_GEOPHOTO:
+	from .operators import add_camera_exif
+if CAM_GEOREF:
+	from .operators import add_camera_georef
+if EXPORT_SHP:
+	from .operators import io_export_shp
+if GET_SRTM:
+	from .operators import io_get_srtm
+if IMPORT_GEORASTER:
+	from .operators import io_import_georaster
+if IMPORT_OSM:
+	from .operators import io_import_osm
+if IMPORT_SHP:
+	from .operators import io_import_shp
+if IMPORT_ASC:
+	from .operators import io_import_asc
+if DELAUNAY:
+	from .operators import mesh_delaunay_voronoi
+if TERRAIN_NODES:
+	from .operators import nodes_terrain_analysis_builder
+if TERRAIN_RECLASS:
+	from .operators import nodes_terrain_analysis_reclassify
+if BASEMAPS:
+	from .operators import view3d_mapviewer
+if DROP:
+	from .operators import object_drop
 
 
 import bpy.utils.previews as iconsLib
@@ -64,54 +106,69 @@ class bgisPanel(bpy.types.Panel):
 		col = layout.column(align=True)
 		col.label('Geodata:')
 
-		row = col.row(align=True)
-		row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
-		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+		if BASEMAPS:
+			row = col.row(align=True)
+			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
 
 		row = col.row(align=True)
-		row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
-		row.operator("importgis.srtm_query")
-		#row.operator("bgis.pref_show", icon='SCRIPTWIN', text='')
+		if IMPORT_OSM:
+			row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
+		if GET_SRTM:
+			row.operator("importgis.srtm_query")
+
 
 		row = layout.row(align=True)
 		row.label('Import:')#, icon='LIBRARY_DATA_DIRECT')
-		row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
-		row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
-		row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
+		if IMPORT_SHP:
+			row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
+		if IMPORT_GEORASTER:
+			row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
+		if IMPORT_OSM:
+			row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
 		#row.operator("importgis.asc_file", icon_value=icons_dict["asc"].icon_id, text='')
 		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
 
 		col = layout.column(align=True)
 		col.label('Camera creation:')
-		col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
-		row = col.row(align=True)
-		row.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
-		row.operator("camera.geophotos_setactive", icon='FILE_REFRESH', text='')
+		if CAM_GEOREF:
+			col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
+		if CAM_GEOPHOTO:
+			row = col.row(align=True)
+			row.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
+			row.operator("camera.geophotos_setactive", icon='FILE_REFRESH', text='')
 
-		col = layout.column(align=True)
-		col.label('Mesh:')
-		col.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
-		col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
+		if DELAUNAY:
+			col = layout.column(align=True)
+			col.label('Mesh:')
+			col.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
+			col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
-		col = layout.column(align=True)
-		col.label('Object:')
-		col.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
+		if DROP:
+			col = layout.column(align=True)
+			col.label('Object:')
+			col.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
 
-		col = layout.column(align=True)
-		col.label('Analysis:')
-		col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
+		if TERRAIN_NODES:
+			col = layout.column(align=True)
+			col.label('Analysis:')
+			col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
 
 
 
 # Register in File > Import menu
 def menu_func_import(self, context):
-	self.layout.operator('importgis.georaster', text="Georeferenced raster")
-	self.layout.operator('importgis.shapefile_file_dialog', text="Shapefile (.shp)")
-	self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
-	self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
+	if IMPORT_GEORASTER:
+		self.layout.operator('importgis.georaster', text="Georeferenced raster")
+	if IMPORT_SHP:
+		self.layout.operator('importgis.shapefile_file_dialog', text="Shapefile (.shp)")
+	if IMPORT_OSM:
+		self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
+	if IMPORT_ASC:
+		self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
 
 def menu_func_export(self, context):
-	self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
+	if EXPORT_SHP:
+		self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
 
 
 def register():
@@ -125,7 +182,8 @@ def register():
 		icons_dict.load(name, os.path.join(icons_dir, icon), 'IMAGE')
 
 	#operators
-	nodes_terrain_analysis_reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
+	if TERRAIN_RECLASS:
+		nodes_terrain_analysis_reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
 	bpy.utils.register_module(__name__) #register all imported operators of the current module
 
 	#menus
@@ -137,7 +195,8 @@ def register():
 	kc =  wm.keyconfigs.active
 	if kc is not None: #no keyconfig when Blender from commandline with background flag
 		km = kc.keymaps['3D View']
-		kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+		if BASEMAPS:
+			kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
 	#config core settings
 	prefs = bpy.context.user_preferences.addons[__package__].preferences
 	cfg = getSettings()
@@ -156,11 +215,13 @@ def unregister():
 	try: #windows manager may be unavailable (for example whne running Blender command line)
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
-		kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
-		#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
+		if BASEMAPS:
+			kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
+			#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
 	except:
 		pass
-	nodes_terrain_analysis_reclassify.unregister()
+	if TERRAIN_RECLASS:
+		nodes_terrain_analysis_reclassify.unregister()
 	bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
