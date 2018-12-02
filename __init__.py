@@ -24,7 +24,7 @@ bl_info = {
 	'license': 'GPL',
 	'deps': '',
 	'version': (1, 0),
-	'blender': (2, 7, 8),
+	'blender': (2, 80, 0),
 	'location': 'View3D > Tools > GIS',
 	'warning': '',
 	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
@@ -35,19 +35,19 @@ bl_info = {
 	}
 
 #Modules
-CAM_GEOPHOTO = True
-CAM_GEOREF = True
-EXPORT_SHP = True
-GET_SRTM = True
-IMPORT_GEORASTER = True
-IMPORT_OSM = True
-IMPORT_SHP = True
-IMPORT_ASC = True
-DELAUNAY = True
-TERRAIN_NODES = True
-TERRAIN_RECLASS = True
-BASEMAPS = True
-DROP = True
+CAM_GEOPHOTO = False
+CAM_GEOREF = False
+EXPORT_SHP = False
+GET_SRTM = False
+IMPORT_GEORASTER = False
+IMPORT_OSM = False
+IMPORT_SHP = False
+IMPORT_ASC = False
+DELAUNAY = False
+TERRAIN_NODES = False
+TERRAIN_RECLASS = False
+BASEMAPS = False
+DROP = False
 
 import bpy, os
 
@@ -57,7 +57,6 @@ from .core.settings import getSettings, setSettings
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
 from . import geoscene
-#from .operators import * #see operators/__init__/__all__
 
 if CAM_GEOPHOTO:
 	from .operators import add_camera_exif
@@ -95,7 +94,7 @@ class bgisPanel(bpy.types.Panel):
 	bl_label = "BlenderGIS"
 	bl_space_type = "VIEW_3D"
 	bl_context = "objectmode"
-	bl_region_type = "TOOLS"
+	bl_region_type = "UI"
 
 	def draw(self, context):
 		layout = self.layout
@@ -104,7 +103,7 @@ class bgisPanel(bpy.types.Panel):
 		layout.operator("bgis.pref_show", icon='PREFERENCES')
 
 		col = layout.column(align=True)
-		col.label('Geodata:')
+		col.label(text='Geodata:')
 
 		if BASEMAPS:
 			row = col.row(align=True)
@@ -118,7 +117,7 @@ class bgisPanel(bpy.types.Panel):
 
 
 		row = layout.row(align=True)
-		row.label('Import:')#, icon='LIBRARY_DATA_DIRECT')
+		row.label(text='Import:')#, icon='LIBRARY_DATA_DIRECT')
 		if IMPORT_SHP:
 			row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
 		if IMPORT_GEORASTER:
@@ -129,7 +128,7 @@ class bgisPanel(bpy.types.Panel):
 		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
 
 		col = layout.column(align=True)
-		col.label('Camera creation:')
+		col.label(text='Camera creation:')
 		if CAM_GEOREF:
 			col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
 		if CAM_GEOPHOTO:
@@ -145,12 +144,12 @@ class bgisPanel(bpy.types.Panel):
 
 		if DROP:
 			col = layout.column(align=True)
-			col.label('Object:')
+			col.label(text='Object:')
 			col.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
 
 		if TERRAIN_NODES:
 			col = layout.column(align=True)
-			col.label('Analysis:')
+			col.label(text='Analysis:')
 			col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
 
 
@@ -182,13 +181,15 @@ def register():
 		icons_dict.load(name, os.path.join(icons_dir, icon), 'IMAGE')
 
 	#operators
+	prefs.register()
+	geoscene.register()
+	bpy.utils.register_class(bgisPanel)
 	if TERRAIN_RECLASS:
-		nodes_terrain_analysis_reclassify.register() #this module has its own register function because it contains PropertyGroup that must be specifically registered
-	bpy.utils.register_module(__name__) #register all imported operators of the current module
+		nodes_terrain_analysis_reclassify.register()
 
 	#menus
-	bpy.types.INFO_MT_file_import.append(menu_func_import)
-	bpy.types.INFO_MT_file_export.append(menu_func_export)
+	#bpy.types.INFO_MT_file_import.append(menu_func_import)
+	#bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 	#shortcuts
 	wm = bpy.context.window_manager
@@ -197,11 +198,12 @@ def register():
 		km = kc.keymaps['3D View']
 		if BASEMAPS:
 			kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+
 	#config core settings
-	prefs = bpy.context.user_preferences.addons[__package__].preferences
+	preferences = bpy.context.user_preferences.addons[__package__].preferences
 	cfg = getSettings()
-	cfg['proj_engine'] = prefs.projEngine
-	cfg['img_engine'] = prefs.imgEngine
+	cfg['proj_engine'] = preferences.projEngine
+	cfg['img_engine'] = preferences.imgEngine
 	setSettings(cfg)
 
 
@@ -210,8 +212,9 @@ def unregister():
 	global icons_dict
 	iconsLib.remove(icons_dict)
 
-	bpy.types.INFO_MT_file_import.remove(menu_func_import)
-	bpy.types.INFO_MT_file_export.append(menu_func_export)
+	#bpy.types.INFO_MT_file_import.remove(menu_func_import)
+	#bpy.types.INFO_MT_file_export.append(menu_func_export)
+
 	try: #windows manager may be unavailable (for example whne running Blender command line)
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
@@ -220,9 +223,12 @@ def unregister():
 			#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
 	except:
 		pass
+
+	bpy.utils.unregister_class(bgisPanel)
+	prefs.unregister()
+	geoscene.unregister()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
-	bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
 	register()

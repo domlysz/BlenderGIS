@@ -31,7 +31,7 @@ OSM_TAGS = [
 ]
 
 
-class BGIS_PREFS_SHOW(bpy.types.Operator):
+class BGIS_PREFS_SHOW(Operator):
 
 	bl_idname = "bgis.pref_show"
 	bl_description = 'Display BlenderGIS addons preferences'
@@ -62,9 +62,9 @@ class BGIS_PREFS(AddonPreferences):
 		return PredefCRS.getEnumItems()
 
 	#store crs preset as json string into addon preferences
-	predefCrsJson = StringProperty(default=json.dumps(PREDEF_CRS))
+	predefCrsJson: StringProperty(default=json.dumps(PREDEF_CRS))
 
-	predefCrs = EnumProperty(
+	predefCrs: EnumProperty(
 		name = "Predefinate CRS",
 		description = "Choose predefinite Coordinate Reference System",
 		items = listPredefCRS
@@ -90,7 +90,7 @@ class BGIS_PREFS(AddonPreferences):
 		prefs['proj_engine'] = self.projEngine
 		setSettings(prefs)
 
-	projEngine = EnumProperty(
+	projEngine: EnumProperty(
 		name = "Projection engine",
 		description = "Select projection engine",
 		items = getProjEngineItems,
@@ -115,7 +115,7 @@ class BGIS_PREFS(AddonPreferences):
 		prefs['img_engine'] = self.imgEngine
 		setSettings(prefs)
 
-	imgEngine = EnumProperty(
+	imgEngine: EnumProperty(
 		name = "Image processing engine",
 		description = "Select image processing engine",
 		items = getImgEngineItems,
@@ -125,7 +125,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#OSM
 
-	osmTagsJson = StringProperty(default=json.dumps(OSM_TAGS)) #just a serialized list of tags
+	osmTagsJson: StringProperty(default=json.dumps(OSM_TAGS)) #just a serialized list of tags
 
 	def listOsmTags(self, context):
 		prefs = bpy.context.user_preferences.addons[PKG].preferences
@@ -133,7 +133,7 @@ class BGIS_PREFS(AddonPreferences):
 		#put each item in a tuple (key, label, tooltip)
 		return [ (tag, tag, tag) for tag in tags]
 
-	osmTags = EnumProperty(
+	osmTags: EnumProperty(
 		name = "OSM tags",
 		description = "List of registered OSM tags",
 		items = listOsmTags
@@ -143,12 +143,12 @@ class BGIS_PREFS(AddonPreferences):
 	#Basemaps
 
 	def getCacheFolder(self):
-		return bpy.path.abspath(self["cacheFolder"])
+		return bpy.path.abspath(self.get("cacheFolder", ''))
 
 	def setCacheFolder(self, value):
 		self["cacheFolder"] = value
 
-	cacheFolder = StringProperty(
+	cacheFolder: StringProperty(
 		name = "Cache folder",
 		default = "",
 		description = "Define a folder where to store Geopackage SQlite db",
@@ -157,7 +157,7 @@ class BGIS_PREFS(AddonPreferences):
 		set = setCacheFolder
 		)
 
-	fontColor = FloatVectorProperty(
+	fontColor: FloatVectorProperty(
 		name="Font color",
 		subtype='COLOR',
 		min=0, max=1,
@@ -165,12 +165,12 @@ class BGIS_PREFS(AddonPreferences):
 		default=(0, 0, 0, 1)
 		)
 
-	zoomToMouse = BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
+	zoomToMouse: BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
-	lockOrigin = BoolProperty(name="Lock origin", description='Do not move scene origin when panning map', default=False)
-	lockObj = BoolProperty(name="Lock objects", description='Retain objects geolocation when moving map origin', default=True)
+	lockOrigin: BoolProperty(name="Lock origin", description='Do not move scene origin when panning map', default=False)
+	lockObj: BoolProperty(name="Lock objects", description='Retain objects geolocation when moving map origin', default=True)
 
-	resamplAlg = EnumProperty(
+	resamplAlg: EnumProperty(
 		name = "Resampling method",
 		description = "Choose GDAL's resampling method used for reprojection",
 		items = [ ('NN', 'Nearest Neighboor', ''), ('BL', 'Bilinear', ''), ('CB', 'Cubic', ''), ('CBS', 'Cubic Spline', ''), ('LCZ', 'Lanczos', '') ]
@@ -178,15 +178,15 @@ class BGIS_PREFS(AddonPreferences):
 
 	################
 	#IO options
-	mergeDoubles = BoolProperty(
+	mergeDoubles: BoolProperty(
 		name = "Merge duplicate vertices",
 		description = 'Merge shared vertices between features when importing vector data',
 		default = False)
-	adjust3Dview = BoolProperty(
+	adjust3Dview: BoolProperty(
 		name = "Adjust 3D view",
 		description = "Update 3d view grid size and clip distances according to the new imported object's size",
 		default = True)
-	forceTexturedSolid = BoolProperty(
+	forceTexturedSolid: BoolProperty(
 		name = "Force textured solid shading",
 		description = "Update shading mode to display raster's texture",
 		default = True)
@@ -196,39 +196,39 @@ class BGIS_PREFS(AddonPreferences):
 
 		#SRS
 		box = layout.box()
-		box.label('Spatial Reference Systems')
-		row = box.row().split(percentage=0.5)
+		box.label(text='Spatial Reference Systems')
+		row = box.row().split(factor=0.5)
 		row.prop(self, "predefCrs", text='')
-		row.operator("bgis.add_predef_crs", icon='ZOOMIN')
-		row.operator("bgis.edit_predef_crs", icon='SCRIPTWIN')
-		row.operator("bgis.rmv_predef_crs", icon='ZOOMOUT')
+		row.operator("bgis.add_predef_crs", icon='ADD')
+		row.operator("bgis.edit_predef_crs", icon='PREFERENCES')
+		row.operator("bgis.rmv_predef_crs", icon='REMOVE')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
 		box.prop(self, "projEngine")
 		box.prop(self, "imgEngine")
 
 		#Basemaps
 		box = layout.box()
-		box.label('Basemaps')
+		box.label(text='Basemaps')
 		box.prop(self, "cacheFolder")
 		row = box.row()
 		row.prop(self, "zoomToMouse")
 		row.prop(self, "lockObj")
 		row.prop(self, "lockOrigin")
-		row.label('Font color:')
+		row.label(text='Font color:')
 		row.prop(self, "fontColor", text='')
 		row = box.row()
 		row.prop(self, "resamplAlg")
 
 		#IO
 		box = layout.box()
-		box.label('Import/Export')
-		row = box.row().split(percentage=0.5)
-		split = row.split(percentage=0.9, align=True)
+		box.label(text='Import/Export')
+		row = box.row().split(factor=0.5)
+		split = row.split(factor=0.9, align=True)
 		split.prop(self, "osmTags")
 		split.operator("wm.url_open", icon='INFO').url = "http://wiki.openstreetmap.org/wiki/Map_Features"
-		row.operator("bgis.add_osm_tag", icon='ZOOMIN')
-		row.operator("bgis.edit_osm_tag", icon='SCRIPTWIN')
-		row.operator("bgis.rmv_osm_tag", icon='ZOOMOUT')
+		row.operator("bgis.add_osm_tag", icon='ADD')
+		row.operator("bgis.edit_osm_tag", icon='PREFERENCES')
+		row.operator("bgis.rmv_osm_tag", icon='REMOVE')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
 		row = box.row()
 		row.prop(self, "mergeDoubles")
@@ -280,8 +280,8 @@ class PREDEF_CRS_ADD(Operator):
 	bl_label = "Add"
 	bl_options = {'INTERNAL'}
 
-	crs = StringProperty(name = "Definition",  description = "Specify EPSG code or Proj4 string definition for this CRS")
-	desc = StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	crs: StringProperty(name = "Definition",  description = "Specify EPSG code or Proj4 string definition for this CRS")
+	desc: StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
 
 	def check(self, context):
 		return True
@@ -310,15 +310,15 @@ class PREDEF_CRS_ADD(Operator):
 			self.crs = 'EPSG:' + crs['code']
 			self.desc = crs['name']
 
-	query = StringProperty(name='Query', description='Hit enter to process the search', update=search)
+	query: StringProperty(name='Query', description='Hit enter to process the search', update=search)
 
-	results = StringProperty()
+	results: StringProperty()
 
-	crsEnum = EnumProperty(name='Results', description='Select the desired CRS', items=updEnum, update=fill)
+	crsEnum: EnumProperty(name='Results', description='Select the desired CRS', items=updEnum, update=fill)
 
-	search = BoolProperty(name='Search', description='Search for coordinate system into EPSG database', default=False)
+	search: BoolProperty(name='Search', description='Search for coordinate system into EPSG database', default=False)
 
-	save = BoolProperty(name='Save to addon preferences',  description='Save Blender user settings after the addition', default=False)
+	save: BoolProperty(name='Save to addon preferences',  description='Save Blender user settings after the addition', default=False)
 
 	def invoke(self, context, event):
 		return context.window_manager.invoke_props_dialog(self)#, width=300)
@@ -390,8 +390,8 @@ class PREDEF_CRS_EDIT(Operator):
 	bl_label = "Edit"
 	bl_options = {'INTERNAL'}
 
-	desc = StringProperty(name = "Name", description = "Choose a convenient name for this CRS")
-	crs = StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
+	desc: StringProperty(name = "Name", description = "Choose a convenient name for this CRS")
+	crs: StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
 
 	def invoke(self, context, event):
 		prefs = context.user_preferences.addons[PKG].preferences
@@ -428,7 +428,7 @@ class OSM_TAG_ADD(Operator):
 	bl_label = "Add"
 	bl_options = {'INTERNAL'}
 
-	tag = StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
+	tag: StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
 
 	def invoke(self, context, event):
 		return context.window_manager.invoke_props_dialog(self)#, width=300)
@@ -480,7 +480,7 @@ class OSM_TAG_EDIT(Operator):
 	bl_label = "Edit"
 	bl_options = {'INTERNAL'}
 
-	tag = StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
+	tag: StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
 
 	def invoke(self, context, event):
 		prefs = context.user_preferences.addons[PKG].preferences
@@ -499,3 +499,24 @@ class OSM_TAG_EDIT(Operator):
 		prefs.osmTags = self.tag #update current idx
 		context.area.tag_redraw()
 		return {'FINISHED'}
+
+classes = [
+BGIS_PREFS_SHOW,
+BGIS_PREFS,
+PREDEF_CRS_ADD,
+PREDEF_CRS_RMV,
+PREDEF_CRS_RESET,
+PREDEF_CRS_EDIT,
+OSM_TAG_ADD,
+OSM_TAG_RMV,
+OSM_TAGS_RESET,
+OSM_TAG_EDIT
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.register_class(cls)

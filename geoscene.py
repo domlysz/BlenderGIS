@@ -19,8 +19,9 @@
 
 
 import bpy
-from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
-from bpy.types import Operator, Panel
+from bpy.props import (StringProperty, IntProperty, FloatProperty, BoolProperty,
+EnumProperty, FloatVectorProperty, PointerProperty)
+from bpy.types import Operator, Panel, PropertyGroup
 
 from .prefs import PredefCRS
 from .core.proj.reproj import reprojPt
@@ -152,8 +153,10 @@ class GeoScene():
 		self.setOriginPrj(x, y)
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
+		'''
 		if updBkgImg:
 			self._moveBkgImg(dx, dy)
+		'''
 
 	def updOriginGeo(self, lon, lat, updObjLoc=True, updBkgImg=True):
 		if not self.isGeoref:
@@ -191,8 +194,10 @@ class GeoScene():
 
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
+		'''
 		if updBkgImg:
 			self._moveBkgImg(dx, dy)
+		'''
 
 
 	def _moveObjLoc(self, dx, dy):
@@ -201,6 +206,7 @@ class GeoScene():
 			obj.location.x -= dx
 			obj.location.y -= dy
 
+	#DEPRECATED BLENDER 2.8
 	def _moveBkgImg(self, dx, dy):
 		space = bpy.context.area.spaces.active
 		if space.type == 'VIEW_3D':
@@ -364,7 +370,7 @@ class GeoScene():
 		return self.zoom is not None
 
 
-################
+################  OPERATORS ######################
 from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
 
 class GEOSCENE_COORDS_VIEWER(Operator):
@@ -373,7 +379,7 @@ class GEOSCENE_COORDS_VIEWER(Operator):
 	bl_label = ""
 	bl_options = {'INTERNAL', 'UNDO'}
 
-	coords = FloatVectorProperty(subtype='XYZ')
+	coords: FloatVectorProperty(subtype='XYZ')
 
 	@classmethod
 	def poll(cls, context):
@@ -386,7 +392,7 @@ class GEOSCENE_COORDS_VIEWER(Operator):
 				return {'CANCELLED'}
 		#Add modal handler and init a timer
 		context.window_manager.modal_handler_add(self)
-		self.timer = context.window_manager.event_timer_add(0.05, context.window)
+		self.timer = context.window_manager.event_timer_add(0.05, window=context.window)
 		context.window.cursor_set('CROSSHAIR')
 		return {'RUNNING_MODAL'}
 
@@ -433,7 +439,7 @@ class GEOSCENE_SET_CRS(Operator):
 		#row.prop(self, "crsEnum", text='')
 		row.prop(prefs, "predefCrs", text='')
 		#row.operator("geoscene.show_pref", text='', icon='PREFERENCES')
-		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
+		row.operator("bgis.add_predef_crs", text='', icon='ADD')
 
 	def invoke(self, context, event):
 		return context.window_manager.invoke_props_dialog(self, width=200)
@@ -474,8 +480,8 @@ class GEOSCENE_EDIT_ORG_GEO(Operator):
 	bl_label = "Edit origin geo"
 	bl_options = {'INTERNAL', 'UNDO'}
 
-	lon = FloatProperty()
-	lat = FloatProperty()
+	lon: FloatProperty()
+	lat: FloatProperty()
 
 	def invoke(self, context, event):
 		geoscn = GeoScene(context.scene)
@@ -500,8 +506,8 @@ class GEOSCENE_EDIT_ORG_PRJ(Operator):
 	bl_label = "Edit origin proj"
 	bl_options = {'INTERNAL', 'UNDO'}
 
-	x = FloatProperty()
-	y = FloatProperty()
+	x: FloatProperty()
+	y: FloatProperty()
 
 	def invoke(self, context, event):
 		geoscn = GeoScene(context.scene)
@@ -586,30 +592,8 @@ class GEOSCENE_CLEAR_GEOREF(Operator):
 		del geoscn.crs
 		return {'FINISHED'}
 
-################
 
-class GEOSCENE_PANEL(Panel):
-	bl_category = "GIS"
-	bl_label = "Geoscene"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "TOOLS"#"UI"
-
-
-	def draw(self, context):
-		layout = self.layout
-		scn = context.scene
-		geoscn = GeoScene(scn)
-
-		#layout.operator("bgis.pref_show", icon='PREFERENCES')
-
-		georefManagerLayout(self, context)
-
-		layout.operator("geoscene.coords", icon='WORLD', text='Geo-coordinates')
-
-#hidden props used as display options in georef manager panel
-bpy.types.WindowManager.displayOriginGeo = BoolProperty(name='Geo', description='Display longitude and latitude of scene origin')
-bpy.types.WindowManager.displayOriginPrj = BoolProperty(name='Proj', description='Display coordinates of scene origin in CRS space')
+################  PROPS GETTERS SETTERS ######################
 
 def getLon(self):
 	geoscn = GeoScene()
@@ -635,9 +619,6 @@ def setLat(self, lat):
 	else:
 		geoscn.setOriginGeo(geoscn.lon, lat)
 
-bpy.types.WindowManager.lon = FloatProperty(get=getLon, set=setLon)
-bpy.types.WindowManager.lat = FloatProperty(get=getLat, set=setLat)
-
 def getCrsx(self):
 	geoscn = GeoScene()
 	return geoscn.crsx
@@ -662,9 +643,37 @@ def setCrsy(self, y):
 	else:
 		geoscn.setOriginPrj(geoscn.crsx, y)
 
-bpy.types.WindowManager.crsx = FloatProperty(get=getCrsx, set=setCrsx)
-bpy.types.WindowManager.crsy = FloatProperty(get=getCrsy, set=setCrsy)
+################  PANEL ######################
 
+class GEOSCENE_PANEL(Panel):
+	bl_category = "GIS"#"View"
+	bl_label = "Geoscene"
+	bl_space_type = "VIEW_3D"
+	bl_context = "objectmode"
+	bl_region_type = "UI"
+
+
+	def draw(self, context):
+		layout = self.layout
+		scn = context.scene
+		geoscn = GeoScene(scn)
+
+		#layout.operator("bgis.pref_show", icon='PREFERENCES')
+
+		georefManagerLayout(self, context)
+
+		layout.operator("geoscene.coords", icon='WORLD', text='Geo-coordinates')
+
+#hidden props used as display options in georef manager panel
+class GLOBAL_PROPS(PropertyGroup):
+	displayOriginGeo: BoolProperty(
+		name='Geo', description='Display longitude and latitude of scene origin')
+	displayOriginPrj: BoolProperty(
+		name='Proj', description='Display coordinates of scene origin in CRS space')
+	lon: FloatProperty(get=getLon, set=setLon)
+	lat: FloatProperty(get=getLat, set=setLat)
+	crsx: FloatProperty(get=getCrsx, set=setCrsx)
+	crsy: FloatProperty(get=getCrsy, set=setCrsy)
 
 def georefManagerLayout(self, context):
 	'''Use this method to extend a panel with georef managment tools'''
@@ -679,7 +688,7 @@ def georefManagerLayout(self, context):
 		layout.alert = True
 
 	row = layout.row(align=True)
-	row.label('Scene georeferencing :')
+	row.label(text='Scene georeferencing :')
 	if geoscn.hasCRS:
 		row.operator("geoscene.clear_georef", text='', icon='CANCEL')
 
@@ -687,7 +696,7 @@ def georefManagerLayout(self, context):
 	row = layout.row(align=True)
 	#row.alignment = 'LEFT'
 	#row.label(icon='EMPTY_DATA')
-	split = row.split(percentage=0.25)
+	split = row.split(factor=0.25)
 	if geoscn.hasCRS:
 		split.label(icon='PROP_ON', text='CRS:')
 	elif not geoscn.hasCRS and (geoscn.hasOriginGeo or geoscn.hasOriginPrj):
@@ -702,19 +711,19 @@ def georefManagerLayout(self, context):
 		crs = scn[SK.CRS]
 		name = PredefCRS.getName(crs)
 		if name is not None:
-			split.label(name)
+			split.label(text=name)
 		else:
-			split.label(crs)
+			split.label(text=crs)
 	else:
-		split.label("Not set")
+		split.label(text="Not set")
 
-	row.operator("geoscene.set_crs", text='', icon='SCRIPTWIN')
+	row.operator("geoscene.set_crs", text='', icon='PREFERENCES')
 
 	#Origin
 	row = layout.row(align=True)
 	#row.alignment = 'LEFT'
-	#row.label(icon='CURSOR')
-	split = row.split(percentage=0.25, align=True)
+	#row.label(icon='PIVOT_CURSOR')
+	split = row.split(factor=0.25, align=True)
 	if not geoscn.hasOriginGeo and not geoscn.hasOriginPrj:
 		split.label(icon='PROP_OFF', text="Origin:")
 	elif not geoscn.hasOriginGeo and geoscn.hasOriginPrj:
@@ -727,37 +736,37 @@ def georefManagerLayout(self, context):
 	col = split.column(align=True)
 	if not geoscn.hasOriginGeo:
 		col.enabled = False
-	col.prop(wm, 'displayOriginGeo', toggle=True)
+	col.prop(wm.geoscnProps, 'displayOriginGeo', toggle=True)
 
 	col = split.column(align=True)
 	if not geoscn.hasOriginPrj:
 		col.enabled = False
-	col.prop(wm, 'displayOriginPrj', toggle=True)
+	col.prop(wm.geoscnProps, 'displayOriginPrj', toggle=True)
 
 	if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
 		if geoscn.hasCRS and not geoscn.hasOriginPrj:
 			row.operator("geoscene.link_org_prj", text="", icon='CONSTRAINT')
 		if geoscn.hasCRS and not geoscn.hasOriginGeo:
 			row.operator("geoscene.link_org_geo", text="", icon='CONSTRAINT')
-		row.operator("geoscene.clear_org", text="", icon='ZOOMOUT')
+		row.operator("geoscene.clear_org", text="", icon='REMOVE')
 
 	if not geoscn.hasOriginGeo and not geoscn.hasOriginPrj:
-		row.operator("geoscene.init_org", text="", icon='ZOOMIN')
+		row.operator("geoscene.init_org", text="", icon='ADD')
 
-	if geoscn.hasOriginGeo and wm.displayOriginGeo:
+	if geoscn.hasOriginGeo and wm.geoscnProps.displayOriginGeo:
 		row = layout.row()
-		row.prop(wm, 'lon', text='Lon')
-		row.prop(wm, 'lat', text='Lat')
+		row.prop(wm.geoscnProps, 'lon', text='Lon')
+		row.prop(wm.geoscnProps, 'lat', text='Lat')
 		'''
 		row.enabled = False
 		row.prop(scn, '["'+SK.LON+'"]', text='Lon')
 		row.prop(scn, '["'+SK.LAT+'"]', text='Lat')
 		'''
 
-	if  geoscn.hasOriginPrj and wm.displayOriginPrj:
+	if  geoscn.hasOriginPrj and wm.geoscnProps.displayOriginPrj:
 		row = layout.row()
-		row.prop(wm, 'crsx', text='X')
-		row.prop(wm, 'crsy', text='Y')
+		row.prop(wm.geoscnProps, 'crsx', text='X')
+		row.prop(wm.geoscnProps, 'crsy', text='Y')
 		'''
 		row.enabled = False
 		row.prop(scn, '["'+SK.CRSX+'"]', text='X')
@@ -766,10 +775,38 @@ def georefManagerLayout(self, context):
 
 	if geoscn.hasScale:
 		row = layout.row()
-		row.label('Map scale:')
+		row.label(text='Map scale:')
 		col = row.column()
 		col.enabled = False
 		col.prop(scn, '["'+SK.SCALE+'"]', text='')
 
 	#if geoscn.hasZoom:
 	#	layout.prop(scn, '["'+SK.ZOOM+'"]', text='Zoom level', slider=True)
+
+
+###########################
+
+classes = [
+	GEOSCENE_COORDS_VIEWER,
+	GEOSCENE_SET_CRS,
+	GEOSCENE_INIT_ORG,
+	GEOSCENE_EDIT_ORG_GEO,
+	GEOSCENE_EDIT_ORG_PRJ,
+	GEOSCENE_LINK_ORG_GEO,
+	GEOSCENE_LINK_ORG_PRJ,
+	GEOSCENE_CLEAR_ORG,
+	GEOSCENE_CLEAR_GEOREF,
+	GEOSCENE_PANEL,
+	GLOBAL_PROPS
+]
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+	bpy.types.WindowManager.geoscnProps = PointerProperty(type=GLOBAL_PROPS)
+
+def unregister():
+	del bpy.types.WindowManager.geoscnProps
+	for cls in classes:
+		bpy.utils.register_class(cls)
