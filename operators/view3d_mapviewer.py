@@ -122,7 +122,7 @@ class BaseMap(GeoScene):
 		self.thread = None
 		#Background image attributes
 		self.img = None #bpy image
-		self.bkg = None #bpy background
+		self.bkg = None #empty image obj
 		self.viewDstZ = None #view 3d z distance
 		#Store previous request
 		#TODO
@@ -211,26 +211,22 @@ class BaseMap(GeoScene):
 		except IndexError:
 			self.img = bpy.data.images.load(self.imgPath)
 
-		#Activate view3d background
-		self.view3d.show_background_images = True
 
-		#Hide all existing background
-		for bkg in self.view3d.background_images:
-			if bkg.view_axis == 'TOP':
-				bkg.show_background_image = False
+		#TODO Hide all existing empty image
+
 
 		#Get or load background image
-		bkgs = [bkg for bkg in self.view3d.background_images if bkg.image is not None]
+		'''
+		empties = [obj for obj in self.scene.collection.objects if obj.type == 'EMPTY']
+		bkgs = [obj for obj in empties if obj.empty_display_type == 'IMAGE']
 		try:
 			self.bkg = [bkg for bkg in bkgs if bkg.image.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
 		except IndexError:
-			self.bkg = self.view3d.background_images.new()
-			self.bkg.image = self.img
-
-		#Set some background props
-		self.bkg.show_background_image = True
-		self.bkg.view_axis = 'TOP'
-		self.bkg.opacity = 1
+		'''
+		self.bkg = bpy.data.objects.new("basemap", None)
+		self.bkg.empty_display_type = 'IMAGE'
+		self.bkg.data = self.img
+		bpy.context.scene.collection.objects.link(self.bkg)
 
 		#Get some image props
 		img_ox, img_oy = self.mosaic.center
@@ -240,14 +236,17 @@ class BaseMap(GeoScene):
 
 		#Set background size
 		sizex = img_w * res / self.scale
-		self.bkg.size = sizex #since blender > 2.74 else = sizex/2
+		#self.bkg.empty_display_size = sizex #limited to 1000
+		self.bkg.empty_display_size = 1 #a size of 1 means image width=1bu
+		self.bkg.scale = (sizex, sizex, 1)
 
 		#Set background offset (image origin does not match scene origin)
 		dx = (self.crsx - img_ox) / self.scale
 		dy = (self.crsy - img_oy) / self.scale
-		self.bkg.offset_x = -dx
-		ratio = img_w / img_h
-		self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
+		#self.bkg.empty_image_offset = [-0.5, -0.5] #in image unit space
+		self.bkg.location = (-dx, -dy, 0)
+		#ratio = img_w / img_h
+		#self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
 
 		#Compute view3d z distance
 		#in ortho view, view_distance = max(view3d dst x, view3d dist y) / 2
@@ -260,15 +259,19 @@ class BaseMap(GeoScene):
 		self.viewDstZ = dst
 
 		#Update image drawing
-		self.bkg.image.reload()
+		self.bkg.data.reload()
 
 
 
 
 ####################################
-
-
 def drawInfosText(self, context):
+	pass
+def drawZoomBox(self, context):
+	pass
+
+
+def __drawInfosText(self, context):
 	"""Draw map infos on 3dview"""
 
 	#Get contexts
@@ -327,7 +330,7 @@ def drawInfosText(self, context):
 		blf.draw(font_id, "zLock")
 
 
-def drawZoomBox(self, context):
+def __drawZoomBox(self, context):
 
 	bgl.glEnable(bgl.GL_BLEND)
 	bgl.glColor4f(0, 0, 0, 0.5)
@@ -370,7 +373,7 @@ def drawZoomBox(self, context):
 
 ###############
 
-class MAP_START(bpy.types.Operator):
+class MAP_START(Operator):
 
 	bl_idname = "view3d.map_start"
 	bl_description = 'Toggle 2d map navigation'
@@ -409,32 +412,32 @@ class MAP_START(bpy.types.Operator):
 		return layItems
 
 
-	src = EnumProperty(
+	src: EnumProperty(
 				name = "Map",
 				description = "Choose map service source",
 				items = listSources
 				)
 
-	grd = EnumProperty(
+	grd: EnumProperty(
 				name = "Grid",
 				description = "Choose cache tiles matrix",
 				items = listGrids
 				)
 
-	lay = EnumProperty(
+	lay: EnumProperty(
 				name = "Layer",
 				description = "Choose layer",
 				items = listLayers
 				)
 
 
-	dialog = StringProperty(default='MAP') # 'MAP', 'SEARCH', 'OPTIONS'
+	dialog: StringProperty(default='MAP') # 'MAP', 'SEARCH', 'OPTIONS'
 
-	query = StringProperty(name="Go to")
+	query: StringProperty(name="Go to")
 
-	zoom = IntProperty(name='Zoom level', min=0, max=25)
+	zoom: IntProperty(name='Zoom level', min=0, max=25)
 
-	recenter = BoolProperty(name='Center to existing objects')
+	recenter: BoolProperty(name='Center to existing objects')
 
 	def draw(self, context):
 		addonPrefs = context.user_preferences.addons[PKG].preferences
@@ -459,7 +462,7 @@ class MAP_START(bpy.types.Operator):
 			col = layout.column()
 			if not HAS_GDAL:
 				col.enabled = False
-				col.label('(No raster reprojection support)')
+				col.label(text='(No raster reprojection support)')
 			col.prop(self, 'grd', text='Tile matrix set')
 
 			#srcCRS = GRIDS[SOURCES[self.src]['grid']]['CRS']
@@ -468,9 +471,9 @@ class MAP_START(bpy.types.Operator):
 			#row.alignment = 'RIGHT'
 			desc = PredefCRS.getName(grdCRS)
 			if desc is not None:
-				row.label('CRS: ' + desc)
+				row.label(text='CRS: ' + desc)
 			else:
-				row.label('CRS: ' + grdCRS)
+				row.label(text='CRS: ' + grdCRS)
 
 			row = layout.row()
 			row.prop(self, 'recenter')
@@ -481,7 +484,7 @@ class MAP_START(bpy.types.Operator):
 				georefManagerLayout(self, context)
 
 			#row = layout.row()
-			#row.label('Map scale:')
+			#row.label(text='Map scale:')
 			#row.prop(scn, '["'+SK.SCALE+'"]', text='')
 
 
@@ -545,20 +548,20 @@ class MAP_START(bpy.types.Operator):
 ###############
 
 
-class MAP_VIEWER(bpy.types.Operator):
+class MAP_VIEWER(Operator):
 
 	bl_idname = "view3d.map_viewer"
 	bl_description = 'Toggle 2d map navigation'
 	bl_label = "Map viewer"
 	bl_options = {'INTERNAL'}
 
-	srckey = StringProperty()
+	srckey: StringProperty()
 
-	grdkey = StringProperty()
+	grdkey: StringProperty()
 
-	laykey = StringProperty()
+	laykey: StringProperty()
 
-	recenter = BoolProperty()
+	recenter: BoolProperty()
 
 	@classmethod
 	def poll(cls, context):
@@ -588,13 +591,13 @@ class MAP_VIEWER(bpy.types.Operator):
 
 		#Add modal handler and init a timer
 		context.window_manager.modal_handler_add(self)
-		self.timer = context.window_manager.event_timer_add(0.05, context.window)
+		self.timer = context.window_manager.event_timer_add(0.05, window=context.window)
 
 		#Switch to top view ortho (center to origin)
 		view3d = context.area.spaces.active
-		bpy.ops.view3d.viewnumpad(type='TOP')
+		bpy.ops.view3d.view_axis(type='TOP')
 		view3d.region_3d.view_perspective = 'ORTHO'
-		view3d.cursor_location = (0, 0, 0)
+		context.scene.cursor_location = (0, 0, 0)
 		if not self.prefs.lockOrigin:
 			#bpy.ops.view3d.view_center_cursor()
 			view3d.region_3d.view_location = (0, 0, 0)
@@ -763,9 +766,8 @@ class MAP_VIEWER(bpy.types.Operator):
 				else:
 					#Move background image
 					if self.map.bkg is not None:
-						ratio = self.map.img.size[0] / self.map.img.size[1]
-						self.map.bkg.offset_x = self.offx1 - dlt.x
-						self.map.bkg.offset_y = self.offy1 - (dlt.y * ratio)
+						self.map.bkg.location[0] = self.offx1 - dlt.x
+						self.map.bkg.location[1] = self.offy1 - dlt.y
 					#Move existing objects (only top level parent)
 					if self.updObjLoc:
 						topParents = [obj for obj in scn.objects if not obj.parent]
@@ -786,8 +788,8 @@ class MAP_VIEWER(bpy.types.Operator):
 					self.map.stop()
 					if not self.prefs.lockOrigin:
 						if self.map.bkg is not None:
-							self.offx1 = self.map.bkg.offset_x
-							self.offy1 = self.map.bkg.offset_y
+							self.offx1 = self.map.bkg.location[0]
+							self.offy1 = self.map.bkg.location[1]
 						#Store current location of each objects (only top level parent)
 						self.objsLoc1 = [obj.location.copy() for obj in scn.objects if not obj.parent]
 				#Tag that map is currently draging
@@ -999,7 +1001,7 @@ class MAP_SEARCH(bpy.types.Operator):
 	bl_label = "Map search"
 	bl_options = {'INTERNAL'}
 
-	query = StringProperty(name="Go to")
+	query: StringProperty(name="Go to")
 
 	def invoke(self, context, event):
 		geoscn = GeoScene(context.scene)
@@ -1021,3 +1023,19 @@ class MAP_SEARCH(bpy.types.Operator):
 			else:
 				geoscn.setOriginGeo(lon, lat)
 		return {'FINISHED'}
+
+
+
+classes = [
+	MAP_START,
+	MAP_VIEWER,
+	MAP_SEARCH
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.register_class(cls)

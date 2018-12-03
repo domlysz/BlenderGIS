@@ -46,7 +46,7 @@ IMPORT_ASC = False
 DELAUNAY = False
 TERRAIN_NODES = False
 TERRAIN_RECLASS = False
-BASEMAPS = False
+BASEMAPS = True
 DROP = False
 
 import bpy, os
@@ -184,6 +184,8 @@ def register():
 	prefs.register()
 	geoscene.register()
 	bpy.utils.register_class(bgisPanel)
+	if BASEMAPS:
+		view3d_mapviewer.register()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.register()
 
@@ -227,6 +229,8 @@ def unregister():
 	bpy.utils.unregister_class(bgisPanel)
 	prefs.unregister()
 	geoscene.unregister()
+	if BASEMAPS:
+		view3d_mapviewer.unregister()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
 
