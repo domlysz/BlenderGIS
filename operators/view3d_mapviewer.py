@@ -249,15 +249,20 @@ class BaseMap(GeoScene):
 		ratio = img_w / img_h
 		self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
 
-		#Compute view3d z distance
-		#in ortho view, view_distance = max(view3d dst x, view3d dist y) / 2
+		#Get 3d area's number of pixels and resulting size at the requested zoom level resolution
 		dst =  max( [self.area3d.width, self.area3d.height] )
 		z = self.lockedZoom if self.lockedZoom is not None else self.zoom
 		res = self.tm.getRes(z)
 		dst = dst * res / self.scale
-		dst /= 2
-		self.reg3d.view_distance = dst
-		self.viewDstZ = dst
+
+		#Compute 3dview FOV and needed z distance to see the maximum extent that
+		#can be draw at full res (area 3d needs enough pixels otherwise the image will appears downgraded)
+		aperture = 16 #Blender constant !
+		fov = 2 * math.atan(aperture / self.view3d.lens*2)
+		zdst = (dst/2) / math.tan(fov/2)
+		zdst = math.floor(zdst)
+		self.reg3d.view_distance = zdst
+		self.viewDstZ = zdst
 
 		#Update image drawing
 		self.bkg.image.reload()
