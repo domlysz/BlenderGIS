@@ -809,4 +809,4 @@ def register():
 def unregister():
 	del bpy.types.WindowManager.geoscnProps
 	for cls in classes:
-		bpy.utils.register_class(cls)
+		bpy.utils.unregister_class(cls)
