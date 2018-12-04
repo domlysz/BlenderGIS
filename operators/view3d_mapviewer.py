@@ -28,7 +28,8 @@ from mathutils import Vector
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 import addon_utils
-import blf, bgl
+import gpu
+from gpu_extras.batch import batch_for_shader
 
 #core imports
 from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
@@ -274,49 +275,19 @@ class BaseMap(GeoScene):
 
 ####################################
 def drawInfosText(self, context):
-	pass
-def drawZoomBox(self, context):
-	pass
-
-
-def __drawInfosText(self, context):
-	"""Draw map infos on 3dview"""
-
 	#Get contexts
 	scn = context.scene
 	area = context.area
 	area3d = [reg for reg in area.regions if reg.type == 'WINDOW'][0]
 	view3d = area.spaces.active
 	reg3d = view3d.region_3d
-
-	#Get area3d dimensions
-	w, h = area3d.width, area3d.height
-	cx = w/2 #center x
-
 	#Get map props stored in scene
 	geoscn = GeoScene(scn)
 	zoom = geoscn.zoom
 	scale = geoscn.scale
-
-	#Set text police and color
-	font_id = 0  # ???
-	prefs = context.user_preferences.addons[PKG].preferences
-	fontColor = prefs.fontColor
-	bgl.glColor4f(*fontColor) #rgba
-
-	#Draw title
-	blf.position(font_id, cx-25, 70, 0) #id, x, y, z
-	blf.size(font_id, 15, 72) #id, point size, dpi
-	blf.draw(font_id, "Map view")
-
-	#Draw other texts
-	blf.size(font_id, 12, 72)
-	# thread progress and service status
-	blf.position(font_id, cx-45, 90, 0)
-	blf.draw(font_id, self.progress)
-	# zoom and scale values
-	blf.position(font_id, cx-50, 50, 0)
-	blf.draw(font_id, "Zoom " + str(zoom) + " - Scale 1:" + str(int(scale)))
+	#
+	txt = "Map view : "
+	txt += "Zoom " + str(zoom) + " - Scale 1:" + str(int(scale))
 	# view3d distance
 	dst = reg3d.view_distance
 	if dst > 1000:
@@ -324,60 +295,42 @@ def __drawInfosText(self, context):
 		unit = 'km'
 	else:
 		unit = 'm'
-	blf.position(font_id, cx-50, 30, 0)
-	blf.draw(font_id, '3D View distance ' + str(int(dst)) + ' ' + unit)
+	#txt += ' 3D View distance ' + str(int(dst)) + ' ' + unit
 	# cursor crs coords
-	blf.position(font_id, cx-45, 10, 0)
-	blf.draw(font_id, str((int(self.posx), int(self.posy))))
+	txt += ' ' + str((int(self.posx), int(self.posy)))
 
-	bgl.glColor4f(255, 0, 0, 150) #rgba
-	blf.size(font_id, 25, 72)
-	blf.position(font_id, w-100, 25, 0)
 	if self.map.lockedZoom is not None:
-		#blf.draw(font_id, "z lock " + str(self.map.lockedZoom))
-		blf.draw(font_id, "zLock")
+		txt += " zLock"
+	txt += ' ' + self.progress
+	context.area.header_text_set(txt)
 
 
-def __drawZoomBox(self, context):
-
-	bgl.glEnable(bgl.GL_BLEND)
-	bgl.glColor4f(0, 0, 0, 0.5)
-	bgl.glLineWidth(2)
-
+def drawZoomBox(self, context):
 	if self.zoomBoxMode and not self.zoomBoxDrag:
 		# before selection starts draw infinite cross
-		bgl.glBegin(bgl.GL_LINES)
-
 		px, py = self.zb_xmax, self.zb_ymax
-
-		bgl.glVertex2i(0, py)
-		bgl.glVertex2i(context.area.width, py)
-
-		bgl.glVertex2i(px, 0)
-		bgl.glVertex2i(px, context.area.height)
-
-		bgl.glEnd()
+		p1 = (0, py, 0)
+		p2 = (context.area.width, py, 0)
+		p3 = (px, 0, 0)
+		p4 = (px, context.area.height, 0)
+		coords = [p1, p2, p3, p4]
+		shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+		batch = batch_for_shader(shader, 'LINES', {"pos": coords})
+		shader.bind()
+		shader.uniform_float("color", (0, 0, 0, 1))
+		batch.draw(shader)
 
 	elif self.zoomBoxMode and self.zoomBoxDrag:
-		# when selecting draw dashed line box
-		bgl.glEnable(bgl.GL_LINE_STIPPLE)
-		bgl.glLineStipple(2, 0x3333)
-		bgl.glBegin(bgl.GL_LINE_LOOP)
-
-		bgl.glVertex2i(self.zb_xmin, self.zb_ymin)
-		bgl.glVertex2i(self.zb_xmin, self.zb_ymax)
-		bgl.glVertex2i(self.zb_xmax, self.zb_ymax)
-		bgl.glVertex2i(self.zb_xmax, self.zb_ymin)
-
-		bgl.glEnd()
-
-		bgl.glDisable(bgl.GL_LINE_STIPPLE)
-
-
-	# restore opengl defaults
-	bgl.glLineWidth(1)
-	bgl.glDisable(bgl.GL_BLEND)
-	bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+		p1 = (self.zb_xmin, self.zb_ymin, 0)
+		p2 = (self.zb_xmin, self.zb_ymax, 0)
+		p3 = (self.zb_xmax, self.zb_ymax, 0)
+		p4 = (self.zb_xmax, self.zb_ymin, 0)
+		coords = [p1, p2, p2, p3, p3, p4, p4, p1]
+		shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+		batch = batch_for_shader(shader, 'LINES', {"pos": coords})
+		shader.bind()
+		shader.uniform_float("color", (0, 0, 0, 1))
+		batch.draw(shader)
 
 ###############
 
@@ -985,6 +938,7 @@ class MAP_VIEWER(Operator):
 				self.map.stop()
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+				context.area.header_text_set(None)
 				return {'CANCELLED'}
 
 		"""
