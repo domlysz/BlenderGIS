@@ -75,6 +75,7 @@ class BaseMap(GeoScene):
 
 		#Init MapService class
 		self.srv = MapService(srckey, cacheFolder)
+		self.name = srckey + '_' + laykey + '_' + grdkey
 
 		#Set destination tile matrix
 		if grdkey is None:
@@ -108,7 +109,7 @@ class BaseMap(GeoScene):
 			##folder = bpy.context.user_preferences.filepaths.temporary_directory
 			#Blender crease a sub-directory within the temp directory, for each session, which is cleared on exit
 			folder = bpy.app.tempdir
-		self.imgPath = folder + srckey + '_' + laykey + '_' + grdkey + ".tif"
+		self.imgPath = folder + self.name + ".tif"
 
 		#Get layer def obj
 		self.layer = self.srv.layers[laykey]
@@ -159,8 +160,8 @@ class BaseMap(GeoScene):
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
 		#Get area dimension
-		#w, h = self.area.width, self.area.height
-		w, h = self.area3d.width, self.area3d.height
+		w, h = self.area.width, self.area.height
+		#w, h = self.area3d.width, self.area3d.height #WARN return [1,1] !!!!????
 
 		#Get area bbox coords in destination tile matrix crs (map origin is bottom lelf)
 
@@ -211,22 +212,20 @@ class BaseMap(GeoScene):
 		except IndexError:
 			self.img = bpy.data.images.load(self.imgPath)
 
-
-		#TODO Hide all existing empty image
-
-
 		#Get or load background image
-		'''
-		empties = [obj for obj in self.scene.collection.objects if obj.type == 'EMPTY']
+		empties = [obj for obj in self.scn.collection.objects if obj.type == 'EMPTY']
 		bkgs = [obj for obj in empties if obj.empty_display_type == 'IMAGE']
+		for bkg in bkgs:
+			bkg.hide_viewport = True
 		try:
-			self.bkg = [bkg for bkg in bkgs if bkg.image.filepath == self.imgPath and len(bkg.image.packed_files) == 0][0]
+			self.bkg = [bkg for bkg in bkgs if bkg.data.filepath == self.imgPath and len(bkg.data.packed_files) == 0][0]
 		except IndexError:
-		'''
-		self.bkg = bpy.data.objects.new("basemap", None)
-		self.bkg.empty_display_type = 'IMAGE'
-		self.bkg.data = self.img
-		bpy.context.scene.collection.objects.link(self.bkg)
+			self.bkg = bpy.data.objects.new(self.name, None) #None will create an empty
+			self.bkg.empty_display_type = 'IMAGE'
+			self.bkg.data = self.img
+			self.scn.collection.objects.link(self.bkg)
+		else:
+			self.bkg.hide_viewport = False
 
 		#Get some image props
 		img_ox, img_oy = self.mosaic.center
@@ -248,15 +247,24 @@ class BaseMap(GeoScene):
 		#ratio = img_w / img_h
 		#self.bkg.offset_y = -dy * ratio #https://developer.blender.org/T48034
 
-		#Compute view3d z distance
-		#in ortho view, view_distance = max(view3d dst x, view3d dist y) / 2
-		dst =  max( [self.area3d.width, self.area3d.height] )
+		#Get 3d area's number of pixels and resulting size at the requested zoom level resolution
+		#dst =  max( [self.area3d.width, self.area3d.height] ) #WARN return [1,1] !!!!????
+		dst =  max( [self.area.width, self.area.height] )
 		z = self.lockedZoom if self.lockedZoom is not None else self.zoom
 		res = self.tm.getRes(z)
 		dst = dst * res / self.scale
-		dst /= 2
-		self.reg3d.view_distance = dst
-		self.viewDstZ = dst
+
+		#Compute 3dview FOV and needed z distance to see the maximum extent that
+		#can be draw at full res (area 3d needs enough pixels otherwise the image will appears downgraded)
+		#WARN seems these formulas does not works properly in Blender2.8
+		view3D_aperture = 32 #Blender constant (see source code)
+		view3D_zoom = 2 #Blender constant (see source code)
+		fov = 2 * math.atan(view3D_aperture / (self.view3d.lens*2) ) #fov equation
+		fov = math.atan(math.tan(fov/2) * view3D_zoom) * 2 #zoom correction (see source code)
+		zdst = (dst/2) / math.tan(fov/2) #trigo
+		zdst = math.floor(zdst) #make sure no downgrade
+		self.reg3d.view_distance = zdst
+		self.viewDstZ = zdst
 
 		#Update image drawing
 		self.bkg.data.reload()
@@ -859,7 +867,7 @@ class MAP_VIEWER(Operator):
 
 		#NUMPAD MOVES (3D VIEW or MAP)
 		if event.value == 'PRESS' and event.type in ['NUMPAD_2', 'NUMPAD_4', 'NUMPAD_6', 'NUMPAD_8']:
-			delta = self.map.bkg.size * self.moveFactor
+			delta = self.map.bkg.scale.x * self.moveFactor
 			if event.type == 'NUMPAD_4':
 				if event.ctrl or self.prefs.lockOrigin:
 					context.region_data.view_location += Vector( (-delta, 0, 0) )
