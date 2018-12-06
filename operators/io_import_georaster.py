@@ -316,7 +316,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			obj = scn.objects[int(self.objectsLst)]
 			# Select and active this obj
 			obj.select_set(True)
-			context.active_object = obj
+			#TODO context.active_object = obj
 			# Compute projeted bbox (in geographic coordinates system)
 			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			if rprj:
@@ -328,7 +328,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				return self.err(str(e))
 			# Add UV map texture layer
 			mesh = obj.data
-			uvTxtLayer = mesh.uv_textures.new('rastUVmap')
+			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')
 			# UV mapping
 			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
 			# Add material and texture
@@ -348,7 +348,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				mesh = obj.data
 				# Select and active this obj
 				obj.select_set(True)
-				context.active_object = obj
+				#TODO context.active_object = obj
 				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:
@@ -377,13 +377,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 
 			# Add UV map texture layer
-			previousUVmapIdx = mesh.uv_textures.active_index
-			uvTxtLayer = mesh.uv_textures.new('demUVmap')
+			previousUVmapIdx = mesh.uv_layers.active_index
+			uvTxtLayer = mesh.uv_layers.new(name='demUVmap')
 			#UV mapping
 			geoRastUVmap(obj, uvTxtLayer, grid, dx, dy, reproj=rprjToRaster)
 			#Restore previous uv map
 			if previousUVmapIdx != -1:
-				mesh.uv_textures.active_index = previousUVmapIdx
+				mesh.uv_layers.active_index = previousUVmapIdx
 			#Make subdivision
 			if self.subdivision == 'subsurf':#Add subsurf modifier
 				if not 'SUBSURF' in [mod.type for mod in obj.modifiers]:
@@ -424,7 +424,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			#grid.unload()
 
 		######################################
-		'''
+
 		#Flag if a new object as been created...
 		if self.importMode == 'PLANE' or (self.importMode == 'DEM' and not self.demOnMesh) or self.importMode == 'DEM_RAW':
 			newObjCreated = True
@@ -439,7 +439,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		#Force view mode with textures
 		if prefs.forceTexturedSolid:
 			showTextures(context)
-		'''
+
 
 		return {'FINISHED'}
 

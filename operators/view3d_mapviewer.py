@@ -287,7 +287,11 @@ def drawInfosText(self, context):
 	scale = geoscn.scale
 	#
 	txt = "Map view : "
-	txt += "Zoom " + str(zoom) + " - Scale 1:" + str(int(scale))
+	txt += "Zoom " + str(zoom)
+	if self.map.lockedZoom is not None:
+		txt += " (Locked)"
+	txt += " - Scale 1:" + str(int(scale))
+	'''
 	# view3d distance
 	dst = reg3d.view_distance
 	if dst > 1000:
@@ -295,12 +299,11 @@ def drawInfosText(self, context):
 		unit = 'km'
 	else:
 		unit = 'm'
-	#txt += ' 3D View distance ' + str(int(dst)) + ' ' + unit
+	txt += ' 3D View distance ' + str(int(dst)) + ' ' + unit
+	'''
 	# cursor crs coords
 	txt += ' ' + str((int(self.posx), int(self.posy)))
-
-	if self.map.lockedZoom is not None:
-		txt += " zLock"
+	# progress
 	txt += ' ' + self.progress
 	context.area.header_text_set(txt)
 
@@ -552,7 +555,7 @@ class MAP_VIEWER(Operator):
 
 		#Add modal handler and init a timer
 		context.window_manager.modal_handler_add(self)
-		self.timer = context.window_manager.event_timer_add(0.05, window=context.window)
+		self.timer = context.window_manager.event_timer_add(0.04, window=context.window)
 
 		#Switch to top view ortho (center to origin)
 		view3d = context.area.spaces.active
@@ -849,6 +852,7 @@ class MAP_VIEWER(Operator):
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+			context.area.header_text_set(None)
 			self.restart = True
 			return {'FINISHED'}
 
@@ -857,6 +861,7 @@ class MAP_VIEWER(Operator):
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+			context.area.header_text_set(None)
 			self.restart = True
 			self.dialog = 'SEARCH'
 			return {'FINISHED'}
@@ -866,6 +871,7 @@ class MAP_VIEWER(Operator):
 			self.map.stop()
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+			context.area.header_text_set(None)
 			self.restart = True
 			self.dialog = 'OPTIONS'
 			return {'FINISHED'}
@@ -888,11 +894,14 @@ class MAP_VIEWER(Operator):
 
 		#EXPORT
 		if event.type == 'E' and event.value == 'PRESS':
-			#self.map.stop()
+			#
 			if not self.map.srv.running and self.map.mosaic is not None:
+				self.map.stop()
+				self.map.bkg.hide_viewport = True
 
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
 				bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
+				context.area.header_text_set(None)
 
 				#Copy image to new datablock
 				bpyImg = bpy.data.images.load(self.map.imgPath) #(self.map.img.filepath)
@@ -912,7 +921,7 @@ class MAP_VIEWER(Operator):
 				obj = placeObj(mesh, name)
 
 				#UV mapping
-				uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
+				uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')# Add UV map texture layer
 				geoRastUVmap(obj, uvTxtLayer, rast, dx, dy)
 
 				#Create material
@@ -941,14 +950,7 @@ class MAP_VIEWER(Operator):
 				context.area.header_text_set(None)
 				return {'CANCELLED'}
 
-		"""
-		#FINISH
-		if event.type in {'RET'}:
-			self.map.stop()
-			bpy.types.SpaceView3D.draw_handler_remove(self._drawTextHandler, 'WINDOW')
-			bpy.types.SpaceView3D.draw_handler_remove(self._drawZoomBoxHandler, 'WINDOW')
-			return {'FINISHED'}
-		"""
+
 
 		return {'RUNNING_MODAL'}
 

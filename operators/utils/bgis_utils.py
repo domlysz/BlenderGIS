@@ -77,11 +77,10 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 	for area in areas:
 		if area.type == 'VIEW_3D':
 			space = area.spaces.active
-			#Adjust floor grid and clip distance if the new obj is largest than actual settings
-			if space.grid_lines*space.grid_scale < targetDst:
-				space.grid_lines = nbLines
-				space.grid_scale = scale
-				dst = targetDst*10 #10x more than necessary
+			#Adjust clip distance if the new obj is largest than actual settings
+			space.clip_start = 100
+			dst = targetDst*10 #10x more than necessary
+			if space.clip_end < dst:
 				if dst > 10000000:
 					dst = 10000000 #too large clip distance broke the 3d view
 				space.clip_end = dst
@@ -98,11 +97,8 @@ def showTextures(context):
 	for area in context.screen.areas:
 		if area.type == 'VIEW_3D':
 			space = area.spaces.active
-			space.show_textured_solid = True
-			if scn.render.engine == 'CYCLES':
-				area.spaces.active.viewport_shade = 'TEXTURED'
-			elif scn.render.engine == 'BLENDER_RENDER':
-				area.spaces.active.viewport_shade = 'SOLID'
+			if space.shading.type == 'SOLID':
+				space.shading.color_type = 'TEXTURE'
 
 
 def addTexture(mat, img, uvLay, name='texture'):
