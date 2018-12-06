@@ -109,15 +109,15 @@ class OSM_IMPORT():
 			items.append( (tag, tag, tag) )
 		return items
 
-	filterTags = EnumProperty(
-			name="Tags",
-			description="Select tags to include",
+	filterTags: EnumProperty(
+			name = "Tags",
+			description = "Select tags to include",
 			items = enumTags,
 			options = {"ENUM_FLAG"})
 
-	featureType = EnumProperty(
-			name="Type",
-			description="Select types to include",
+	featureType: EnumProperty(
+			name = "Type",
+			description = "Select types to include",
 			items = [
 				('node', 'Nodes', 'Request all nodes'),
 				('way', 'Ways', 'Request all ways'),
@@ -130,28 +130,28 @@ class OSM_IMPORT():
 	# Elevation object
 	def listObjects(self, context):
 		objs = []
-		for index, object in enumerate(bpy.context.scene.objects):
+		for index, object in enumerate(bpy.context.scene.collection.objects):
 			if object.type == 'MESH':
 				#put each object in a tuple (key, label, tooltip) and add this to the objects list
 				objs.append((str(index), object.name, "Object named " + object.name))
 		return objs
 
-	objElevLst = EnumProperty(
+	objElevLst: EnumProperty(
 		name="Elev. object",
 		description="Choose the mesh from which extract z elevation",
 		items=listObjects )
 
-	useElevObj = BoolProperty(
+	useElevObj: BoolProperty(
 			name="Elevation from object",
 			description="Get z elevation value from an existing ground mesh",
 			default=False )
 
 
-	separate = BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features')
+	separate: BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features')
 
-	defaultHeight = FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
-	levelHeight = FloatProperty(name='Level height', description='Set a height for a building level, using for compute extrude height based on number of levels', default=3)
-	randomHeightThreshold = FloatProperty(name='Random height threshold', description='Threshold value for randomize default height', default=0)
+	defaultHeight: FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
+	levelHeight: FloatProperty(name='Level height', description='Set a height for a building level, using for compute extrude height based on number of levels', default=3)
+	randomHeightThreshold: FloatProperty(name='Random height threshold', description='Threshold value for randomize default height', default=0)
 
 	def draw(self, context):
 		layout = self.layout
@@ -183,7 +183,7 @@ class OSM_IMPORT():
 			return {'FINISHED'}
 
 		if self.useElevObj:
-			elevObj = scn.objects[int(self.objElevLst)]
+			elevObj = scn.collection.objects[int(self.objElevLst)]
 			rayCaster = DropToGround(scn, elevObj)
 
 		bmeshes = {}
@@ -433,7 +433,7 @@ class OSM_IMPORT():
 		elif 'relation' in self.featureType:
 
 			groups = bpy.data.groups
-			objects = scn.objects
+			objects = scn.collection.objects
 
 			for rel in result.relations:
 
@@ -473,7 +473,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 	bl_options = {"UNDO"}
 
 	# Import dialog properties
-	filepath = StringProperty(
+	filepath: StringProperty(
 		name="File Path",
 		description="Filepath used for importing the file",
 		maxlen=1024,
@@ -481,7 +481,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 
 	filename_ext = ".osm"
 
-	filter_glob = StringProperty(
+	filter_glob: StringProperty(
 			default = "*.osm",
 			options = {'HIDDEN'} )
 
@@ -637,3 +637,16 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}
+
+classes = [
+	OSM_FILE,
+	OSM_QUERY
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.unregister_class(cls)

@@ -62,17 +62,17 @@ class OBJECT_OT_drop_to_ground(Operator):
     bl_description = ("Drop selected objects on the Active object")
     bl_options = {"REGISTER", "UNDO"} #register needed to draw operator options/redo panel
 
-    align = BoolProperty(
+    align: BoolProperty(
             name="Align to ground",
             description="Aligns the objects' rotation to the ground",
             default=False)
 
-    axisAlign = EnumProperty(
+    axisAlign: EnumProperty(
             items = [("N", "Normal", "Ground normal"), ("X", "X", "Ground X normal"), ("Y", "Y", "Ground Y normal"), ("Z", "Z", "Ground Z normal")],
             name="Align axis",
             description="")
 
-    useOrigin = BoolProperty(
+    useOrigin: BoolProperty(
             name="Use Origins",
             description="Drop to objects' origins\n"
                         "Use this option for dropping all types of Objects",
@@ -157,3 +157,9 @@ class OBJECT_OT_drop_to_ground(Operator):
 
 
         return {'FINISHED'}
+
+def register():
+	bpy.utils.register_class(OBJECT_OT_drop_to_ground)
+
+def unregister():
+	bpy.utils.unregister_class(OBJECT_OT_drop_to_ground)

@@ -57,9 +57,9 @@ def placeObj(mesh, objName):
 	#create an object with that mesh
 	obj = bpy.data.objects.new(objName, mesh)
 	# Link object to scene
-	bpy.context.scene.objects.link(obj)
-	bpy.context.scene.objects.active = obj
-	obj.select = True
+	bpy.context.scene.collection.objects.link(obj)
+	#TODO bpy.context.active_object = obj
+	obj.select_set(True)
 	#bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 	return obj
 
@@ -134,7 +134,7 @@ def addTexture(mat, img, uvLay, name='texture'):
 	node_tree.links.new(uvMapNode.outputs['UV'] , textureNode.inputs['Vector'])
 	node_tree.links.new(textureNode.outputs['Color'] , diffuseNode.inputs['Color'])
 	node_tree.links.new(diffuseNode.outputs['BSDF'] , outputNode.inputs['Surface'])
-	#
+	'''
 	#BLENDER_RENDER
 	bpy.context.scene.render.engine = 'BLENDER_RENDER'
 	# Create image texture from image
@@ -156,7 +156,7 @@ def addTexture(mat, img, uvLay, name='texture'):
 	outNode.location = (100, -100)
 	# Connect the nodes
 	node_tree.links.new(matNode.outputs['Color'] , outNode.inputs['Color'])
-	#
+	'''
 	# restore initial engine
 	bpy.context.scene.render.engine = engine
 
@@ -169,7 +169,7 @@ class getBBOX():
 	def fromObj(obj, applyTransform = True):
 		'''Create a 3D BBOX from Blender object'''
 		if applyTransform:
-			boundPts = [obj.matrix_world * Vector(corner) for corner in obj.bound_box]
+			boundPts = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
 		else:
 			boundPts = obj.bound_box
 		xmin = min([pt[0] for pt in boundPts])
@@ -184,7 +184,7 @@ class getBBOX():
 	def fromScn(cls, scn):
 		'''Create a 3D BBOX from Blender Scene
 		union of bounding box of all objects containing in the scene'''
-		objs = scn.objects
+		objs = scn.collection.objects
 		if len(objs) == 0:
 			scnBbox = BBOX(0,0,0,0,0,0)
 		else:

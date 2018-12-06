@@ -76,23 +76,23 @@ class SetGeophotosCam(Operator):
     bl_label = "Exif cam"
     bl_options = {"REGISTER"}
 
-    files = CollectionProperty(
+    files: CollectionProperty(
             name="File Path",
             type=OperatorFileListElement,
             )
 
-    directory = StringProperty(
+    directory: StringProperty(
             subtype='DIR_PATH',
             )
 
-    filter_glob = StringProperty(
+    filter_glob: StringProperty(
         default="*.jpg;*.jpeg;*.tif;*.tiff",
         options={'HIDDEN'},
         )
 
     filename_ext = ""
 
-    exifMode = EnumProperty(
+    exifMode: EnumProperty(
         attr="exif_mode",
         name="Action",
         description="Choose an action",
@@ -223,7 +223,7 @@ class SetActiveGeophotoCam(Operator):
         #put each object in a tuple (key, label, tooltip)
         return [(obj.name, obj.name, obj.name) for obj in scn.objects if obj.type == 'CAMERA' and 'background' in obj.data]
 
-    camLst = EnumProperty(name='Camera', description='Select camera', items=listGeoCam)
+    camLst: EnumProperty(name='Camera', description='Select camera', items=listGeoCam)
 
     def draw(self, context):
         layout = self.layout
@@ -284,3 +284,16 @@ class SetActiveGeophotoCam(Operator):
         bkg.opacity = 1
 
         return {'FINISHED'}
+
+classes = [
+	SetGeophotosCam,
+	SetActiveGeophotoCam
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.unregister_class(cls)

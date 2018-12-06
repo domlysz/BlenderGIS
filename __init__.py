@@ -39,7 +39,7 @@ CAM_GEOPHOTO = False
 CAM_GEOREF = False
 EXPORT_SHP = False
 GET_SRTM = False
-IMPORT_GEORASTER = False
+IMPORT_GEORASTER = True
 IMPORT_OSM = False
 IMPORT_SHP = False
 IMPORT_ASC = False
@@ -170,6 +170,30 @@ def menu_func_export(self, context):
 		self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
 
 
+class gisMenu(bpy.types.Menu):
+	bl_label = "Custom Menu"
+	bl_idname = "VIEW3D_MT_gis"
+
+	# Set the menu operators and draw functions
+	def draw(self, context):
+		layout = self.layout
+		scn = context.scene
+
+		layout.operator("bgis.pref_show", icon='PREFERENCES')
+
+		col = layout.column(align=True)
+		col.label(text='Geodata:')
+
+		if BASEMAPS:
+			row = col.row(align=True)
+			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
+
+def add_menu(self, context):
+	self.layout.menu('VIEW3D_MT_gis')
+
+
+
+
 def register():
 
 	#icons
@@ -184,12 +208,16 @@ def register():
 	prefs.register()
 	geoscene.register()
 	bpy.utils.register_class(bgisPanel)
+	bpy.utils.register_class(gisMenu)
 	if BASEMAPS:
 		view3d_mapviewer.register()
+	if IMPORT_GEORASTER:
+		io_import_georaster.register()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.register()
 
 	#menus
+	bpy.types.VIEW3D_MT_editor_menus.append(add_menu)
 	#bpy.types.INFO_MT_file_import.append(menu_func_import)
 	#bpy.types.INFO_MT_file_export.append(menu_func_export)
 
@@ -231,6 +259,8 @@ def unregister():
 	geoscene.unregister()
 	if BASEMAPS:
 		view3d_mapviewer.unregister()
+	if IMPORT_GEORASTER:
+		io_import_georaster.register()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
 

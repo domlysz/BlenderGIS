@@ -17,7 +17,7 @@ class Analysis_nodes(Operator):
 	def execute(self, context):
 		scn = context.scene
 		scn.render.engine = 'CYCLES' #force Cycles render
-		obj = scn.objects.active
+		obj = scn.collection.objects.active
 		if obj is None:
 			self.report({'ERROR'}, "No active object")
 			return {'CANCELLED'}
@@ -357,3 +357,9 @@ class Analysis_nodes(Operator):
 			faces.material_index = obj.active_material_index
 
 		return {'FINISHED'}
+
+def register():
+	bpy.utils.register_class(Analysis_nodes)
+
+def unregister():
+	bpy.utils.unregister_class(Analysis_nodes)

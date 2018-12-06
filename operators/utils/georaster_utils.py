@@ -155,15 +155,18 @@ def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER', reproj=None, subdivis
 	bm.free()
 	return mesh
 
-def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=None):
+def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 	'''uv map a georaster texture on a given mesh'''
+	mesh = obj.data
+	'''
 	uvTxtLayer.active = True
 	# Assign image texture for every face
-	mesh = obj.data
+
 	for idx, pg in enumerate(mesh.polygons):
 		uvTxtLayer.data[idx].image = rast.bpyImg
 	#Get UV loop layer
 	uvLoopLayer = mesh.uv_layers.active
+	'''
 	#Assign uv coords
 	loc = obj.location
 	for pg in mesh.polygons:
@@ -179,8 +182,9 @@ def geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=None):
 			u = dx_px / rast.size[0]
 			v = dy_px / rast.size[1]
 			#Assign coords
-			uvLoop = uvLoopLayer.data[i]
-			uvLoop.uv = [u,v]
+			#uvLoop = uvLoopLayer.data[i]
+			#uvLoop.uv = [u,v]
+			uvLayer.data[i].uv = [u,v]
 
 def setDisplacer(obj, rast, uvTxtLayer, mid=0):
 	#Config displacer

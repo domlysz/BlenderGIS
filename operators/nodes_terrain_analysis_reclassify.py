@@ -38,29 +38,6 @@ mat = None
 node = None
 
 
-def register():
-	#Register PropertyGroup
-	bpy.utils.register_class(CustomItem)
-	bpy.utils.register_class(ColorList)
-	#Create uilist collections
-	bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
-	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist
-	bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
-	#Add handlers
-	bpy.app.handlers.scene_update_post.append(scene_update)
-
-def unregister():
-	#Clear uilist
-	del bpy.types.Scene.uiListCollec
-	del bpy.types.Scene.uiListIndex
-	del bpy.types.Scene.colorRampPreview
-	#Clear handlers
-	bpy.app.handlers.scene_update_post.clear()
-	#Unregister PropertyGroup
-	bpy.utils.unregister_class(CustomItem)
-	bpy.utils.unregister_class(ColorList)
-
-
 #Set up a propertyGroup and populate a CollectionProperty
 #########################################
 class CustomItem(PropertyGroup):
@@ -107,15 +84,10 @@ class CustomItem(PropertyGroup):
 				stops[i].color = color
 
 	#Properties in the group
-	idx = IntProperty()
-	val = FloatProperty(update=updStop)
-	color = FloatVectorProperty(subtype='COLOR', min=0, max=1, update=updColor, size=4)
+	idx: IntProperty()
+	val: FloatProperty(update=updStop)
+	color: FloatVectorProperty(subtype='COLOR', min=0, max=1, update=updColor, size=4)
 
-'''#See register()
-bpy.utils.register_class(CustomItem)
-bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
-bpy.types.Scene.uiListIndex = IntProperty()
-'''
 
 #POPULATE
 #Make function to populate collection
@@ -143,14 +115,7 @@ def updateAnalysisMode(scn, context):
 		populateList(node)
 
 
-bpy.types.Scene.analysisMode = EnumProperty(
-			name = "Mode",
-			description = "Choose the type of analysis this material do",
-			items = [('HEIGHT', 'Height', "Height analysis"),
-			('SLOPE', 'Slope', "Slope analysis"),
-			('ASPECT', 'Aspect', "Aspect analysis")],
-			update = updateAnalysisMode
-			)
+
 
 def setBounds():
 	scn = bpy.context.scene
@@ -159,7 +124,7 @@ def setBounds():
 	global inMax
 	global obj
 	if mode == 'HEIGHT':
-		obj = scn.objects.active
+		obj = scn.collection.objects.active
 		bbox = getBBOX.fromObj(obj)
 		inMin = bbox['zmin']
 		inMax = bbox['zmax']
@@ -185,7 +150,7 @@ def scene_update(scn):
 	global mat
 	global node
 	#print(node.bl_idname)
-	activeObj = scn.objects.active
+	activeObj = scn.collection.objects.active
 	if activeObj is not None:
 		activeMat = activeObj.active_material
 		if activeMat is not None and activeMat.use_nodes:
@@ -206,10 +171,6 @@ def scene_update(scn):
 			if node != activeNode:
 				node = activeNode
 				populateList(activeNode)
-
-#See register()
-#bpy.app.handlers.scene_update_post.append(scene_update)
-
 
 #Set up ui list
 #########################################
@@ -246,19 +207,19 @@ class Reclass_uilist(UIList):
 		if self.layout_type in {'DEFAULT', 'COMPACT'}:
 			if mode == 'ASPECT':
 				aspectLabels = self.getAspectLabels()
-				split = layout.split(percentage=0.2)
+				split = layout.split(factor=0.2)
 				if aspectLabels:
 					split.label(aspectLabels[item.idx])
 				else:
 					split.label(str(item.idx+1))
-				split = split.split(percentage=0.4)
+				split = split.split(factor=0.4)
 				split.prop(item, "color", text="")
 				split.prop(item, "val", text="")
 			else:
-				split = layout.split(percentage=0.2)
-				#split.label(str(index))
-				split.label(str(item.idx+1))
-				split = split.split(percentage=0.4)
+				split = layout.split(factor=0.2)
+				#split.label(text=str(index))
+				split.label(text=str(item.idx+1))
+				split = split.split(factor=0.4)
 				split.prop(item, "color", text="")
 				split.prop(item, "val", text="")
 		elif self.layout_type in {'GRID'}:
@@ -286,8 +247,8 @@ class Reclass_panel(Panel):
 				row.template_list("Reclass_uilist", "", scn, "uiListCollec", scn, "uiListIndex", rows=10)
 				#Draw side tools
 				col = row.column(align=True)
-				col.operator("reclass.list_add", text="", icon='ZOOMIN')
-				col.operator("reclass.list_rm", text="", icon='ZOOMOUT')
+				col.operator("reclass.list_add", text="", icon='ADD')
+				col.operator("reclass.list_rm", text="", icon='REMOVE')
 				col.operator("reclass.list_clear", text="", icon='FILE_PARENT')
 				col.separator()
 				col.operator("reclass.list_refresh", text="", icon='FILE_REFRESH')
@@ -300,15 +261,15 @@ class Reclass_panel(Panel):
 				col.separator()
 				col.operator("reclass.auto", text="", icon='FULLSCREEN_ENTER')
 				##col.separator()
-				##col.operator("reclass.settings", text="", icon='SCRIPTWIN')
+				##col.operator("reclass.settings", text="", icon='PREFERENCES')
 				#Draw infos
 				#row = layout.row()
-				#row.label(scn.objects.active.name)
+				#row.label(text=scn.collection.objects.active.name)
 				row = layout.row()
-				row.label("min = " + str(round(inMin,2)))
-				row.label("max = " + str(round(inMax,2)))
+				row.label(text="min = " + str(round(inMin,2)))
+				row.label(text="max = " + str(round(inMax,2)))
 				row = layout.row()
-				row.label("delta = " + str(round(inMax-inMin,2)))
+				row.label(text="delta = " + str(round(inMax-inMin,2)))
 
 
 #Make Operators to manage ui list
@@ -384,7 +345,7 @@ class Reclass_clear(Operator):
 		return{'FINISHED'}
 
 
-class Reclass_addStop(bpy.types.Operator):
+class Reclass_addStop(Operator):
 	"""Add stop"""
 	bl_idname = "reclass.list_add"
 	bl_label = "Add stop"
@@ -417,7 +378,7 @@ class Reclass_addStop(bpy.types.Operator):
 		return {'FINISHED'}
 
 
-class Reclass_rmStop(bpy.types.Operator):
+class Reclass_rmStop(Operator):
 	"""Remove stop"""
 	bl_idname = "reclass.list_rm"
 	bl_label = "Remove Stop"
@@ -463,7 +424,7 @@ def clearRamp(stops, startColor=(0,0,0,1), endColor=(1,1,1,1), startPos=0, endPo
 def getValues():
 	'''Return mesh data values (z, slope or az) for classification'''
 	scn = bpy.context.scene
-	obj = scn.objects.active
+	obj = scn.collection.objects.active
 	#make a temp mesh with modifiers apply
 	#mesh = obj.data #modifiers not apply
 	mesh = obj.to_mesh(scn, apply_modifiers=True, settings='PREVIEW')
@@ -506,7 +467,7 @@ class Reclass_auto(Operator):
 	bl_idname = "reclass.auto"
 	bl_label = "Reclass by equal interval or fixed classe number"
 
-	autoReclassMode = EnumProperty(
+	autoReclassMode: EnumProperty(
 			name="Mode",
 			description="Select auto reclassify mode",
 			items=[
@@ -517,9 +478,9 @@ class Reclass_auto(Operator):
 			('1DKMEANS', 'Natural breaks', 'kmeans clustering optimized for one dimensional data'),
 			('ASPECT', 'Aspect reclassification', "Value define the number of azimuth")]
 			)
-	color1 = FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
-	color2 = FloatVectorProperty(name="End color", subtype='COLOR', min=0, max=1, size=4)
-	value = IntProperty(name="Value", default=4)
+	color1: FloatVectorProperty(name="Start color", subtype='COLOR', min=0, max=1, size=4)
+	color2: FloatVectorProperty(name="End color", subtype='COLOR', min=0, max=1, size=4)
+	value: IntProperty(name="Value", default=4)
 
 	def invoke(self, context, event):
 		#Set color to actual ramp
@@ -675,24 +636,21 @@ interpoMethods = [('LINEAR', 'Linear', "Linear interpolation"),
 
 #QUICK GRADIENT
 class ColorList(PropertyGroup):
-	color = FloatVectorProperty(subtype='COLOR', min=0, max=1, size=4)
+	color: FloatVectorProperty(subtype='COLOR', min=0, max=1, size=4)
 
-'''#See register()
-bpy.utils.register_class(ColorList)
-bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
-'''
+
 
 class Reclass_quickGradient(Operator):
 	'''Quick colors gradient edit'''
 	bl_idname = "reclass.quick_gradient"
 	bl_label = "Quick colors gradient edit"
 
-	colorSpace = EnumProperty(
+	colorSpace: EnumProperty(
 			name="Space",
 			description="Select interpolation color space",
 			items = colorSpaces)
 
-	method = EnumProperty(
+	method: EnumProperty(
 			name="Method",
 			description="Select interpolation method",
 			items = interpoMethods)
@@ -733,9 +691,9 @@ class Reclass_quickGradient(Operator):
 			else:
 				colorItems.remove(nb-1)
 
-	fitGradient = BoolProperty(update=initPreview)
+	fitGradient: BoolProperty(update=initPreview)
 
-	nbColors = IntProperty(
+	nbColors: IntProperty(
 			name="Number of colors",
 			description="Set the number of colors needed to define the quick quadient",
 			min=2, default=4, update=updatePreview)
@@ -831,28 +789,28 @@ class Reclass_svgGradient(Operator):
 			item.color = stop.color.rgba
 		return
 
-	colorPresets = EnumProperty(
+	colorPresets: EnumProperty(
 			name="preset",
 			description="Select a color ramp preset",
 			items=listSVG,
 			update=updatePreview
 			)
 
-	colorSpace = EnumProperty(
+	colorSpace: EnumProperty(
 			name="Space",
 			description="Select interpolation color space",
 			items = colorSpaces,
 			update = updatePreview
 			)
 
-	method = EnumProperty(
+	method: EnumProperty(
 			name="Method",
 			description="Select interpolation method",
 			items = interpoMethods,
 			update = updatePreview
 			)
 
-	fitGradient = BoolProperty()
+	fitGradient: BoolProperty()
 
 	def invoke(self, context, event):
 		#clear collection
@@ -913,24 +871,24 @@ class Reclass_exportSVG(Operator):
 	bl_idname = "reclass.exportsvg"
 	bl_label = "Export current gradient to SVG file"
 
-	name = StringProperty(description="Put name of SVG file")
-	n = IntProperty(default=5, description="Select expected number of interpolate colors")
+	name: StringProperty(description="Put name of SVG file")
+	n: IntProperty(default=5, description="Select expected number of interpolate colors")
 
-	gradientType = EnumProperty(
+	gradientType: EnumProperty(
 			name="Build method",
 			description="Select methods to build gradient",
 			items = [('SELF_STOPS', 'Use actual stops', ""),
 			('INTERPOLATE', 'Interpolate n colors', "")]
 			)
 
-	makeDiscrete = BoolProperty(name="Make discrete", description="Build discrete svg gradient")
+	makeDiscrete: BoolProperty(name="Make discrete", description="Build discrete svg gradient")
 
-	colorSpace = EnumProperty(
+	colorSpace: EnumProperty(
 			name="Color space",
 			description="Select interpolation color space",
 			items = colorSpaces)
 
-	method = EnumProperty(
+	method: EnumProperty(
 			name="Interp. method",
 			description="Select interpolation method",
 			items = interpoMethods)
@@ -951,7 +909,7 @@ class Reclass_exportSVG(Operator):
 		layout.prop(self, "makeDiscrete")
 		if self.gradientType == "INTERPOLATE":
 			layout.separator()
-			layout.label('Interpolation options')
+			layout.label(text='Interpolation options')
 			layout.prop(self, "colorSpace", text='Color space')
 			layout.prop(self, "method", text='Method')
 			layout.prop(self, "n", text="Number of colors")
@@ -977,3 +935,52 @@ class Reclass_exportSVG(Operator):
 		global svgFiles
 		svgFiles = filesList(svgGradientFolder , '.svg')
 		return {'FINISHED'}
+
+
+classes = [
+	CustomItem,
+	ColorList,
+	Reclass_uilist,
+	Reclass_panel,
+	Reclass_switchInterpolation,
+	Reclass_flip,
+	Reclass_refresh,
+	Reclass_clear,
+	Reclass_addStop,
+	Reclass_rmStop,
+	Reclass_auto,
+	Reclass_quickGradient,
+	Reclass_svgGradient,
+	Reclass_exportSVG
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+	#Create uilist collections
+	bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
+	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist
+	bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
+	#Add handlers
+	bpy.app.handlers.scene_update_post.append(scene_update)
+	#
+	bpy.types.Scene.analysisMode = EnumProperty(
+		name = "Mode",
+		description = "Choose the type of analysis this material do",
+		items = [('HEIGHT', 'Height', "Height analysis"),
+		('SLOPE', 'Slope', "Slope analysis"),
+		('ASPECT', 'Aspect', "Aspect analysis")],
+		update = updateAnalysisMode
+		)
+
+def unregister():
+	del bpy.types.Scene.analysisMode
+	#Clear uilist
+	del bpy.types.Scene.uiListCollec
+	del bpy.types.Scene.uiListIndex
+	del bpy.types.Scene.colorRampPreview
+	#Clear handlers
+	bpy.app.handlers.scene_update_post.clear()
+	#Unregister
+	for cls in classes:
+		bpy.utils.unregister_class(cls)

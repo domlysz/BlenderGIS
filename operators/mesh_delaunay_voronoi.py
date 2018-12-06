@@ -87,8 +87,8 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		tinObj.rotation_euler = r
 		tinObj.scale = s
 		#Update scene
-		bpy.context.scene.objects.link(tinObj) #Link object to scene
-		bpy.context.scene.objects.active = tinObj
+		bpy.context.scene.collection.objects.link(tinObj) #Link object to scene
+		bpy.context.scene.collection.objects.active = tinObj
 		tinObj.select = True
 		obj.select = False
 		#Report
@@ -101,7 +101,7 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 	bl_description = "Points cloud Voronoi diagram in 2D" #tooltip
 	bl_options = {"REGISTER","UNDO"}#need register to draw operator options/redo panel (F6)
 	#options
-	meshType = bpy.props.EnumProperty(
+	meshType: bpy.props.EnumProperty(
 		items = [("Edges", "Edges", ""), ("Faces", "Faces", "")],#(Key, Label, Description)
 		name = "Mesh type",
 		description = ""
@@ -169,8 +169,8 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		voronoiObj.rotation_euler = r
 		voronoiObj.scale = s
 		#update scene
-		bpy.context.scene.objects.link(voronoiObj) #Link object to scene
-		bpy.context.scene.objects.active = voronoiObj
+		bpy.context.scene.collection.objects.link(voronoiObj) #Link object to scene
+		bpy.context.scene.collection.objects.active = voronoiObj
 		voronoiObj.select = True
 		obj.select = False
 		#Report
@@ -179,3 +179,16 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		else:
 			self.report({'INFO'}, "Mesh created ("+str(len(polyIdx))+" polygons)")
 		return {'FINISHED'}
+
+classes = [
+	OBJECT_OT_TriangulateButton,
+	OBJECT_OT_VoronoiButton
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.unregister_class(cls)

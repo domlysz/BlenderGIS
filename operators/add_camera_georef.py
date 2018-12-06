@@ -180,3 +180,10 @@ class SetGeorenderCam(bpy.types.Operator):
 				bpy.data.texts.remove(wfText)
 
 		return {'FINISHED'}
+
+
+def register():
+	bpy.utils.register_class(SetGeorenderCam)
+
+def unregister():
+	bpy.utils.unregister_class(SetGeorenderCam)

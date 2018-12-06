@@ -27,12 +27,12 @@ class EXPORT_SHP(Operator, ExportHelper):
 
 	# ExportHelper class properties
 	filename_ext = ".shp"
-	filter_glob = StringProperty(
+	filter_glob: StringProperty(
 			default="*.shp",
 			options={'HIDDEN'},
 			)
 
-	exportType = EnumProperty(
+	exportType: EnumProperty(
 			name="Feature type",
 			description="Select feature type",
 			items=[ ('POINTZ', 'Point', ""),
@@ -139,3 +139,10 @@ class EXPORT_SHP(Operator, ExportHelper):
 		self.report({'INFO'}, "Export complete")
 		print("Export complete")
 		return {'FINISHED'}
+
+
+def register():
+	bpy.utils.register_class(EXPORT_SHP)
+
+def unregister():
+	bpy.utils.unregister_class(EXPORT_SHP)

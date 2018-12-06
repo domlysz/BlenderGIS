@@ -59,13 +59,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	def listObjects(self, context):
 		#Function used to update the objects list (obj_list) used by the dropdown box.
 		objs = [] #list containing tuples of each object
-		for index, object in enumerate(bpy.context.scene.objects): #iterate over all objects
+		for index, object in enumerate(bpy.context.scene.collection.objects): #iterate over all objects
 			if object.type == 'MESH':
 				objs.append((str(index), object.name, "Object named " +object.name)) #put each object in a tuple (key, label, tooltip) and add this to the objects list
 		return objs
 
 	# ImportHelper class properties
-	filter_glob = StringProperty(
+	filter_glob: StringProperty(
 			default="*.tif;*.jpg;*.jpeg;*.png;*.bmp",
 			options={'HIDDEN'},
 			)
@@ -73,19 +73,19 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	# Raster CRS definition
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
-	rastCRS = EnumProperty(
+	rastCRS: EnumProperty(
 		name = "Raster CRS",
 		description = "Choose a Coordinate Reference System",
 		items = listPredefCRS,
 		)
-	reprojection = BoolProperty(
+	reprojection: BoolProperty(
 			name="Specifiy raster CRS",
 			description="Specifiy raster CRS if it's different from scene CRS",
 			default=False )
 
 	# List of operator properties, the attributes will be assigned
 	# to the class instance from the operator settings before calling.
-	importMode = EnumProperty(
+	importMode: EnumProperty(
 			name="Mode",
 			description="Select import mode",
 			items=[ ('PLANE', 'On plane', "Place raster texture on new plane mesh"),
@@ -95,7 +95,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			('DEM_RAW', 'Raw DEM', "Import a DEM as pixels points cloud with building faces")]
 			)
 	#
-	objectsLst = EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
+	objectsLst: EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
 	#
 	#Subdivise (as DEM option)
 	def listSubdivisionModes(self, context):
@@ -106,33 +106,33 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			items.append(('mesh', 'Mesh', "Create vertices at each pixels"))
 		return items
 
-	subdivision = EnumProperty(
+	subdivision: EnumProperty(
 			name="Subdivision",
 			description="How to subdivise the plane (dispacer needs vertex to work with)",
 			items=listSubdivisionModes
 			)
 	#
-	demOnMesh = BoolProperty(
+	demOnMesh: BoolProperty(
 			name="Apply on existing mesh",
 			description="Use DEM as displacer for an existing mesh",
 			default=False
 			)
 	#
-	clip = BoolProperty(
+	clip: BoolProperty(
 			name="Clip to working extent",
 			description="Use the reference bounding box to clip the DEM",
 			default=False
 			)
 	#
-	fillNodata = BoolProperty(
+	fillNodata: BoolProperty(
 			name="Fill nodata values",
 			description="Interpolate existing nodata values to get an usuable displacement texture",
 			default=False
 			)
 	#
-	step = IntProperty(name = "Step", default=1, description="Pixel step", min=1)
+	step: IntProperty(name = "Step", default=1, description="Pixel step", min=1)
 
-	buildFaces = BoolProperty(name="Build faces", default=True, description='Build quad faces connecting pixel point cloud')
+	buildFaces: BoolProperty(name="Build faces", default=True, description='Build quad faces connecting pixel point cloud')
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
@@ -151,7 +151,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			if geoscn.isGeoref and len(self.objectsLst) > 0:
 				layout.prop(self, 'objectsLst')
 			else:
-				layout.label("There isn't georef mesh to UVmap on")
+				layout.label(text="There isn't georef mesh to UVmap on")
 		#
 		if self.importMode == 'DEM':
 			layout.prop(self, 'demOnMesh')
@@ -160,7 +160,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 					layout.prop(self, 'objectsLst')
 					layout.prop(self, 'clip')
 				else:
-					layout.label("There isn't georef mesh to apply on")
+					layout.label(text="There isn't georef mesh to apply on")
 			layout.prop(self, 'subdivision')
 			if self.subdivision == 'mesh':
 				layout.prop(self, 'step')
@@ -174,7 +174,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				if geoscn.isGeoref and len(self.objectsLst) > 0:
 					layout.prop(self, 'objectsLst')
 				else:
-					layout.label("There isn't georef mesh to refer")
+					layout.label(text="There isn't georef mesh to refer")
 		#
 		if geoscn.isPartiallyGeoref:
 			layout.prop(self, 'reprojection')
@@ -188,10 +188,10 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	def crsInputLayout(self, context):
 		layout = self.layout
 		row = layout.row(align=True)
-		split = row.split(percentage=0.35, align=True)
-		split.label('CRS:')
+		split = row.split(factor=0.35, align=True)
+		split.label(text='CRS:')
 		split.prop(self, "rastCRS", text='')
-		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
+		row.operator("bgis.add_predef_crs", text='', icon='ADD')
 
 	def err(self, msg):
 		'''Report error throught a Blender's message box'''
@@ -262,7 +262,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			#place obj
 			obj = placeObj(mesh, name)
 			#UV mapping
-			uvTxtLayer = mesh.uv_textures.new('rastUVmap')# Add UV map texture layer
+			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')# Add UV map texture layer
 			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
 			# Create material
 			mat = bpy.data.materials.new('rastMat')
@@ -315,8 +315,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			# Get choosen object
 			obj = scn.objects[int(self.objectsLst)]
 			# Select and active this obj
-			obj.select = True
-			scn.objects.active = obj
+			obj.select_set(True)
+			context.active_object = obj
 			# Compute projeted bbox (in geographic coordinates system)
 			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			if rprj:
@@ -347,8 +347,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				obj = scn.objects[int(self.objectsLst)]
 				mesh = obj.data
 				# Select and active this obj
-				obj.select = True
-				scn.objects.active = obj
+				obj.select_set(True)
+				context.active_object = obj
 				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:
@@ -424,7 +424,8 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			#grid.unload()
 
 		######################################
-		#Flag is a new object as been created...
+		'''
+		#Flag if a new object as been created...
 		if self.importMode == 'PLANE' or (self.importMode == 'DEM' and not self.demOnMesh) or self.importMode == 'DEM_RAW':
 			newObjCreated = True
 		else:
@@ -438,6 +439,13 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		#Force view mode with textures
 		if prefs.forceTexturedSolid:
 			showTextures(context)
-
+		'''
 
 		return {'FINISHED'}
+
+
+def register():
+	bpy.utils.register_class(IMPORT_GEORAST)
+
+def unregister():
+	bpy.utils.unregister_class(IMPORT_GEORAST)

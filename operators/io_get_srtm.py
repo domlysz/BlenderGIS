@@ -119,7 +119,7 @@ class SRTM_QUERY(Operator):
 			importMode = 'DEM',
 			subdivision = 'subsurf',
 			demOnMesh = True,
-			objectsLst = [str(i) for i, obj in enumerate(scn.objects) if obj.name == bpy.context.active_object.name][0],
+			objectsLst = [str(i) for i, obj in enumerate(scn.collection.objects) if obj.name == bpy.context.active_object.name][0],
 			clip = False,
 			fillNodata = False)
 
@@ -127,3 +127,10 @@ class SRTM_QUERY(Operator):
 		adjust3Dview(context, bbox, zoomToSelect=False)
 
 		return {'FINISHED'}
+
+
+def register():
+	bpy.utils.register_class(SRTM_QUERY)
+
+def unregister():
+	bpy.utils.unregister_class(SRTM_QUERY)

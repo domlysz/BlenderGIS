@@ -57,7 +57,7 @@ class IMPORT_SHP_FILE_DIALOG(Operator):
 	bl_options = {'INTERNAL'}
 
 	# Import dialog properties
-	filepath = StringProperty(
+	filepath: StringProperty(
 		name="File Path",
 		description="Filepath used for importing the file",
 		maxlen=1024,
@@ -65,7 +65,7 @@ class IMPORT_SHP_FILE_DIALOG(Operator):
 
 	filename_ext = ".shp"
 
-	filter_glob = StringProperty(
+	filter_glob: StringProperty(
 			default = "*.shp",
 			options = {'HIDDEN'} )
 
@@ -75,8 +75,8 @@ class IMPORT_SHP_FILE_DIALOG(Operator):
 
 	def draw(self, context):
 		layout = self.layout
-		layout.label("Options will be available")
-		layout.label("after selecting a file")
+		layout.label(text="Options will be available")
+		layout.label(text="after selecting a file")
 
 	def execute(self, context):
 		if os.path.exists(self.filepath):
@@ -95,7 +95,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	bl_label = "Import SHP"
 	bl_options = {"INTERNAL"}
 
-	filepath = StringProperty()
+	filepath: StringProperty()
 
 	#special function to auto redraw an operator popup called through invoke_props_dialog
 	def check(self, context):
@@ -120,24 +120,24 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 	def listObjects(self, context):
 		objs = []
-		for index, object in enumerate(bpy.context.scene.objects):
+		for index, object in enumerate(bpy.context.scene.collection.objects):
 			if object.type == 'MESH':
 				#put each object in a tuple (key, label, tooltip) and add this to the objects list
 				objs.append((str(index), object.name, "Object named " +object.name))
 		return objs
 
-	reprojection = BoolProperty(
+	reprojection: BoolProperty(
 			name="Specifiy shapefile CRS",
 			description="Specifiy shapefile CRS if it's different from scene CRS",
 			default=False )
-	shpCRS = EnumProperty(
+
+	shpCRS: EnumProperty(
 		name = "Shapefile CRS",
 		description = "Choose a Coordinate Reference System",
 		items = listPredefCRS)
 
-
 	# Elevation source
-	vertsElevSource = EnumProperty(
+	vertsElevSource: EnumProperty(
 			name="Elevation source",
 			description="Select the source of vertices z value",
 			items=[
@@ -149,52 +149,53 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 			default='GEOM')
 
 	# Elevation object
-	objElevLst = EnumProperty(
+	objElevLst: EnumProperty(
 		name="Elev. object",
 		description="Choose the mesh from which extract z elevation",
 		items=listObjects )
 
 	# Elevation field
 	'''
-	useFieldElev = BoolProperty(
+	useFieldElev: BoolProperty(
 			name="Elevation from field",
 			description="Extract z elevation value from an attribute field",
 			default=False )
 	'''
-	fieldElevName = EnumProperty(
+	fieldElevName: EnumProperty(
 		name = "Elev. field",
 		description = "Choose field",
 		items = listFields )
 
 	#Extrusion field
-	useFieldExtrude = BoolProperty(
+	useFieldExtrude: BoolProperty(
 			name="Extrusion from field",
 			description="Extract z extrusion value from an attribute field",
 			default=False )
-	fieldExtrudeName = EnumProperty(
+
+	fieldExtrudeName: EnumProperty(
 		name = "Field",
 		description = "Choose field",
 		items = listFields )
 
 	#Extrusion axis
-	extrusionAxis = EnumProperty(
+	extrusionAxis: EnumProperty(
 			name="Extrude along",
 			description="Select extrusion axis",
 			items=[ ('Z', 'z axis', "Extrude along Z axis"),
 			('NORMAL', 'Normal', "Extrude along normal")] )
 
 	#Create separate objects
-	separateObjects = BoolProperty(
+	separateObjects: BoolProperty(
 			name="Separate objects",
 			description="Import to separate objects instead one large object",
 			default=False )
 
 	#Name objects from field
-	useFieldName = BoolProperty(
+	useFieldName: BoolProperty(
 			name="Object name from field",
 			description="Extract name for created objects from an attribute field",
 			default=False )
-	fieldObjName = EnumProperty(
+	fieldObjName: EnumProperty(
 		name = "Field",
 		description = "Choose field",
 		items = listFields )
@@ -243,10 +244,10 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		layout = self.layout
 		row = layout.row(align=True)
 		#row.prop(self, "shpCRS", text='CRS')
-		split = row.split(percentage=0.35, align=True)
-		split.label('CRS:')
+		split = row.split(factor=0.35, align=True)
+		split.label(text='CRS:')
 		split.prop(self, "shpCRS", text='')
-		row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
+		row.operator("bgis.add_predef_crs", text='', icon='ADD')
 
 
 	def invoke(self, context, event):
@@ -300,26 +301,26 @@ class IMPORT_SHP(Operator):
 	bl_label = "Import SHP"
 	bl_options = {"UNDO"}
 
-	filepath = StringProperty()
+	filepath: StringProperty()
 
-	shpCRS = StringProperty(name = "Shapefile CRS", description = "Coordinate Reference System")
+	shpCRS: StringProperty(name = "Shapefile CRS", description = "Coordinate Reference System")
 
-	elevSource = StringProperty(name = "Elevation source", description = "Elevation source", default='GEOM') # [NONE, GEOM, OBJ, FIELD]
-	objElevIdx = IntProperty(name = "Elevation object index", description = "")
+	elevSource: StringProperty(name = "Elevation source", description = "Elevation source", default='GEOM') # [NONE, GEOM, OBJ, FIELD]
+	objElevIdx: IntProperty(name = "Elevation object index", description = "")
 
-	fieldElevName = StringProperty(name = "Elevation field", description = "Field name")
-	fieldExtrudeName = StringProperty(name = "Extrusion field", description = "Field name")
-	fieldObjName = StringProperty(name = "Objects names field", description = "Field name")
+	fieldElevName: StringProperty(name = "Elevation field", description = "Field name")
+	fieldExtrudeName: StringProperty(name = "Extrusion field", description = "Field name")
+	fieldObjName: StringProperty(name = "Objects names field", description = "Field name")
 
 	#Extrusion axis
-	extrusionAxis = EnumProperty(
+	extrusionAxis: EnumProperty(
 			name="Extrude along",
 			description="Select extrusion axis",
 			items=[ ('Z', 'z axis', "Extrude along Z axis"),
 			('NORMAL', 'Normal', "Extrude along normal")]
 			)
 	#Create separate objects
-	separateObjects = BoolProperty(
+	separateObjects: BoolProperty(
 			name="Separate objects",
 			description="Import to separate objects instead one large object",
 			default=False
@@ -363,7 +364,7 @@ class IMPORT_SHP(Operator):
 
 		if self.elevSource == 'OBJ':
 			scn = bpy.context.scene
-			elevObj = scn.objects[self.objElevIdx]
+			elevObj = scn.collection.objects[self.objElevIdx]
 			rayCaster = DropToGround(scn, elevObj)
 
 		#Get fields
@@ -658,8 +659,8 @@ class IMPORT_SHP(Operator):
 
 				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
-				context.scene.objects.link(obj)
-				context.scene.objects.active = obj
+				context.scene.collection.objects.link(obj)
+				context.scene.collection.objects.active = obj
 				obj.select = True
 				obj.location = (ox, oy, oz)
 
@@ -702,8 +703,8 @@ class IMPORT_SHP(Operator):
 			#mesh.update(calc_edges=True)
 			mesh.validate(verbose=False) #return true if the mesh has been corrected
 			obj = bpy.data.objects.new(shpName, mesh)
-			context.scene.objects.link(obj)
-			context.scene.objects.active = obj
+			context.scene.collection.objects.link(obj)
+			context.scene.collection.objects.active = obj
 			obj.select = True
 			bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 
@@ -720,3 +721,17 @@ class IMPORT_SHP(Operator):
 
 
 		return {'FINISHED'}
+
+classes = [
+	IMPORT_SHP_FILE_DIALOG,
+	IMPORT_SHP_PROPS_DIALOG,
+	IMPORT_SHP
+]
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in classes:
+		bpy.utils.unregister_class(cls)

@@ -33,7 +33,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
     bl_options = {"UNDO"}
 
     # ImportHelper class properties
-    filter_glob = StringProperty(
+    filter_glob: StringProperty(
         default="*.asc;*.grd",
         options={'HIDDEN'},
     )
@@ -41,7 +41,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
     # Raster CRS definition
     def listPredefCRS(self, context):
         return PredefCRS.getEnumItems()
-    fileCRS = EnumProperty(
+    fileCRS: EnumProperty(
         name = "CRS",
         description = "Choose a Coordinate Reference System",
         items = listPredefCRS,
@@ -49,29 +49,29 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    importMode = EnumProperty(
-        name="Mode",
-        description="Select import mode",
-        items=[
+    importMode: EnumProperty(
+        name = "Mode",
+        description = "Select import mode",
+        items = [
             ('MESH', 'Mesh', "Create triangulated regular network mesh"),
             ('CLOUD', 'Point cloud', "Create vertex point cloud"),
         ],
     )
 
     # Step makes point clouds with billions of points possible to read on consumer hardware
-    step = IntProperty(
+    step: IntProperty(
         name = "Step",
-        description="Only read every Nth point for massive point clouds",
-        default=1,
-        min=1
+        description = "Only read every Nth point for massive point clouds",
+        default = 1,
+        min = 1
     )
 
     # Let the user decide whether to use the faster newline method
     # Alternatively, use self.total_newlines(filename) to see whether total >= nrows and automatically decide (at the cost of time spent counting lines)
-    newlines = BoolProperty(
-        name="Newline-delimited rows",
-        description="Use this method if the file contains newline separated rows for faster import",
-        default=True,
+    newlines: BoolProperty(
+        name = "Newline-delimited rows",
+        description = "Use this method if the file contains newline separated rows for faster import",
+        default = True,
     )
 
     def draw(self, context):
@@ -82,10 +82,10 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         layout.prop(self, 'newlines')
 
         row = layout.row(align=True)
-        split = row.split(percentage=0.35, align=True)
-        split.label('CRS:')
+        split = row.split(factor=0.35, align=True)
+        split.label(text='CRS:')
         split.prop(self, "fileCRS", text='')
-        row.operator("bgis.add_predef_crs", text='', icon='ZOOMIN')
+        row.operator("bgis.add_predef_crs", text='', icon='ADD')
         scn = bpy.context.scene
         geoscn = GeoScene(scn)
         if geoscn.isPartiallyGeoref:
@@ -296,3 +296,9 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
             adjust3Dview(context, bb)
 
         return {'FINISHED'}
+
+def register():
+	bpy.utils.register_class(IMPORT_ASCII_GRID)
+
+def unregister():
+	bpy.utils.unregister_class(IMPORT_ASCII_GRID)
