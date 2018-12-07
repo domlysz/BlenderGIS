@@ -316,7 +316,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 			obj = scn.objects[int(self.objectsLst)]
 			# Select and active this obj
 			obj.select_set(True)
-			#TODO context.active_object = obj
+			context.view_layer.objects.active = obj
 			# Compute projeted bbox (in geographic coordinates system)
 			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			if rprj:
@@ -348,7 +348,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				mesh = obj.data
 				# Select and active this obj
 				obj.select_set(True)
-				#TODO context.active_object = obj
+				context.view_layer.objects.active = obj
 				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:

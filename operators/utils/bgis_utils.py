@@ -58,7 +58,7 @@ def placeObj(mesh, objName):
 	obj = bpy.data.objects.new(objName, mesh)
 	# Link object to scene
 	bpy.context.scene.collection.objects.link(obj)
-	#TODO bpy.context.active_object = obj
+	bpy.context.view_layer.objects.active = obj
 	obj.select_set(True)
 	#bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 	return obj
@@ -107,54 +107,26 @@ def addTexture(mat, img, uvLay, name='texture'):
 	mat.use_nodes = True
 	node_tree = mat.node_tree
 	node_tree.nodes.clear()
-	#
-	#CYCLES
-	bpy.context.scene.render.engine = 'CYCLES' #force Cycles render
 	# create uv map node
 	uvMapNode = node_tree.nodes.new('ShaderNodeUVMap')
 	uvMapNode.uv_map = uvLay.name
-	uvMapNode.location = (-400, 200)
+	uvMapNode.location = (-800, 200)
 	# create image texture node
 	textureNode = node_tree.nodes.new('ShaderNodeTexImage')
 	textureNode.image = img
 	textureNode.extension = 'CLIP'
 	textureNode.show_texture = True
-	textureNode.location = (-200, 200)
+	textureNode.location = (-400, 200)
 	# Create BSDF diffuse node
-	diffuseNode = node_tree.nodes.new('ShaderNodeBsdfDiffuse')
+	diffuseNode = node_tree.nodes.new('ShaderNodeBsdfPrincipled')#ShaderNodeBsdfDiffuse
 	diffuseNode.location = (0, 200)
 	# Create output node
 	outputNode = node_tree.nodes.new('ShaderNodeOutputMaterial')
-	outputNode.location = (200, 200)
+	outputNode.location = (400, 200)
 	# Connect the nodes
 	node_tree.links.new(uvMapNode.outputs['UV'] , textureNode.inputs['Vector'])
-	node_tree.links.new(textureNode.outputs['Color'] , diffuseNode.inputs['Color'])
+	node_tree.links.new(textureNode.outputs['Color'] , diffuseNode.inputs['Base Color'])#diffuseNode.inputs['Color'])
 	node_tree.links.new(diffuseNode.outputs['BSDF'] , outputNode.inputs['Surface'])
-	'''
-	#BLENDER_RENDER
-	bpy.context.scene.render.engine = 'BLENDER_RENDER'
-	# Create image texture from image
-	imgTex = bpy.data.textures.new(name, type = 'IMAGE')
-	imgTex.image = img
-	imgTex.extension = 'CLIP'
-	# Add texture slot
-	mtex = mat.texture_slots.add()
-	mtex.texture = imgTex
-	mtex.texture_coords = 'UV'
-	mtex.uv_layer = uvLay.name
-	mtex.mapping = 'FLAT'
-	# Add material node
-	matNode = node_tree.nodes.new('ShaderNodeMaterial')
-	matNode.material = mat
-	matNode.location = (-100, -100)
-	# Add output node
-	outNode = node_tree.nodes.new('ShaderNodeOutput')
-	outNode.location = (100, -100)
-	# Connect the nodes
-	node_tree.links.new(matNode.outputs['Color'] , outNode.inputs['Color'])
-	'''
-	# restore initial engine
-	bpy.context.scene.render.engine = engine
 
 
 class getBBOX():

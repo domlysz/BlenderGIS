@@ -158,15 +158,6 @@ def rasterExtentToMesh(name, rast, dx, dy, pxLoc='CORNER', reproj=None, subdivis
 def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 	'''uv map a georaster texture on a given mesh'''
 	mesh = obj.data
-	'''
-	uvTxtLayer.active = True
-	# Assign image texture for every face
-
-	for idx, pg in enumerate(mesh.polygons):
-		uvTxtLayer.data[idx].image = rast.bpyImg
-	#Get UV loop layer
-	uvLoopLayer = mesh.uv_layers.active
-	'''
 	#Assign uv coords
 	loc = obj.location
 	for pg in mesh.polygons:
