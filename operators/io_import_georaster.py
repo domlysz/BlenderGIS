@@ -295,18 +295,22 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 				dx, dy = rast.center.x, rast.center.y
 				geoscn.setOriginPrj(dx, dy)
 				offx, offy = 0, 0
-			areas = bpy.context.screen.areas
-			for area in areas:
-				if area.type == 'VIEW_3D':
-					space = area.spaces.active
-					space.show_background_images=True
-					bckImg = space.background_images.new()
-					bckImg.image = rast.bpyImg
-					bckImg.view_axis = 'TOP'
-					bckImg.opacity = 1
-					bckImg.size = trueSizeX #since Blender 2.75
-					bckImg.offset_x = offx
-					bckImg.offset_y = offy * ratio
+
+			bkg = bpy.data.objects.new(self.name, None) #None will create an empty
+			bkg.empty_display_type = 'IMAGE'
+			bkg.empty_image_depth = 'BACK'
+			bkg.data = rast.bpyImg
+			scn.collection.objects.link(bkg)
+
+			bkg.empty_display_size = 1 #a size of 1 means image width=1bu
+			bkg.scale = (trueSizeX, trueSizeY*ratio, 1)
+			bkg.location = (offx, offy, 0)
+
+			bpy.context.view_layer.objects.active = bkg
+			bkg.select_set(True)
+
+			if prefs.adjust3Dview:
+				adjust3Dview(context, rast.bbox)
 
 		######################################
 		if self.importMode == 'MESH':
