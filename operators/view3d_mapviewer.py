@@ -35,6 +35,9 @@ from gpu_extras.batch import batch_for_shader
 from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..core.proj import reprojPt, reprojBbox, dd2meters, meters2dd
 from ..core.basemaps import GRIDS, SOURCES, MapService
+from ..core.settings import getSetting
+
+USER_AGENT = getSetting('user_agent')
 
 #bgis imports
 from ..geoscene import GeoScene, SK, georefManagerLayout
@@ -46,7 +49,7 @@ from .utils import placeObj, adjust3Dview, showTextures, rasterExtentToMesh, geo
 
 #OSM Nominatim API module
 #https://github.com/damianbraun/nominatim
-from .lib.osm.nominatim import Nominatim
+from .lib.osm.nominatim import nominatimQuery
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1) #blendergis.basemaps
 
@@ -496,8 +499,12 @@ class MAP_START(Operator):
 
 		#Move scene origin to the researched place
 		if self.dialog == 'SEARCH':
-			geoscn.zoom = self.zoom
-			bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
+			r = bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
+			if r == {'CANCELLED'}:
+				self.report({'INFO'}, "No location founded")
+			else:
+				geoscn.zoom = self.zoom
+
 
 		#Start map viewer operator
 		self.dialog = 'MAP' #reinit dialog type
@@ -546,7 +553,7 @@ class MAP_VIEWER(Operator):
 
 		self.prefs = context.user_preferences.addons[PKG].preferences
 		#Option to adjust or not objects location when panning
-		self.updObjLoc = self.prefs.lockObj #if georef if locked then we need to adjust object location after each pan
+		self.updObjLoc = self.prefs.lockObj #if georef is locked then we need to adjust object location after each pan
 
 		#Add draw callback to view space
 		args = (self, context)
@@ -977,9 +984,14 @@ class MAP_SEARCH(bpy.types.Operator):
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
 		prefs = context.user_preferences.addons[PKG].preferences
-		geocoder = Nominatim(base_url="http://nominatim.openstreetmap.org", referer="bgis")
-		results = geocoder.query(self.query)
-		if len(results) >= 1:
+		try:
+			results = nominatimQuery(self.query, referer='bgis', user_agent=USER_AGENT)
+		except Exception as e:
+			print('Failed query : ' + str(e))
+			return {'CANCELLED'}
+		if len(results) == 0:
+			return {'CANCELLED'}
+		else:
 			result = results[0]
 			lat, lon = float(result['lat']), float(result['lon'])
 			if geoscn.isGeoref:
