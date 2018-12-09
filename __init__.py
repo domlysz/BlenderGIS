@@ -169,10 +169,9 @@ def menu_func_export(self, context):
 	if EXPORT_SHP:
 		self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
 
-
-class gisMenu(bpy.types.Menu):
-	bl_label = "Custom Menu"
-	bl_idname = "VIEW3D_MT_gis"
+'''
+class VIEW3D_MT_menu_gis(bpy.types.Menu):
+	bl_label = "GIS"
 
 	# Set the menu operators and draw functions
 	def draw(self, context):
@@ -188,9 +187,9 @@ class gisMenu(bpy.types.Menu):
 			row = col.row(align=True)
 			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
 
-def add_menu(self, context):
-	self.layout.menu('VIEW3D_MT_gis')
-
+def add_gis_menu(self, context):
+	self.layout.menu('VIEW3D_MT_menu_gis')
+'''
 
 
 
@@ -208,7 +207,7 @@ def register():
 	prefs.register()
 	geoscene.register()
 	bpy.utils.register_class(bgisPanel)
-	bpy.utils.register_class(gisMenu)
+	##bpy.utils.register_class(gisMenu)
 	if BASEMAPS:
 		view3d_mapviewer.register()
 	if IMPORT_GEORASTER:
@@ -217,17 +216,18 @@ def register():
 		nodes_terrain_analysis_reclassify.register()
 
 	#menus
-	bpy.types.VIEW3D_MT_editor_menus.append(add_menu)
+	##bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
+
 	#bpy.types.INFO_MT_file_import.append(menu_func_import)
 	#bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 	#shortcuts
 	wm = bpy.context.window_manager
 	kc =  wm.keyconfigs.active
-	if kc is not None: #no keyconfig when Blender from commandline with background flag
+	if kc is not None: #there is no keyconfig when Blender is running from commandline with background flag
 		km = kc.keymaps['3D View']
 		if BASEMAPS:
-			kmi = km.keymap_items.new(idname='view3d.map_start', value='PRESS', type='NUMPAD_ASTERIX', ctrl=False, alt=False, shift=False, oskey=False)
+			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
 
 	#config core settings
 	preferences = bpy.context.user_preferences.addons[__package__].preferences
@@ -245,7 +245,7 @@ def unregister():
 	#bpy.types.INFO_MT_file_import.remove(menu_func_import)
 	#bpy.types.INFO_MT_file_export.append(menu_func_export)
 
-	try: #windows manager may be unavailable (for example whne running Blender command line)
+	try: #windows manager may be unavailable (for example when running Blender command line)
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
 		if BASEMAPS:
@@ -260,7 +260,7 @@ def unregister():
 	if BASEMAPS:
 		view3d_mapviewer.unregister()
 	if IMPORT_GEORASTER:
-		io_import_georaster.register()
+		io_import_georaster.unregister()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
 

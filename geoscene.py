@@ -144,7 +144,7 @@ class GeoScene():
 				self.delOriginGeo()
 				print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
 
-	def updOriginPrj(self, x, y, updObjLoc=True, updBkgImg=True):
+	def updOriginPrj(self, x, y, updObjLoc=True):
 		'''Update/move scene origin passing absolute coordinates'''
 		if not self.hasOriginPrj:
 			raise Exception("Cannot update an unset origin.")
@@ -153,36 +153,24 @@ class GeoScene():
 		self.setOriginPrj(x, y)
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
-		'''
-		if updBkgImg:
-			self._moveBkgImg(dx, dy)
-		'''
 
-	def updOriginGeo(self, lon, lat, updObjLoc=True, updBkgImg=True):
+
+	def updOriginGeo(self, lon, lat, updObjLoc=True):
 		if not self.isGeoref:
 			raise Exception("Cannot update geo origin of an ungeoref scene.")
 		x, y = reprojPt(4326, self.crs, lon, lat)
 		self.updOriginPrj(x, y, updObjLoc)
-		'''
-		dx = x - self.crsx
-		dy = y - self.crsy
-		self.crsx, self.crsy = x, y
-		self.lon, self.lat = lon ,lat
-		if updObjLoc:
-			self._moveObjLoc(dx, dy)
-		if updBkgImg:
-			self._moveBkgImg(dx, dy)
-		'''
 
-	def moveOriginGeo(self, dx, dy, updObjLoc=True, updBkgImg=True):
+
+	def moveOriginGeo(self, dx, dy, updObjLoc=True):
 		if not self.hasOriginGeo:
 			raise Exception("Cannot move an unset origin.")
 		x = self.lon + dx
 		y = self.lat + dy
-		self.updOriginGeo(x, y, updObjLoc=updObjLoc, updBkgImg=updBkgImg)
+		self.updOriginGeo(x, y, updObjLoc=updObjLoc)
 
 
-	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
+	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True):
 		'''Move scene origin passing relative deltas'''
 		if not self.hasOriginPrj:
 			raise Exception("Cannot move an unset origin.")
@@ -194,10 +182,6 @@ class GeoScene():
 
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
-		'''
-		if updBkgImg:
-			self._moveBkgImg(dx, dy)
-		'''
 
 
 	def _moveObjLoc(self, dx, dy):
@@ -206,21 +190,6 @@ class GeoScene():
 			obj.location.x -= dx
 			obj.location.y -= dy
 
-	#DEPRECATED BLENDER 2.8
-	def _moveBkgImg(self, dx, dy):
-		space = bpy.context.area.spaces.active
-		if space.type == 'VIEW_3D':
-			for bkg in space.background_images:
-				img = bkg.image
-				if img is not None and bkg.view_axis == 'TOP':
-					try:
-						#this statement can fails if source image is not readable (e.g. deleted file)
-						ratio = img.size[0] / img.size[1]
-					except:
-						pass
-					else:
-						bkg.offset_x -= dx
-						bkg.offset_y -= dy * ratio
 
 	def getOriginGeo(self):
 		return self.lon, self.lat

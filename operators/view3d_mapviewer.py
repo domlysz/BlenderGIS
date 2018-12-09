@@ -157,9 +157,9 @@ class BaseMap(GeoScene):
 			self.place()
 		self.srv.stop()
 
-	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True, updBkgImg=True):
+	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True):
 		'''Move scene origin and update props'''
-		self.moveOriginPrj(dx, dy, useScale, updObjLoc, updBkgImg) #geoscene function
+		self.moveOriginPrj(dx, dy, useScale, updObjLoc) #geoscene function
 
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
@@ -226,6 +226,7 @@ class BaseMap(GeoScene):
 		except IndexError:
 			self.bkg = bpy.data.objects.new(self.name, None) #None will create an empty
 			self.bkg.empty_display_type = 'IMAGE'
+			self.bkg.empty_image_depth = 'BACK'
 			self.bkg.data = self.img
 			self.scn.collection.objects.link(self.bkg)
 		else:
@@ -416,7 +417,6 @@ class MAP_START(Operator):
 				layout.prop(self, 'zoom', slider=True)
 
 		elif self.dialog == 'OPTIONS':
-			layout.prop(addonPrefs, "fontColor")
 			#viewPrefs = context.user_preferences.view
 			#layout.prop(viewPrefs, "use_zoom_to_mouse")
 			layout.prop(addonPrefs, "zoomToMouse")
@@ -743,6 +743,8 @@ class MAP_VIEWER(Operator):
 					if self.updObjLoc:
 						topParents = [obj for obj in scn.objects if not obj.parent]
 						for i, obj in enumerate(topParents):
+							if obj == self.map.bkg: #the background empty used as basemap
+								continue
 							loc1 = self.objsLoc1[i]
 							obj.location.x = loc1.x - dlt.x
 							obj.location.y = loc1.y - dlt.y
@@ -774,8 +776,8 @@ class MAP_VIEWER(Operator):
 						loc1 = mouseTo3d(context, self.x1, self.y1)
 						loc2 = mouseTo3d(context, event.mouse_region_x, event.mouse_region_y)
 						dlt = loc1 - loc2
-						#Update map
-						self.map.moveOrigin(dlt.x, dlt.y, updObjLoc=False, updBkgImg=False)
+						#Update map (do not update objects location because it was updated while mouse move)
+						self.map.moveOrigin(dlt.x, dlt.y, updObjLoc=False)
 					self.map.get()
 
 

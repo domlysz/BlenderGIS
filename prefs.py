@@ -157,13 +157,6 @@ class BGIS_PREFS(AddonPreferences):
 		set = setCacheFolder
 		)
 
-	fontColor: FloatVectorProperty(
-		name="Font color",
-		subtype='COLOR',
-		min=0, max=1,
-		size=4,
-		default=(0, 0, 0, 1)
-		)
 
 	zoomToMouse: BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
@@ -215,7 +208,6 @@ class BGIS_PREFS(AddonPreferences):
 		row.prop(self, "lockObj")
 		row.prop(self, "lockOrigin")
 		row.label(text='Font color:')
-		row.prop(self, "fontColor", text='')
 		row = box.row()
 		row.prop(self, "resamplAlg")
 
