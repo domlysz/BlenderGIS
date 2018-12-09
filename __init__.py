@@ -41,7 +41,7 @@ EXPORT_SHP = False
 GET_SRTM = False
 IMPORT_GEORASTER = True
 IMPORT_OSM = False
-IMPORT_SHP = False
+IMPORT_SHP = True
 IMPORT_ASC = False
 DELAUNAY = False
 TERRAIN_NODES = False
@@ -212,6 +212,26 @@ def register():
 		view3d_mapviewer.register()
 	if IMPORT_GEORASTER:
 		io_import_georaster.register()
+	if IMPORT_SHP:
+		io_import_shp.register()
+	if EXPORT_SHP:
+		io_export_shp.register()
+	if IMPORT_OSM:
+		io_import_osm.register()
+	if IMPORT_ASC:
+		io_import_asc.register()
+	if DELAUNAY:
+		mesh_delaunay_voronoi.register()
+	if DROP:
+		object_drop.register()
+	if GET_SRTM:
+		io_get_srtm.register()
+	if CAM_GEOPHOTO:
+		add_camera_exif.register()
+	if CAM_GEOREF:
+		add_camera_georef.register()
+	if TERRAIN_NODES:
+		nodes_terrain_analysis_builder.register()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.register()
 
@@ -261,6 +281,26 @@ def unregister():
 		view3d_mapviewer.unregister()
 	if IMPORT_GEORASTER:
 		io_import_georaster.unregister()
+	if IMPORT_SHP:
+		io_import_shp.unregister()
+	if EXPORT_SHP:
+		io_export_shp.unregister()
+	if IMPORT_OSM:
+		io_import_osm.unregister()
+	if IMPORT_ASC:
+		io_import_asc.unregister()
+	if DELAUNAY:
+		mesh_delaunay_voronoi.unregister()
+	if DROP:
+		object_drop.unregister()
+	if GET_SRTM:
+		io_get_srtm.unregister()
+	if CAM_GEOPHOTO:
+		add_camera_exif.unregister()
+	if CAM_GEOREF:
+		add_camera_georef.unregister()
+	if TERRAIN_NODES:
+		nodes_terrain_analysis_builder.unregister()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
 

@@ -120,10 +120,10 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 	def listObjects(self, context):
 		objs = []
-		for index, object in enumerate(bpy.context.scene.collection.objects):
+		for index, object in enumerate(bpy.context.scene.objects):
 			if object.type == 'MESH':
 				#put each object in a tuple (key, label, tooltip) and add this to the objects list
-				objs.append((str(index), object.name, "Object named " +object.name))
+				objs.append((str(index), object.name, "Object named " + object.name))
 		return objs
 
 	reprojection: BoolProperty(
@@ -364,7 +364,7 @@ class IMPORT_SHP(Operator):
 
 		if self.elevSource == 'OBJ':
 			scn = bpy.context.scene
-			elevObj = scn.collection.objects[self.objElevIdx]
+			elevObj = scn.objects[self.objElevIdx]
 			rayCaster = DropToGround(scn, elevObj)
 
 		#Get fields
@@ -660,8 +660,8 @@ class IMPORT_SHP(Operator):
 				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
 				context.scene.collection.objects.link(obj)
-				context.scene.collection.objects.active = obj
-				obj.select = True
+				context.view_layer.objects.active = obj
+				obj.select_set(True)
 				obj.location = (ox, oy, oz)
 
 				# bpy operators can be very cumbersome when scene contains lot of objects
@@ -704,8 +704,8 @@ class IMPORT_SHP(Operator):
 			mesh.validate(verbose=False) #return true if the mesh has been corrected
 			obj = bpy.data.objects.new(shpName, mesh)
 			context.scene.collection.objects.link(obj)
-			context.scene.collection.objects.active = obj
-			obj.select = True
+			context.view_layer.objects.active = obj
+			obj.select_set(True)
 			bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
 
 		#free the bmesh

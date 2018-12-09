@@ -59,7 +59,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 	def listObjects(self, context):
 		#Function used to update the objects list (obj_list) used by the dropdown box.
 		objs = [] #list containing tuples of each object
-		for index, object in enumerate(bpy.context.scene.collection.objects): #iterate over all objects
+		for index, object in enumerate(bpy.context.scene.objects): #iterate over all objects
 			if object.type == 'MESH':
 				objs.append((str(index), object.name, "Object named " +object.name)) #put each object in a tuple (key, label, tooltip) and add this to the objects list
 		return objs
