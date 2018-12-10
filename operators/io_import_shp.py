@@ -467,6 +467,10 @@ class IMPORT_SHP(Operator):
 
 		progress = -1
 
+		if self.separateObjects:
+			layer = bpy.data.collections.new(shpName)
+			context.scene.collection.children.link(layer)
+
 		#Main iteration over features
 		for i, feat in enumerate(shpIter):
 
@@ -659,7 +663,7 @@ class IMPORT_SHP(Operator):
 
 				#Place obj
 				obj = bpy.data.objects.new(name, mesh)
-				context.scene.collection.objects.link(obj)
+				layer.objects.link(obj)
 				context.view_layer.objects.active = obj
 				obj.select_set(True)
 				obj.location = (ox, oy, oz)
