@@ -130,7 +130,7 @@ class OSM_IMPORT():
 	# Elevation object
 	def listObjects(self, context):
 		objs = []
-		for index, object in enumerate(bpy.context.scene.collection.objects):
+		for index, object in enumerate(bpy.context.scene.objects):
 			if object.type == 'MESH':
 				#put each object in a tuple (key, label, tooltip) and add this to the objects list
 				objs.append((str(index), object.name, "Object named " + object.name))
@@ -183,7 +183,7 @@ class OSM_IMPORT():
 			return {'FINISHED'}
 
 		if self.useElevObj:
-			elevObj = scn.collection.objects[int(self.objElevLst)]
+			elevObj = scn.objects[int(self.objElevLst)]
 			rayCaster = DropToGround(scn, elevObj)
 
 		bmeshes = {}
@@ -310,8 +310,8 @@ class OSM_IMPORT():
 				for key in tags.keys():
 					obj[key] = tags[key]
 
-				scn.objects.link(obj)
-				obj.select = True
+				layer.objects.link(obj)
+				obj.select_set(True)
 
 
 			else:
@@ -372,6 +372,10 @@ class OSM_IMPORT():
 
 		######
 
+		if self.separate:
+			layer = bpy.data.collections.new('OSM')
+			context.scene.collection.children.link(layer)
+
 		#Build mesh
 		waysNodesId = [node.id for way in result.ways for node in way.nodes]
 
@@ -418,34 +422,38 @@ class OSM_IMPORT():
 				mesh.update()#calc_edges=True)
 				mesh.validate()
 				obj = bpy.data.objects.new(name, mesh)
-				scn.objects.link(obj)
-				obj.select = True
+				scn.collection.objects.link(obj)
+				obj.select_set(True)
 
 				vgroups = vgroupsObj.get(name, None)
 				if vgroups is not None:
 					#for vgroupName, vgroupIdx in vgroups.items():
 					for vgroupName in sorted(vgroups.keys()):
 						vgroupIdx = vgroups[vgroupName]
-						g = obj.vertex_groups.new(vgroupName)
+						g = obj.vertex_groups.new(name=vgroupName)
 						g.add(vgroupIdx, weight=1, type='ADD')
 
 
 		elif 'relation' in self.featureType:
 
-			groups = bpy.data.groups
-			objects = scn.collection.objects
+			relations = bpy.data.collections.new('Relations')
+			bpy.data.collections['OSM'].children.link(relations)
+			importedObjects = bpy.data.collections['OSM'].objects
 
 			for rel in result.relations:
 
 				name = rel.tags.get('name', str(rel.id))
+				try:
+					relation = relations.children[name] #or bpy.data.collections[name]
+				except KeyError:
+					relation = bpy.data.collections.new(name)
+					relations.children.link(relation)
 
 				for member in rel.members:
 
 					#todo: remove duplicate members
 
-					g = groups.get(name, groups.new(name))
-
-					for obj in objects:
+					for obj in importedObjects:
 						#id = int(obj.get('id', -1))
 						try:
 							id = int(obj['id'])
@@ -453,11 +461,14 @@ class OSM_IMPORT():
 							id = None
 						if id == member.ref:
 							try:
-								g.objects.link(obj)
+								relation.objects.link(obj)
 							except Exception as e:
 								#print('Unable to put ' + obj.name + ' in ' + name)
-								#print(str(e)) #error already in group
-								pass
+								print(str(e)) #error already in group
+
+				#cleanup
+				if not relation.objects:
+					bpy.data.collections.remove(relation)
 
 
 
