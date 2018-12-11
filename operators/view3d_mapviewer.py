@@ -217,7 +217,7 @@ class BaseMap(GeoScene):
 			self.img = bpy.data.images.load(self.imgPath)
 
 		#Get or load background image
-		empties = [obj for obj in self.scn.collection.objects if obj.type == 'EMPTY']
+		empties = [obj for obj in self.scn.objects if obj.type == 'EMPTY']
 		bkgs = [obj for obj in empties if obj.empty_display_type == 'IMAGE']
 		for bkg in bkgs:
 			bkg.hide_viewport = True
