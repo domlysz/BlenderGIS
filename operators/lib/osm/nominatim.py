@@ -7,6 +7,7 @@ import json
 
 from urllib.request import urlopen
 from urllib.request import Request
+from urllib.parse import quote_plus
 
 
 def nominatimQuery(
@@ -19,7 +20,7 @@ def nominatimQuery(
 
     url = base_url + 'search?'
     url += 'format=' + format
-    url += '&q=' + query
+    url += '&q=' + quote_plus(query)
     url += '&limit=' + str(limit)
 
     req = Request(url)
