@@ -17,7 +17,7 @@ class Analysis_nodes(Operator):
 	def execute(self, context):
 		scn = context.scene
 		scn.render.engine = 'CYCLES' #force Cycles render
-		obj = scn.collection.objects.active
+		obj = context.view_layer.objects.active
 		if obj is None:
 			self.report({'ERROR'}, "No active object")
 			return {'CANCELLED'}

@@ -124,7 +124,7 @@ def setBounds():
 	global inMax
 	global obj
 	if mode == 'HEIGHT':
-		obj = scn.collection.objects.active
+		obj = bpy.context.view_layer.objects.active
 		bbox = getBBOX.fromObj(obj)
 		inMin = bbox['zmin']
 		inMax = bbox['zmax']
@@ -150,15 +150,17 @@ def scene_update(scn):
 	global mat
 	global node
 	#print(node.bl_idname)
-	activeObj = scn.collection.objects.active
+	activeObj = bpy.context.view_layer.objects.active
 	if activeObj is not None:
 		activeMat = activeObj.active_material
 		if activeMat is not None and activeMat.use_nodes:
 			activeNode = activeMat.node_tree.nodes.active
 			#check color ramp node edits
+			''' TODO
 			if activeMat.is_updated:
 				#if activeNode.bl_idname == 'ShaderNodeValToRGB':
 				populateList(activeNode)
+			'''
 			#check selected obj
 			if obj != activeObj:
 				obj = activeObj
@@ -209,9 +211,9 @@ class Reclass_uilist(UIList):
 				aspectLabels = self.getAspectLabels()
 				split = layout.split(factor=0.2)
 				if aspectLabels:
-					split.label(aspectLabels[item.idx])
+					split.label(text=aspectLabels[item.idx])
 				else:
-					split.label(str(item.idx+1))
+					split.label(text=str(item.idx+1))
 				split = split.split(factor=0.4)
 				split.prop(item, "color", text="")
 				split.prop(item, "val", text="")
@@ -234,6 +236,7 @@ class Reclass_panel(Panel):
 	bl_idname = "reclass_panel"
 	bl_space_type = 'NODE_EDITOR'
 	bl_region_type = 'UI'
+	bl_category = "Node"
 
 	def draw(self, context):
 		node = context.active_node
@@ -424,7 +427,7 @@ def clearRamp(stops, startColor=(0,0,0,1), endColor=(1,1,1,1), startPos=0, endPo
 def getValues():
 	'''Return mesh data values (z, slope or az) for classification'''
 	scn = bpy.context.scene
-	obj = scn.collection.objects.active
+	obj = bpy.context.view_layer.objects.active
 	#make a temp mesh with modifiers apply
 	#mesh = obj.data #modifiers not apply
 	mesh = obj.to_mesh(scn, apply_modifiers=True, settings='PREVIEW')
@@ -962,7 +965,7 @@ def register():
 	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist
 	bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
 	#Add handlers
-	bpy.app.handlers.scene_update_post.append(scene_update)
+	bpy.app.handlers.depsgraph_update_post.append(scene_update)
 	#
 	bpy.types.Scene.analysisMode = EnumProperty(
 		name = "Mode",
@@ -980,7 +983,7 @@ def unregister():
 	del bpy.types.Scene.uiListIndex
 	del bpy.types.Scene.colorRampPreview
 	#Clear handlers
-	bpy.app.handlers.scene_update_post.clear()
+	bpy.app.handlers.depsgraph_update_post.clear()
 	#Unregister
 	for cls in classes:
 		bpy.utils.unregister_class(cls)
