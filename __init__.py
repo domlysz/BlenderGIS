@@ -43,7 +43,7 @@ IMPORT_GEORASTER = True
 IMPORT_OSM = True
 IMPORT_SHP = True
 IMPORT_ASC = False
-DELAUNAY = False
+DELAUNAY = True
 TERRAIN_NODES = False
 TERRAIN_RECLASS = False
 BASEMAPS = True
@@ -138,7 +138,7 @@ class bgisPanel(bpy.types.Panel):
 
 		if DELAUNAY:
 			col = layout.column(align=True)
-			col.label('Mesh:')
+			col.label(text='Mesh:')
 			col.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
 			col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 

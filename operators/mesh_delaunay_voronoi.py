@@ -38,7 +38,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 
 	def execute(self, context):
 		#Get selected obj
-		objs = bpy.context.selected_objects
+		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
@@ -87,10 +87,10 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		tinObj.rotation_euler = r
 		tinObj.scale = s
 		#Update scene
-		bpy.context.scene.collection.objects.link(tinObj) #Link object to scene
-		bpy.context.scene.collection.objects.active = tinObj
-		tinObj.select = True
-		obj.select = False
+		context.scene.collection.objects.link(tinObj) #Link object to scene
+		context.view_layer.objects.active = tinObj
+		tinObj.select_set(True)
+		obj.select_set(False)
 		#Report
 		self.report({'INFO'}, "Mesh created (" + str(len(triangles)) + " triangles)")
 		return {'FINISHED'}
@@ -113,7 +113,7 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 
 	def execute(self, context):
 		#Get selected obj
-		objs = bpy.context.selected_objects
+		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
 			print("Selection is empty or too much object selected")
@@ -169,10 +169,10 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		voronoiObj.rotation_euler = r
 		voronoiObj.scale = s
 		#update scene
-		bpy.context.scene.collection.objects.link(voronoiObj) #Link object to scene
-		bpy.context.scene.collection.objects.active = voronoiObj
-		voronoiObj.select = True
-		obj.select = False
+		context.scene.collection.objects.link(voronoiObj) #Link object to scene
+		context.view_layer.objects.active = voronoiObj
+		voronoiObj.select_set(True)
+		obj.select_set(False)
 		#Report
 		if self.meshType == "Edges":
 			self.report({'INFO'}, "Mesh created ("+str(len(edgesIdx))+" edges)")
