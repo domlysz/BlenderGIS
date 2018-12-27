@@ -402,7 +402,7 @@ class GEOSCENE_SET_CRS(Operator):
 	"""
 
 	def draw(self,context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		layout = self.layout
 		row = layout.row(align=True)
 		#row.prop(self, "crsEnum", text='')
@@ -415,7 +415,7 @@ class GEOSCENE_SET_CRS(Operator):
 
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		try:
 			geoscn.crs = prefs.predefCrs
 		except Exception as err:
@@ -574,7 +574,7 @@ def getLat(self):
 
 def setLon(self, lon):
 	geoscn = GeoScene()
-	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	prefs = bpy.context.preferences.addons[PKG].preferences
 	if geoscn.hasOriginGeo:
 		geoscn.updOriginGeo(lon, geoscn.lat, updObjLoc=prefs.lockObj)
 	else:
@@ -582,7 +582,7 @@ def setLon(self, lon):
 
 def setLat(self, lat):
 	geoscn = GeoScene()
-	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	prefs = bpy.context.preferences.addons[PKG].preferences
 	if geoscn.hasOriginGeo:
 		geoscn.updOriginGeo(geoscn.lon, lat, updObjLoc=prefs.lockObj)
 	else:
@@ -598,7 +598,7 @@ def getCrsy(self):
 
 def setCrsx(self, x):
 	geoscn = GeoScene()
-	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	prefs = bpy.context.preferences.addons[PKG].preferences
 	if geoscn.hasOriginPrj:
 		geoscn.updOriginPrj(x, geoscn.crsy, updObjLoc=prefs.lockObj)
 	else:
@@ -606,7 +606,7 @@ def setCrsx(self, x):
 
 def setCrsy(self, y):
 	geoscn = GeoScene()
-	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	prefs = bpy.context.preferences.addons[PKG].preferences
 	if geoscn.hasOriginPrj:
 		geoscn.updOriginPrj(geoscn.crsx, y, updObjLoc=prefs.lockObj)
 	else:
@@ -651,7 +651,7 @@ def georefManagerLayout(self, context):
 	wm = bpy.context.window_manager
 	geoscn = GeoScene(scn)
 
-	prefs = context.user_preferences.addons[PKG].preferences
+	prefs = context.preferences.addons[PKG].preferences
 
 	if geoscn.isBroken:
 		layout.alert = True

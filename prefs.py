@@ -40,7 +40,7 @@ class BGIS_PREFS_SHOW(Operator):
 
 	def execute(self, context):
 		addon_utils.modules_refresh()
-		bpy.context.user_preferences.active_section = 'ADDONS'
+		context.preferences.active_section = 'ADDONS'
 		bpy.data.window_managers["WinMan"].addon_search = bl_info['name']
 		#bpy.ops.wm.addon_expand(module=PKG)
 		mod = addon_utils.addons_fake_modules.get(PKG)
@@ -128,7 +128,7 @@ class BGIS_PREFS(AddonPreferences):
 	osmTagsJson: StringProperty(default=json.dumps(OSM_TAGS)) #just a serialized list of tags
 
 	def listOsmTags(self, context):
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		tags = json.loads(prefs.osmTagsJson)
 		#put each item in a tuple (key, label, tooltip)
 		return [ (tag, tag, tag) for tag in tags]
@@ -237,13 +237,13 @@ class PredefCRS():
 	@staticmethod
 	def getData():
 		'''Load the json string'''
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = bpy.context.preferences.addons[PKG].preferences
 		return json.loads(prefs.predefCrsJson)
 
 	@staticmethod
 	def getSelected():
 		'''Return the current crs selected in the enum stored in addon preferences'''
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = bpy.context.preferences.addons[PKG].preferences
 		return prefs.predefCrs
 
 	@classmethod
@@ -327,7 +327,7 @@ class PREDEF_CRS_ADD(Operator):
 		layout.prop(self, 'save')
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		#append the new crs def to json string
 		data = json.loads(prefs.predefCrsJson)
 		if not SRS.validate(self.crs):
@@ -353,7 +353,7 @@ class PREDEF_CRS_RMV(Operator):
 	bl_options = {'INTERNAL'}
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		key = prefs.predefCrs
 		if key != '':
 			data = json.loads(prefs.predefCrsJson)
@@ -370,7 +370,7 @@ class PREDEF_CRS_RESET(Operator):
 	bl_options = {'INTERNAL'}
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		prefs.predefCrsJson = json.dumps(PREDEF_CRS)
 		context.area.tag_redraw()
 		return {'FINISHED'}
@@ -386,7 +386,7 @@ class PREDEF_CRS_EDIT(Operator):
 	crs: StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
 
 	def invoke(self, context, event):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		key = prefs.predefCrs
 		if key == '':
 			return {'CANCELLED'}
@@ -396,7 +396,7 @@ class PREDEF_CRS_EDIT(Operator):
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		key = prefs.predefCrs
 		data = json.loads(prefs.predefCrsJson)
 
@@ -426,7 +426,7 @@ class OSM_TAG_ADD(Operator):
 		return context.window_manager.invoke_props_dialog(self)#, width=300)
 
 	def execute(self, context):
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		tags = json.loads(prefs.osmTagsJson)
 		tags.append(self.tag)
 		prefs.osmTagsJson = json.dumps(tags)
@@ -443,7 +443,7 @@ class OSM_TAG_RMV(Operator):
 	bl_options = {'INTERNAL'}
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		tag = prefs.osmTags
 		if tag != '':
 			tags = json.loads(prefs.osmTagsJson)
@@ -460,7 +460,7 @@ class OSM_TAGS_RESET(Operator):
 	bl_options = {'INTERNAL'}
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		prefs.osmTagsJson = json.dumps(OSM_TAGS)
 		context.area.tag_redraw()
 		return {'FINISHED'}
@@ -475,14 +475,14 @@ class OSM_TAG_EDIT(Operator):
 	tag: StringProperty(name = "Tag",  description = "Specify the tag (examples : 'building', 'landuse=forest' ...)")
 
 	def invoke(self, context, event):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		self.tag = prefs.osmTags
 		if self.tag == '':
 			return {'CANCELLED'}
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		tag = prefs.osmTags
 		tags = json.loads(prefs.osmTagsJson)
 		del tags[tags.index(tag)]

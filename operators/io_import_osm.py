@@ -22,7 +22,7 @@ PKG, SUBPKG = __package__.split('.', maxsplit=1)
 #https://developer.blender.org/T48873
 #https://developer.blender.org/T38489
 def getTags():
-	prefs = bpy.context.user_preferences.addons[PKG].preferences
+	prefs = bpy.context.preferences.addons[PKG].preferences
 	tags = json.loads(prefs.osmTagsJson)
 	return tags
 
@@ -101,7 +101,7 @@ class OSM_IMPORT():
 
 	def enumTags(self, context):
 		items = []
-		##prefs = bpy.context.user_preferences.addons[PKG].preferences
+		##prefs = context.preferences.addons[PKG].preferences
 		##osmTags = json.loads(prefs.osmTagsJson)
 		#we need to use a global variable as workaround to enum callback bug (T48873, T38489)
 		for tag in OSMTAGS:
@@ -170,7 +170,7 @@ class OSM_IMPORT():
 
 
 	def build(self, context, result, dstCRS):
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		scale = geoscn.scale #TODO

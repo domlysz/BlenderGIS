@@ -37,7 +37,7 @@ bl_info = {
 #Modules
 CAM_GEOPHOTO = False
 CAM_GEOREF = False
-EXPORT_SHP = False
+EXPORT_SHP = True
 GET_SRTM = True
 IMPORT_GEORASTER = True
 IMPORT_OSM = True
@@ -169,7 +169,7 @@ def menu_func_export(self, context):
 	if EXPORT_SHP:
 		self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
 
-'''
+
 class VIEW3D_MT_menu_gis(bpy.types.Menu):
 	bl_label = "GIS"
 
@@ -187,9 +187,11 @@ class VIEW3D_MT_menu_gis(bpy.types.Menu):
 			row = col.row(align=True)
 			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
 
+
+
 def add_gis_menu(self, context):
 	self.layout.menu('VIEW3D_MT_menu_gis')
-'''
+
 
 
 
@@ -207,7 +209,8 @@ def register():
 	prefs.register()
 	geoscene.register()
 	bpy.utils.register_class(bgisPanel)
-	##bpy.utils.register_class(gisMenu)
+	bpy.utils.register_class(VIEW3D_MT_menu_gis)
+
 	if BASEMAPS:
 		view3d_mapviewer.register()
 	if IMPORT_GEORASTER:
@@ -236,10 +239,10 @@ def register():
 		nodes_terrain_analysis_reclassify.register()
 
 	#menus
-	##bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
+	bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
 
-	#bpy.types.INFO_MT_file_import.append(menu_func_import)
-	#bpy.types.INFO_MT_file_export.append(menu_func_export)
+	bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+	bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 	#shortcuts
 	wm = bpy.context.window_manager
@@ -250,7 +253,7 @@ def register():
 			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
 
 	#config core settings
-	preferences = bpy.context.user_preferences.addons[__package__].preferences
+	preferences = bpy.context.preferences.addons[__package__].preferences
 	cfg = getSettings()
 	cfg['proj_engine'] = preferences.projEngine
 	cfg['img_engine'] = preferences.imgEngine

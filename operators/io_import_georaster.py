@@ -203,7 +203,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 		return context.mode == 'OBJECT'
 
 	def execute(self, context):
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 
 		bpy.ops.object.select_all(action='DESELECT')
 		#Get scene and some georef data

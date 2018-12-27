@@ -229,7 +229,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 			layout.prop(self, 'fieldObjName')
 		#
 		geoscn = GeoScene()
-		#geoscnPrefs = context.user_preferences.addons['geoscene'].preferences
+		#geoscnPrefs = context.preferences.addons['geoscene'].preferences
 		if geoscn.isPartiallyGeoref:
 			layout.prop(self, 'reprojection')
 			if self.reprojection:
@@ -332,7 +332,7 @@ class IMPORT_SHP(Operator):
 
 	def execute(self, context):
 
-		prefs = bpy.context.user_preferences.addons[PKG].preferences
+		prefs = bpy.context.preferences.addons[PKG].preferences
 
 		#Set cursor representation to 'loading' icon
 		w = context.window

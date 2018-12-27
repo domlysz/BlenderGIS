@@ -71,7 +71,7 @@ class BaseMap(GeoScene):
 		self.reg3d = self.view3d.region_3d
 
 		#Get cache destination folder in addon preferences
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		cacheFolder = prefs.cacheFolder
 
 		#Get resampling algo preference and set the constant
@@ -110,7 +110,7 @@ class BaseMap(GeoScene):
 			folder = os.path.dirname(bpy.data.filepath) + os.sep
 			##folder = bpy.path.abspath("//"))
 		else:
-			##folder = bpy.context.user_preferences.filepaths.temporary_directory
+			##folder = bpy.context.preferences.filepaths.temporary_directory
 			#Blender crease a sub-directory within the temp directory, for each session, which is cleared on exit
 			folder = bpy.app.tempdir
 		self.imgPath = folder + self.name + ".tif"
@@ -408,7 +408,7 @@ class MAP_START(Operator):
 	recenter: BoolProperty(name='Center to existing objects')
 
 	def draw(self, context):
-		addonPrefs = context.user_preferences.addons[PKG].preferences
+		addonPrefs = context.preferences.addons[PKG].preferences
 		scn = context.scene
 		layout = self.layout
 
@@ -417,7 +417,7 @@ class MAP_START(Operator):
 				layout.prop(self, 'zoom', slider=True)
 
 		elif self.dialog == 'OPTIONS':
-			#viewPrefs = context.user_preferences.view
+			#viewPrefs = context.preferences.view
 			#layout.prop(viewPrefs, "use_zoom_to_mouse")
 			layout.prop(addonPrefs, "zoomToMouse")
 			layout.prop(addonPrefs, "lockObj")
@@ -476,7 +476,7 @@ class MAP_START(Operator):
 	def execute(self, context):
 		scn = context.scene
 		geoscn = GeoScene(scn)
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 
 		#check cache folder
 		folder = prefs.cacheFolder
@@ -551,7 +551,7 @@ class MAP_VIEWER(Operator):
 
 		self.moveFactor = 0.1
 
-		self.prefs = context.user_preferences.addons[PKG].preferences
+		self.prefs = context.preferences.addons[PKG].preferences
 		#Option to adjust or not objects location when panning
 		self.updObjLoc = self.prefs.lockObj #if georef is locked then we need to adjust object location after each pan
 
@@ -985,7 +985,7 @@ class MAP_SEARCH(bpy.types.Operator):
 
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
-		prefs = context.user_preferences.addons[PKG].preferences
+		prefs = context.preferences.addons[PKG].preferences
 		try:
 			results = nominatimQuery(self.query, referer='bgis', user_agent=USER_AGENT)
 		except Exception as e:
