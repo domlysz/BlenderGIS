@@ -48,9 +48,9 @@ def get_lowest_world_co(ob, mat_parent=None):
     for v in bme.verts:
         if not lowest:
             lowest = v
-        if (mat_to_world * v.co).z < (mat_to_world * lowest.co).z:
+        if (mat_to_world @ v.co).z < (mat_to_world @ lowest.co).z:
             lowest = v
-    lowest_co = mat_to_world * lowest.co
+    lowest_co = mat_to_world @ lowest.co
     bme.free()
 
     return lowest_co

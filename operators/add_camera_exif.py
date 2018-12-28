@@ -38,10 +38,10 @@ from ..core.lib import Tyf
 def newEmpty(scene, name, location):
     """Create a new empty"""
     target = bpy.data.objects.new(name, None)
-    target.empty_draw_size = 10
-    target.empty_draw_type = 'PLAIN_AXES'
+    target.empty_display_size = 40
+    target.empty_display_type = 'PLAIN_AXES'
     target.location = location
-    scene.objects.link(target)
+    scene.collection.objects.link(target)
     return target
 
 def newCamera(scene, name, location, focalLength):
@@ -49,12 +49,12 @@ def newCamera(scene, name, location, focalLength):
     cam = bpy.data.cameras.new(name)
     cam.sensor_width = 35
     cam.lens = focalLength
-    cam.draw_size = 10
+    cam.display_size = 40
     cam_obj = bpy.data.objects.new(name,cam)
     cam_obj.location = location
     cam_obj.rotation_euler[0] = pi/2
     cam_obj.rotation_euler[2] = pi
-    scene.objects.link(cam_obj)
+    scene.collection.objects.link(cam_obj)
     return cam, cam_obj
 
 def newTargetCamera(scene, name, location, focalLength):
@@ -245,8 +245,8 @@ class SetActiveGeophotoCam(Operator):
 
         #Get cam
         cam_obj = scn.objects[self.camLst]
-        cam_obj.select = True
-        scn.objects.active = cam_obj
+        cam_obj.select_set(True)
+        context.view_layer.objects.active = cam_obj
         cam = cam_obj.data
         scn.camera = cam_obj
 
@@ -263,25 +263,23 @@ class SetActiveGeophotoCam(Operator):
             img = bpy.data.images.load(filepath)
 
         #Activate view3d background
-        view3d.show_background_images = True
+        cam.show_background_images = True
 
         #Hide all existing camera background
-        for bkg in view3d.background_images:
-            if bkg.view_axis == 'CAMERA':
-                bkg.show_background_image = False
+        for bkg in cam.background_images:
+            bkg.show_background_image = False
 
         #Get or load background image
-        bkgs = [bkg for bkg in view3d.background_images if bkg.image is not None]
+        bkgs = [bkg for bkg in cam.background_images if bkg.image is not None]
         try:
             bkg = [bkg for bkg in bkgs if bkg.image.filepath == filepath][0]
         except IndexError:
-            bkg = view3d.background_images.new()
+            bkg = cam.background_images.new()
             bkg.image = img
 
         #Set some props
         bkg.show_background_image = True
-        bkg.view_axis = 'CAMERA'
-        bkg.opacity = 1
+        bkg.alpha = 1
 
         return {'FINISHED'}
 

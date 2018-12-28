@@ -51,8 +51,12 @@ class DropToGround():
 		#adjust values
 		#if not rcHit.hit:
 		if not rcHit.loc:
+			rcHit.hit = False
 			print('nohit')
 			rcHit.loc = Vector((orgWldSpace.x, orgWldSpace.y, 0))
+		else:
+			rcHit.hit = True
+
 		rcHit.loc = self.mw @ rcHit.loc
 
 		return rcHit

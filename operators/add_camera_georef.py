@@ -20,7 +20,7 @@
 
 import bpy
 from mathutils import Vector
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 
 from .utils import getBBOX
 from ..geoscene import GeoScene
@@ -40,9 +40,9 @@ class SetGeorenderCam(bpy.types.Operator):
 	bl_options = {"REGISTER", "UNDO"}
 
 
-	name = bpy.props.StringProperty(name = "Camera name", default="Georef cam", description="")
-	target_res = bpy.props.FloatProperty(name = "Pixel size", default=5, description="Pixel size in map units/pixel", min=0.00001)
-	zLocOffset = bpy.props.FloatProperty(name = "Z loc. off.", default=50, description="Camera z location offet, defined as percentage of z dimension of the target mesh", min=0)
+	name: StringProperty(name = "Camera name", default="Georef cam", description="")
+	target_res: FloatProperty(name = "Pixel size", default=5, description="Pixel size in map units/pixel", min=0.00001)
+	zLocOffset: FloatProperty(name = "Z loc. off.", default=50, description="Camera z location offet, defined as percentage of z dimension of the target mesh", min=0)
 	redo = 0
 
 	def check(self, context):
@@ -101,6 +101,7 @@ class SetGeorenderCam(bpy.types.Operator):
 		bbox = getBBOX.fromObj(georefObj, applyTransform = True)
 		locx, locy, locz = bbox.center
 		dimx, dimy, dimz = bbox.dimensions
+		print(dimx, dimy, dimz) #ISSUE at redo dimz == 0 ?!
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
 
 		#Set active cam
@@ -108,7 +109,7 @@ class SetGeorenderCam(bpy.types.Operator):
 			cam = bpy.data.cameras.new(name=self.name)
 			cam['mapRes'] = self.target_res #custom prop
 			camObj = bpy.data.objects.new(name=self.name, object_data=cam)
-			scn.objects.link(camObj)
+			scn.collection.objects.link(camObj)
 			scn.camera = camObj
 		elif self.redo == 1: #first exec, get initial camera res
 			scn.camera = camObj
@@ -150,8 +151,8 @@ class SetGeorenderCam(bpy.types.Operator):
 
 		#Update selection
 		bpy.ops.object.select_all(action='DESELECT')
-		camObj.select = True
-		scn.objects.active = camObj
+		camObj.select_set(True)
+		context.view_layer.objects.active = camObj
 
 		#setup scene
 		scn.camera = camObj
@@ -164,7 +165,7 @@ class SetGeorenderCam(bpy.types.Operator):
 		rot = 0
 		x = bbox['xmin'] + dx
 		y = bbox['ymax'] + dy
-		wf_data = str(res)+'\n'+str(rot)+'\n'+str(rot)+'\n'+str(-res)+'\n'+str(x+res/2)+'\n'+str(y-res/2)
+		wf_data = '\n'.join(map(str, [res, rot, rot, -res, x+res/2, y-res/2]))
 		wf_name = camObj.name + '.wld'
 		if wf_name in bpy.data.texts:
 			wfText = bpy.data.texts[wf_name]
