@@ -372,6 +372,7 @@ class GEOSCENE_COORDS_VIEWER(Operator):
 			context.area.header_text_set("x {:.3f}, y {:.3f}, z {:.3f}".format(x, y, loc.z))
 		if event.type == 'ESC' and event.value == 'PRESS':
 			context.window.cursor_set('DEFAULT')
+			context.area.header_text_set(None)
 			return {'CANCELLED'}
 		return {'RUNNING_MODAL'}
 
@@ -615,7 +616,7 @@ def setCrsy(self, y):
 ################  PANEL ######################
 
 class GEOSCENE_PANEL(Panel):
-	bl_category = "GIS"#"View"
+	bl_category = "View"#"GIS"
 	bl_label = "Geoscene"
 	bl_space_type = "VIEW_3D"
 	bl_context = "objectmode"
