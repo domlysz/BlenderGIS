@@ -35,19 +35,19 @@ bl_info = {
 	}
 
 #Modules
-CAM_GEOPHOTO = False
-CAM_GEOREF = False
+CAM_GEOPHOTO = True
+CAM_GEOREF = True
 EXPORT_SHP = True
 GET_SRTM = True
 IMPORT_GEORASTER = True
 IMPORT_OSM = True
 IMPORT_SHP = True
-IMPORT_ASC = False
+IMPORT_ASC = True
 DELAUNAY = True
 TERRAIN_NODES = True
 TERRAIN_RECLASS = True
 BASEMAPS = True
-DROP = False
+DROP = True
 
 import bpy, os
 
@@ -89,110 +89,94 @@ if DROP:
 import bpy.utils.previews as iconsLib
 icons_dict = {}
 
-class bgisPanel(bpy.types.Panel):
-	bl_category = "GIS"
-	bl_label = "BlenderGIS"
-	bl_space_type = "VIEW_3D"
-	bl_context = "objectmode"
-	bl_region_type = "UI"
 
+class VIEW3D_MT_menu_gis_import(bpy.types.Menu):
+	bl_label = "Import"
 	def draw(self, context):
-		layout = self.layout
-		scn = context.scene
-
-		layout.operator("bgis.pref_show", icon='PREFERENCES')
-
-		col = layout.column(align=True)
-		col.label(text='Geodata:')
-
-		if BASEMAPS:
-			row = col.row(align=True)
-			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
-
-		row = col.row(align=True)
-		if IMPORT_OSM:
-			row.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
-		if GET_SRTM:
-			row.operator("importgis.srtm_query")
-
-
-		row = layout.row(align=True)
-		row.label(text='Import:')#, icon='LIBRARY_DATA_DIRECT')
 		if IMPORT_SHP:
-			row.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='')
+			self.layout.operator("importgis.shapefile_file_dialog", icon_value=icons_dict["shp"].icon_id, text='Shapefile (.shp)')
 		if IMPORT_GEORASTER:
-			row.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text='')
+			self.layout.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text="Georeferenced raster (.tif)")
 		if IMPORT_OSM:
-			row.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text='')
-		#row.operator("importgis.asc_file", icon_value=icons_dict["asc"].icon_id, text='')
-		#row.operator("importgis.lidar_las", icon_value=icons_dict["lidar"].icon_id, text='')
+			self.layout.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text="Open Street Map xml (.osm)")
+		if IMPORT_ASC:
+			self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
 
-		col = layout.column(align=True)
-		col.label(text='Camera creation:')
+class VIEW3D_MT_menu_gis_export(bpy.types.Menu):
+	bl_label = "Export"
+	def draw(self, context):
+		if EXPORT_SHP:
+			self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
+
+class VIEW3D_MT_menu_gis_webgeodata(bpy.types.Menu):
+	bl_label = "Web geodata"
+	def draw(self, context):
+		if BASEMAPS:
+			self.layout.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
+		if IMPORT_OSM:
+			self.layout.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
+		if GET_SRTM:
+			self.layout.operator("importgis.srtm_query")
+
+class VIEW3D_MT_menu_gis_camera(bpy.types.Menu):
+	bl_label = "Camera"
+	def draw(self, context):
 		if CAM_GEOREF:
-			col.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
+			self.layout.operator("camera.georender", icon_value=icons_dict["georefCam"].icon_id, text='Georender')
 		if CAM_GEOPHOTO:
-			row = col.row(align=True)
-			row.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
-			row.operator("camera.geophotos_setactive", icon='FILE_REFRESH', text='')
+			self.layout.operator("camera.geophotos", icon_value=icons_dict["exifCam"].icon_id, text='Geophotos')
+			self.layout.operator("camera.geophotos_setactive", icon='FILE_REFRESH')
 
+class VIEW3D_MT_menu_gis_mesh(bpy.types.Menu):
+	bl_label = "Mesh"
+	def draw(self, context):
 		if DELAUNAY:
-			col = layout.column(align=True)
-			col.label(text='Mesh:')
-			col.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
-			col.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
+			self.layout.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
+			self.layout.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 
+class VIEW3D_MT_menu_gis_object(bpy.types.Menu):
+	bl_label = "Object"
+	def draw(self, context):
 		if DROP:
-			col = layout.column(align=True)
-			col.label(text='Object:')
-			col.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
+			self.layout.operator("object.drop", icon_value=icons_dict["drop"].icon_id, text='Drop')
 
+class VIEW3D_MT_menu_gis_nodes(bpy.types.Menu):
+	bl_label = "Nodes"
+	def draw(self, context):
 		if TERRAIN_NODES:
-			col = layout.column(align=True)
-			col.label(text='Analysis:')
-			col.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain')
-
-
-
-# Register in File > Import menu
-def menu_func_import(self, context):
-	if IMPORT_GEORASTER:
-		self.layout.operator('importgis.georaster', text="Georeferenced raster")
-	if IMPORT_SHP:
-		self.layout.operator('importgis.shapefile_file_dialog', text="Shapefile (.shp)")
-	if IMPORT_OSM:
-		self.layout.operator('importgis.osm_file', text="Open Street Map xml (.osm)")
-	if IMPORT_ASC:
-		self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
-
-def menu_func_export(self, context):
-	if EXPORT_SHP:
-		self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
-
+			self.layout.operator("analysis.nodes", icon_value=icons_dict["terrain"].icon_id, text='Terrain analysis')
 
 class VIEW3D_MT_menu_gis(bpy.types.Menu):
 	bl_label = "GIS"
-
 	# Set the menu operators and draw functions
 	def draw(self, context):
 		layout = self.layout
-		scn = context.scene
-
 		layout.operator("bgis.pref_show", icon='PREFERENCES')
+		layout.separator()
+		layout.menu('VIEW3D_MT_menu_gis_webgeodata', icon="URL")
+		layout.menu('VIEW3D_MT_menu_gis_import', icon='IMPORT')
+		layout.menu('VIEW3D_MT_menu_gis_export', icon='EXPORT')
+		layout.menu('VIEW3D_MT_menu_gis_camera', icon='CAMERA_DATA')
+		layout.menu('VIEW3D_MT_menu_gis_mesh', icon='MESH_DATA')
+		layout.menu('VIEW3D_MT_menu_gis_object', icon='CUBE')
+		layout.menu('VIEW3D_MT_menu_gis_nodes', icon='NODETREE')
 
-		col = layout.column(align=True)
-		col.label(text='Geodata:')
 
-		if BASEMAPS:
-			row = col.row(align=True)
-			row.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
-
+menus = [
+VIEW3D_MT_menu_gis,
+VIEW3D_MT_menu_gis_webgeodata,
+VIEW3D_MT_menu_gis_import,
+VIEW3D_MT_menu_gis_export,
+VIEW3D_MT_menu_gis_camera,
+VIEW3D_MT_menu_gis_mesh,
+VIEW3D_MT_menu_gis_object,
+VIEW3D_MT_menu_gis_nodes
+]
 
 
 def add_gis_menu(self, context):
-	self.layout.menu('VIEW3D_MT_menu_gis')
-
-
+	if context.mode == 'OBJECT':
+		self.layout.menu('VIEW3D_MT_menu_gis')
 
 
 def register():
@@ -208,8 +192,9 @@ def register():
 	#operators
 	prefs.register()
 	geoscene.register()
-	bpy.utils.register_class(bgisPanel)
-	bpy.utils.register_class(VIEW3D_MT_menu_gis)
+
+	for menu in menus:
+		bpy.utils.register_class(menu)
 
 	if BASEMAPS:
 		view3d_mapviewer.register()
@@ -241,9 +226,6 @@ def register():
 	#menus
 	bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
 
-	bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
-	bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-
 	#shortcuts
 	wm = bpy.context.window_manager
 	kc =  wm.keyconfigs.active
@@ -265,9 +247,6 @@ def unregister():
 	global icons_dict
 	iconsLib.remove(icons_dict)
 
-	#bpy.types.INFO_MT_file_import.remove(menu_func_import)
-	#bpy.types.INFO_MT_file_export.append(menu_func_export)
-
 	try: #windows manager may be unavailable (for example when running Blender command line)
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
@@ -277,7 +256,9 @@ def unregister():
 	except:
 		pass
 
-	bpy.utils.unregister_class(bgisPanel)
+	for menu in menus:
+		bpy.utils.unregister_class(menu)
+
 	prefs.unregister()
 	geoscene.unregister()
 	if BASEMAPS:
