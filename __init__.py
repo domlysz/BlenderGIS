@@ -227,12 +227,13 @@ def register():
 	bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
 
 	#shortcuts
-	wm = bpy.context.window_manager
-	kc =  wm.keyconfigs.active
-	if kc is not None: #there is no keyconfig when Blender is running from commandline with background flag
+	if not bpy.app.background: #no ui when running as background
+		wm = bpy.context.window_manager
+		kc =  wm.keyconfigs.active
 		km = kc.keymaps['3D View']
 		if BASEMAPS:
 			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
+			print(bpy.context.window_manager.keyconfigs.active.keymaps['3D View'].keymap_items['view3d.map_start'])
 
 	#config core settings
 	preferences = bpy.context.preferences.addons[__package__].preferences
@@ -247,14 +248,13 @@ def unregister():
 	global icons_dict
 	iconsLib.remove(icons_dict)
 
-	try: #windows manager may be unavailable (for example when running Blender command line)
+	if not bpy.app.background: #no ui when running as background
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
 		if BASEMAPS:
 			kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
-			#>>cause warnings prints : "search for unknown operator 'VIEW3D_OT_map_start', 'VIEW3D_OT_map_start' "
-	except:
-		pass
+
+	bpy.types.VIEW3D_MT_editor_menus.remove(add_gis_menu)
 
 	for menu in menus:
 		bpy.utils.unregister_class(menu)
