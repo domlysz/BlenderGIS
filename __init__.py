@@ -98,15 +98,15 @@ class VIEW3D_MT_menu_gis_import(bpy.types.Menu):
 		if IMPORT_GEORASTER:
 			self.layout.operator("importgis.georaster", icon_value=icons_dict["raster"].icon_id, text="Georeferenced raster (.tif)")
 		if IMPORT_OSM:
-			self.layout.operator("importgis.osm_file", icon_value=icons_dict["osm_xml"].icon_id, text="Open Street Map xml (.osm)")
+			self.layout.operator("importgis.osm_file", icon_value=icons_dict["osm"].icon_id, text="Open Street Map xml (.osm)")
 		if IMPORT_ASC:
-			self.layout.operator('importgis.asc_file', text="ESRI ASCII Grid (.asc)")
+			self.layout.operator('importgis.asc_file', icon_value=icons_dict["asc"].icon_id, text="ESRI ASCII Grid (.asc)")
 
 class VIEW3D_MT_menu_gis_export(bpy.types.Menu):
 	bl_label = "Export"
 	def draw(self, context):
 		if EXPORT_SHP:
-			self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)")
+			self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)", icon_value=icons_dict["shp"].icon_id)
 
 class VIEW3D_MT_menu_gis_webgeodata(bpy.types.Menu):
 	bl_label = "Web geodata"
@@ -116,7 +116,7 @@ class VIEW3D_MT_menu_gis_webgeodata(bpy.types.Menu):
 		if IMPORT_OSM:
 			self.layout.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
 		if GET_SRTM:
-			self.layout.operator("importgis.srtm_query")
+			self.layout.operator("importgis.srtm_query", icon_value=icons_dict["raster"].icon_id)
 
 class VIEW3D_MT_menu_gis_camera(bpy.types.Menu):
 	bl_label = "Camera"
