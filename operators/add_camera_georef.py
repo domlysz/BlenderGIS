@@ -43,7 +43,9 @@ class SetGeorenderCam(bpy.types.Operator):
 	name: StringProperty(name = "Camera name", default="Georef cam", description="")
 	target_res: FloatProperty(name = "Pixel size", default=5, description="Pixel size in map units/pixel", min=0.00001)
 	zLocOffset: FloatProperty(name = "Z loc. off.", default=50, description="Camera z location offet, defined as percentage of z dimension of the target mesh", min=0)
+
 	redo = 0
+	bbox = None #global var used to avoid recomputing the bbox at each redo
 
 	def check(self, context):
 		return True
@@ -96,12 +98,17 @@ class SetGeorenderCam(bpy.types.Operator):
 				camObj = obj
 				cam = camObj.data
 
+		#do not recompute bbox at operator redo because zdim is miss-evaluated
+		#when redoing the op on an obj that have a displace modifier on it
+		#TODO find a less hacky fix
+		if self.bbox is None:
+			bbox = getBBOX.fromObj(georefObj, applyTransform = True)
+			self.bbox = bbox
+		else:
+			bbox = self.bbox
 
-		#Get mesh object properties
-		bbox = getBBOX.fromObj(georefObj, applyTransform = True)
 		locx, locy, locz = bbox.center
 		dimx, dimy, dimz = bbox.dimensions
-		print(dimx, dimy, dimz) #ISSUE at redo dimz == 0 ?!
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
 
 		#Set active cam
