@@ -35,7 +35,7 @@ def get_align_matrix(location, normal):
     axis = up.cross(normal)
     mat_rot = Matrix.Rotation(angle, 4, axis)
     mat_loc = Matrix.Translation(location)
-    mat_align = mat_rot * mat_loc
+    mat_align = mat_rot @ mat_loc
     return mat_align
 
 def get_lowest_world_co(ob, mat_parent=None):
@@ -43,7 +43,7 @@ def get_lowest_world_co(ob, mat_parent=None):
     bme.from_mesh(ob.data)
     mat_to_world = ob.matrix_world.copy()
     if mat_parent:
-        mat_to_world = mat_parent * mat_to_world
+        mat_to_world = mat_parent @ mat_to_world
     lowest = None
     for v in bme.verts:
         if not lowest:
@@ -124,6 +124,7 @@ class OBJECT_OT_drop_to_ground(Operator):
 
             if not hit.hit:
                 print(ob.name + " did not hit the Active Object")
+                continue
 
             # simple drop down
             down = hit.loc - minLoc

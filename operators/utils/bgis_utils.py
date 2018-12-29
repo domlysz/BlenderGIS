@@ -23,42 +23,51 @@ def mouseTo3d(context, x, y):
 	loc = region_2d_to_location_3d(reg, reg3d, coords, vec) #WARNING, this function return indeterminate value when view3d clip distance is too large
 	return loc
 
-from mathutils.bvhtree import BVHTree
+#from mathutils.bvhtree import BVHTree
 class DropToGround():
 	'''A class to perform raycasting accross z axis'''
 
 	def __init__(self, scn, ground):
+		self.method = 'OBJ' # 'BVH' or 'OBJ'
 		self.scn = scn
-		self.ground = ground
+		if self.method == 'OBJ':
+			#get the evaluated object
+			self.ground = bpy.context.depsgraph.objects.get(ground.name, None)
+		else:
+			self.ground = ground
 		self.bbox = getBBOX.fromObj(ground, applyTransform=True)
 		self.mw = self.ground.matrix_world
 		self.mwi = self.mw.inverted()
-		self.bvh = BVHTree.FromObject(self.ground, bpy.context.depsgraph)#, deform=True)
+		if self.method == 'BVH':
+			self.bvh = BVHTree.FromObject(self.ground, bpy.context.depsgraph)#, deform=True)
 
-	def rayCast(self, x, y, elseZero=False):
+	def rayCast(self, x, y):
 		#Hit vector
 		offset = 100
 		orgWldSpace = Vector((x, y, self.bbox.zmax + offset))
-		orgObjSpace = self.mwi @ orgWldSpace
+		orgObjSpace = self.mwi @ orgWldSpace #ISSUE does not take scale into account ???
 		direction = Vector((0,0,-1)) #down
 		#build ray cast hit namespace object
 		class RayCastHit(): pass
 		rcHit = RayCastHit()
 		#raycast
-		#rcHit.hit, rcHit.loc, rcHit.normal, rcHit.faceIdx = self.ground.ray_cast(orgObjSpace, direction)
-		rcHit.loc, rcHit.normal, rcHit.faceIdx, rcHit.dst = self.bvh.ray_cast(orgObjSpace, direction)
-		#https://developer.blender.org/T58734
+		if self.method == 'OBJ':
+			rcHit.hit, rcHit.loc, rcHit.normal, rcHit.faceIdx = self.ground.ray_cast(orgObjSpace, direction)
+		elif self.method == 'BVH':
+			#ISSUE crash at redo https://developer.blender.org/T58734
+			rcHit.loc, rcHit.normal, rcHit.faceIdx, rcHit.dst = self.bvh.ray_cast(orgObjSpace, direction)
+			if not rcHit.loc:
+				rcHit.hit = False
+			else:
+				rcHit.hit = True
 		#adjust values
-		#if not rcHit.hit:
-		if not rcHit.loc:
-			rcHit.hit = False
-			print('nohit')
-			rcHit.loc = Vector((orgWldSpace.x, orgWldSpace.y, 0))
+		if not rcHit.hit:
+			#return same original 2d point with z=0
+			rcHit.loc = Vector((orgWldSpace.x, orgWldSpace.y, 0)) #elseZero
 		else:
 			rcHit.hit = True
 
 		rcHit.loc = self.mw @ rcHit.loc
-
 		return rcHit
 
 def placeObj(mesh, objName):
