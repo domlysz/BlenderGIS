@@ -283,9 +283,9 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
 
         # Link object to scene and make active
         scn = bpy.context.scene
-        scn.objects.link(ob)
-        scn.objects.active = ob
-        ob.select = True
+        scn.collection.objects.link(ob)
+        bpy.context.view_layer.objects.active = ob
+        ob.select_set(True)
 
         me.from_pydata(vertices, [], faces)
         me.update()
