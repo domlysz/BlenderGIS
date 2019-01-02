@@ -233,7 +233,6 @@ def register():
 		km = kc.keymaps['3D View']
 		if BASEMAPS:
 			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
-			print(bpy.context.window_manager.keyconfigs.active.keymaps['3D View'].keymap_items['view3d.map_start'])
 
 	#config core settings
 	preferences = bpy.context.preferences.addons[__package__].preferences
@@ -252,7 +251,8 @@ def unregister():
 		wm = bpy.context.window_manager
 		km = wm.keyconfigs.active.keymaps['3D View']
 		if BASEMAPS:
-			kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
+			if 'view3d.map_start' in km.keymap_items:
+				kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 
 	bpy.types.VIEW3D_MT_editor_menus.remove(add_gis_menu)
 
