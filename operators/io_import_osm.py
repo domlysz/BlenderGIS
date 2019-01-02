@@ -33,7 +33,7 @@ OSMTAGS = []
 
 
 closedWaysArePolygons = ['aeroway', 'amenity', 'boundary', 'building', 'craft', 'geological', 'historic', 'landuse', 'leisure', 'military', 'natural', 'office', 'place', 'shop' , 'sport', 'tourism']
-
+closedWaysAreExtruded = ['buildings']
 
 
 def queryBuilder(bbox, tags=['building', 'highway'], types=['node', 'way', 'relation'], format='json'):
@@ -146,9 +146,9 @@ class OSM_IMPORT():
 			description="Get z elevation value from an existing ground mesh",
 			default=False )
 
+	separate: BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features', default=True)
 
-	separate: BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features')
-
+	buildingsExtrusion: BoolProperty(name='Buildings extrusion', description='', default=True)
 	defaultHeight: FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)
 	levelHeight: FloatProperty(name='Level height', description='Set a height for a building level, using for compute extrude height based on number of levels', default=3)
 	randomHeightThreshold: FloatProperty(name='Random height threshold', description='Threshold value for randomize default height', default=0)
@@ -163,9 +163,11 @@ class OSM_IMPORT():
 		layout.prop(self, 'useElevObj')
 		if self.useElevObj:
 			layout.prop(self, 'objElevLst')
-		layout.prop(self, 'defaultHeight')
-		layout.prop(self, 'randomHeightThreshold')
-		layout.prop(self, 'levelHeight')
+		layout.prop(self, 'buildingsExtrusion')
+		if self.buildingsExtrusion:
+			layout.prop(self, 'defaultHeight')
+			layout.prop(self, 'randomHeightThreshold')
+			layout.prop(self, 'levelHeight')
 		layout.prop(self, 'separate')
 
 
@@ -233,53 +235,54 @@ class OSM_IMPORT():
 				if face.normal.z < 0:
 					face.normal_flip()
 
-				offset = None
-				if "height" in tags:
-						htag = tags["height"]
-						htag.replace(',', '.')
-						try:
-							offset = int(htag)
-						except:
+				if self.buildingsExtrusion and any(tag in closedWaysAreExtruded for tag in tags):
+					offset = None
+					if "height" in tags:
+							htag = tags["height"]
+							htag.replace(',', '.')
 							try:
-								offset = float(htag)
+								offset = int(htag)
 							except:
-								for i, c in enumerate(htag):
-									if not c.isdigit():
-										try:
-											offset, unit = float(htag[:i]), htag[i:].strip()
-											#todo : parse unit  25, 25m, 25 ft, etc.
-										except:
-											offset = None
-				elif "building:levels" in tags:
-					try:
-						offset = int(tags["building:levels"]) * self.levelHeight
-					except ValueError as e:
-						offset = None
+								try:
+									offset = float(htag)
+								except:
+									for i, c in enumerate(htag):
+										if not c.isdigit():
+											try:
+												offset, unit = float(htag[:i]), htag[i:].strip()
+												#todo : parse unit  25, 25m, 25 ft, etc.
+											except:
+												offset = None
+					elif "building:levels" in tags:
+						try:
+							offset = int(tags["building:levels"]) * self.levelHeight
+						except ValueError as e:
+							offset = None
 
-				if offset is None:
-					minH = self.defaultHeight - self.randomHeightThreshold
-					if minH < 0 :
-						minH = 0
-					maxH = self.defaultHeight + self.randomHeightThreshold
-					offset = random.randint(minH, maxH)
+					if offset is None:
+						minH = self.defaultHeight - self.randomHeightThreshold
+						if minH < 0 :
+							minH = 0
+						maxH = self.defaultHeight + self.randomHeightThreshold
+						offset = random.randint(minH, maxH)
 
-				#Extrude
-				"""
-				if self.extrusionAxis == 'NORMAL':
-					normal = face.normal
-					vect = normal * offset
-				elif self.extrusionAxis == 'Z':
-				"""
-				vect = (0, 0, offset)
-				faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
-				verts = faces['faces'][0].verts
-				if self.useElevObj:
-					#Making flat roof
-					z = max([v.co.z for v in verts]) + offset #get max z coord
-					for v in verts:
-						v.co.z = z
-				else:
-					bmesh.ops.translate(bm, verts=verts, vec=vect)
+					#Extrude
+					"""
+					if self.extrusionAxis == 'NORMAL':
+						normal = face.normal
+						vect = normal * offset
+					elif self.extrusionAxis == 'Z':
+					"""
+					vect = (0, 0, offset)
+					faces = bmesh.ops.extrude_discrete_faces(bm, faces=[face]) #return {'faces': [BMFace]}
+					verts = faces['faces'][0].verts
+					if self.useElevObj:
+						#Making flat roof
+						z = max([v.co.z for v in verts]) + offset #get max z coord
+						for v in verts:
+							v.co.z = z
+					else:
+						bmesh.ops.translate(bm, verts=verts, vec=vect)
 
 
 			elif len(pts) > 1: #edge
@@ -525,8 +528,8 @@ class OSM_FILE(Operator, OSM_IMPORT):
 		#Spatial ref system
 		geoscn = GeoScene(scn)
 		if geoscn.isBroken:
-				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'CANCELLED'}
+			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+			return {'CANCELLED'}
 
 		#Parse file
 		t0 = time.clock()
