@@ -39,13 +39,13 @@ class DropToGround():
 		self.mw = self.ground.matrix_world
 		self.mwi = self.mw.inverted()
 		if self.method == 'BVH':
-			self.bvh = BVHTree.FromObject(self.ground, bpy.context.depsgraph)#, deform=True)
+			self.bvh = BVHTree.FromObject(self.ground, bpy.context.depsgraph, deform=True)
 
 	def rayCast(self, x, y):
 		#Hit vector
 		offset = 100
 		orgWldSpace = Vector((x, y, self.bbox.zmax + offset))
-		orgObjSpace = self.mwi @ orgWldSpace #ISSUE does not take scale into account ???
+		orgObjSpace = self.mwi @ orgWldSpace
 		direction = Vector((0,0,-1)) #down
 		#build ray cast hit namespace object
 		class RayCastHit(): pass
@@ -97,7 +97,7 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 		if area.type == 'VIEW_3D':
 			space = area.spaces.active
 			#Adjust clip distance if the new obj is largest than actual settings
-			space.clip_start = 100
+			space.clip_start = 1
 			dst = targetDst*10 #10x more than necessary
 			if space.clip_end < dst:
 				if dst > 10000000:
