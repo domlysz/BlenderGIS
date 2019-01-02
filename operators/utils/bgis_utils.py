@@ -1,6 +1,7 @@
 
 import bpy
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
 from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
 
 from ...core import BBOX
@@ -23,18 +24,14 @@ def mouseTo3d(context, x, y):
 	loc = region_2d_to_location_3d(reg, reg3d, coords, vec) #WARNING, this function return indeterminate value when view3d clip distance is too large
 	return loc
 
-#from mathutils.bvhtree import BVHTree
+
 class DropToGround():
 	'''A class to perform raycasting accross z axis'''
 
-	def __init__(self, scn, ground):
-		self.method = 'OBJ' # 'BVH' or 'OBJ'
+	def __init__(self, scn, ground, method='OBJ'):
+		self.method = method # 'BVH' or 'OBJ'
 		self.scn = scn
-		if self.method == 'OBJ':
-			#get the evaluated object
-			self.ground = bpy.context.depsgraph.objects.get(ground.name, None)
-		else:
-			self.ground = ground
+		self.ground = ground
 		self.bbox = getBBOX.fromObj(ground, applyTransform=True)
 		self.mw = self.ground.matrix_world
 		self.mwi = self.mw.inverted()
@@ -54,7 +51,6 @@ class DropToGround():
 		if self.method == 'OBJ':
 			rcHit.hit, rcHit.loc, rcHit.normal, rcHit.faceIdx = self.ground.ray_cast(orgObjSpace, direction)
 		elif self.method == 'BVH':
-			#ISSUE crash at redo https://developer.blender.org/T58734
 			rcHit.loc, rcHit.normal, rcHit.faceIdx, rcHit.dst = self.bvh.ray_cast(orgObjSpace, direction)
 			if not rcHit.loc:
 				rcHit.hit = False
