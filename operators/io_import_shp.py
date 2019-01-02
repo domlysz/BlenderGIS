@@ -123,7 +123,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		for index, object in enumerate(bpy.context.scene.objects):
 			if object.type == 'MESH':
 				#put each object in a tuple (key, label, tooltip) and add this to the objects list
-				objs.append((str(index), object.name, "Object named " + object.name))
+				objs.append((object.name, object.name, "Object named " + object.name))
 		return objs
 
 	reprojection: BoolProperty(
@@ -188,7 +188,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	separateObjects: BoolProperty(
 			name="Separate objects",
 			description="Import to separate objects instead one large object",
-			default=False )
+			default=True )
 
 	#Name objects from field
 	useFieldName: BoolProperty(
@@ -264,9 +264,9 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 				self.report({'ERROR'}, "No elevation object")
 				return {'CANCELLED'}
 			else:
-				objElevIdx = int(self.objElevLst)
+				objElevName = self.objElevLst
 		else:
-			objElevIdx = 0 #will not be used
+			objElevName = '' #will not be used
 
 		geoscn = GeoScene()
 		if geoscn.isBroken:
@@ -283,7 +283,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 
 		try:
 			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
-				fieldElevName=elevField, objElevIdx=objElevIdx, fieldExtrudeName=extrudField, fieldObjName=nameField,
+				fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
@@ -306,7 +306,7 @@ class IMPORT_SHP(Operator):
 	shpCRS: StringProperty(name = "Shapefile CRS", description = "Coordinate Reference System")
 
 	elevSource: StringProperty(name = "Elevation source", description = "Elevation source", default='GEOM') # [NONE, GEOM, OBJ, FIELD]
-	objElevIdx: IntProperty(name = "Elevation object index", description = "")
+	objElevName: StringProperty(name = "Elevation object name", description = "")
 
 	fieldElevName: StringProperty(name = "Elevation field", description = "Field name")
 	fieldExtrudeName: StringProperty(name = "Extrusion field", description = "Field name")
@@ -364,7 +364,7 @@ class IMPORT_SHP(Operator):
 
 		if self.elevSource == 'OBJ':
 			scn = bpy.context.scene
-			elevObj = scn.objects[self.objElevIdx]
+			elevObj = scn.objects[self.objElevName]
 			rayCaster = DropToGround(scn, elevObj)
 
 		#Get fields
@@ -678,7 +678,10 @@ class IMPORT_SHP(Operator):
 					fieldName, fieldType, fieldLength, fieldDecLength = field
 					if fieldName != 'DeletionFlag':
 						if fieldType in ('N', 'F'):
-							obj[fieldName] = float(record[i-1]) #cast to float to avoid overflow error when affecting custom property
+							v = record[i-1]
+							if v is not None:
+								#cast to float to avoid overflow error when affecting custom property
+								obj[fieldName] = float(record[i-1])
 						else:
 							obj[fieldName] = record[i-1]
 
