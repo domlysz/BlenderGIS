@@ -33,7 +33,7 @@ OSMTAGS = []
 
 
 closedWaysArePolygons = ['aeroway', 'amenity', 'boundary', 'building', 'craft', 'geological', 'historic', 'landuse', 'leisure', 'military', 'natural', 'office', 'place', 'shop' , 'sport', 'tourism']
-closedWaysAreExtruded = ['buildings']
+closedWaysAreExtruded = ['building']
 
 
 def queryBuilder(bbox, tags=['building', 'highway'], types=['node', 'way', 'relation'], format='json'):
@@ -308,12 +308,29 @@ class OSM_IMPORT():
 
 				obj = bpy.data.objects.new(name, mesh)
 
-				#Assign tags
+				#Assign tags to custom props
 				obj['id'] = str(id) #cast to str to avoid overflow error "Python int too large to convert to C int"
 				for key in tags.keys():
 					obj[key] = tags[key]
 
-				layer.objects.link(obj)
+				#Put object in right collection
+				if self.filterTags:
+					tagsList = self.filterTags
+				else:
+					tagsList = OSMTAGS
+				if any(tag in tagsList for tag in tags):
+					for k in tagsList:
+						if k in tags:
+							try:
+								tagCollec = layer.children[k]
+							except KeyError:
+								tagCollec = bpy.data.collections.new(k)
+								layer.children.link(tagCollec)
+							tagCollec.objects.link(obj)
+							break
+				else:
+					layer.objects.link(obj)
+
 				obj.select_set(True)
 
 
