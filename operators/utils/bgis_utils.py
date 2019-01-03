@@ -80,21 +80,22 @@ def placeObj(mesh, objName):
 
 
 def adjust3Dview(context, bbox, zoomToSelect=True):
-	'''adjust all 3d views floor grid and clip distance to match the submited bbox'''
-	# grid size and clip distance
-	dstMax = round(max(abs(bbox.xmax), abs(bbox.xmin), abs(bbox.ymax), abs(bbox.ymin)))*2
-	nbDigit = len(str(dstMax))
-	scale = 10**(nbDigit-2)#1 digits --> 0.1m, 2 --> 1m, 3 --> 10m, 4 --> 100m, , 5 --> 1000m
-	nbLines = round(dstMax/scale)
-	targetDst = nbLines*scale
+	'''adjust all 3d views clip distance to match the submited bbox'''
+	dst = round(max(bbox.dimensions))
+	k = 4 #increase factor
+	dst = dst * k
 	# set each 3d view
 	areas = context.screen.areas
 	for area in areas:
 		if area.type == 'VIEW_3D':
 			space = area.spaces.active
-			#Adjust clip distance if the new obj is largest than actual settings
-			space.clip_start = 1
-			dst = targetDst*10 #10x more than necessary
+			if dst < 100:
+				space.clip_start = 1
+			elif dst < 1000:
+				space.clip_start = 10
+			elif dst < 10000:
+				space.clip_start = 100
+			#Adjust clip end distance if the new obj is largest than actual setting
 			if space.clip_end < dst:
 				if dst > 10000000:
 					dst = 10000000 #too large clip distance broke the 3d view
