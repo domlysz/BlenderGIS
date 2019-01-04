@@ -8,7 +8,7 @@ import math
 from mathutils import Vector
 
 
-from ..core.lib.shapefile import Reader as shpReader
+from ..core.lib.shapefile123 import Reader as shpReader
 
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
