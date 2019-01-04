@@ -60,7 +60,7 @@ class GeoRaster():
 
 			self.format = getImgFormat(path)
 			if self.format not in ['TIFF', 'BMP', 'PNG', 'JPEG', 'JPEG2000']:
-				raise IOError("Unsupported format")
+				raise IOError("Unsupported format {}".format(self.format))
 
 			if self.isTiff:
 				self._fromTIFF()

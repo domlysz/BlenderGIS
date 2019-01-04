@@ -48,7 +48,8 @@ def getImgFormat(filepath):
 		elif head.startswith(b'\211PNG\r\n\032\n'):
 			format = 'PNG'
 		# handle JPEGs
-		elif head[6:10] in (b'JFIF', b'Exif'):
+		#elif head[6:10] in (b'JFIF', b'Exif')
+		elif (b'JFIF' in head or b'Exif' in head or b'8BIM' in head) or head.startswith(b'\xff\xd8'):
 			format = 'JPEG'
 		# handle JPEG2000s
 		elif head.startswith(b'\x00\x00\x00\x0cjP  \r\n\x87\n'):
@@ -92,7 +93,7 @@ def getImgDim(filepath):
 				except struct.error:
 					raise ValueError("Invalid PNG file")
 		# handle JPEGs
-		elif head[6:10] in (b'JFIF', b'Exif'):
+		elif (b'JFIF' in head or b'Exif' in head or b'8BIM' in head) or head.startswith(b'\xff\xd8'):
 			try:
 				fhandle.seek(0) # Read 0xff next
 				size = 2
