@@ -82,7 +82,7 @@ def placeObj(mesh, objName):
 def adjust3Dview(context, bbox, zoomToSelect=True):
 	'''adjust all 3d views clip distance to match the submited bbox'''
 	dst = round(max(bbox.dimensions))
-	k = 4 #increase factor
+	k = 5 #increase factor
 	dst = dst * k
 	# set each 3d view
 	areas = context.screen.areas
@@ -93,7 +93,7 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 				space.clip_start = 1
 			elif dst < 1000:
 				space.clip_start = 10
-			elif dst < 10000:
+			else:
 				space.clip_start = 100
 			#Adjust clip end distance if the new obj is largest than actual setting
 			if space.clip_end < dst:
