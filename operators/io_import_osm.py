@@ -146,7 +146,7 @@ class OSM_IMPORT():
 			description="Get z elevation value from an existing ground mesh",
 			default=False )
 
-	separate: BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features', default=True)
+	separate: BoolProperty(name='Separate objects', description='Warning : can be very slow with lot of features', default=False)
 
 	buildingsExtrusion: BoolProperty(name='Buildings extrusion', description='', default=True)
 	defaultHeight: FloatProperty(name='Default Height', description='Set the height value using for extrude building when the tag is missing', default=20)

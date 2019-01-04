@@ -187,8 +187,8 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 	#Create separate objects
 	separateObjects: BoolProperty(
 			name="Separate objects",
-			description="Import to separate objects instead one large object",
-			default=True )
+			description="Warning : can be very slow with lot of features",
+			default=False )
 
 	#Name objects from field
 	useFieldName: BoolProperty(
