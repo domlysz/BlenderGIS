@@ -1,8 +1,10 @@
 Blender GIS
 ==========
-Minimal version of Blender required : v2.78
+A new version for Blender 2.80 beta is already available in the dedicated branch.
+Until official 2.8 release, the master branch is for Blender 2.79 only.
 
-[Full documentation](https://github.com/domlysz/BlenderGIS/wiki/Install-and-usage)
+
+[Full documentation](https://github.com/domlysz/BlenderGIS/wiki/Home)
 --------------------
 
 [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start)
@@ -12,13 +14,13 @@ Minimal version of Blender required : v2.78
 --------------------
 Display web map service like OpenStreetMap directly in Blender
 
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/basemaps_demo.gif)
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/basemaps_demo.gif)
 
 [SRTM download](https://github.com/domlysz/BlenderGIS/wiki/SRTM)
 --------------------
 Get SRTM topographic data and apply it as height texture
 
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/srtm_demo.gif)
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/srtm_demo.gif)
 
 
 [ESRI Shapefile import / export](https://github.com/domlysz/BlenderGIS/wiki/Shapefile-import)
@@ -43,7 +45,7 @@ ESRI ASCII GRID format is also supported through a dedicated import tool.
 [OpenStreetMap import](https://github.com/domlysz/BlenderGIS/wiki/OSM-import)
 --------------------
 
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/images/osm_demo.gif)
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/osm_demo.gif)
 
 
 [Georeferenced render output](https://github.com/domlysz/BlenderGIS/wiki/Make-a-georef-render)
