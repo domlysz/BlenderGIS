@@ -214,7 +214,7 @@ def setDisplacer(obj, rast, uvTxtLayer, mid=0):
 
 class bpyGeoRaster(GeoRaster):
 
-	def __init__(self, path, subBoxGeo=None, useGDAL=False, clip=False, fillNodata=False):
+	def __init__(self, path, subBoxGeo=None, useGDAL=False, clip=False, fillNodata=False, raw=False):
 
 		#First init parent class
 		GeoRaster.__init__(self, path, subBoxGeo=subBoxGeo, useGDAL=useGDAL)
@@ -250,6 +250,8 @@ class bpyGeoRaster(GeoRaster):
 			#reinit the parent class
 			GeoRaster.__init__(self, filepath, useGDAL=useGDAL)
 
+		self.raw = raw #flag non color raster like DEM
+
 		#Open the file into Blender
 		self._load()
 
@@ -263,9 +265,10 @@ class bpyGeoRaster(GeoRaster):
 		if pack:
 			#WARN : packed image can only be stored as png and this format does not support float32 datatype
 			self.bpyImg.pack()
-		# Set image color space, it's very important because only
-		# Linear, Non Color and Raw color spaces will return raw values...
-		self.bpyImg.colorspace_settings.name = 'Non-Color'
+		if self.raw:
+			# Set image color space, it's very important because only
+			# Linear, Non Color and Raw color spaces will return raw values...
+			self.bpyImg.colorspace_settings.name = 'Non-Color'
 
 	def unload(self):
 		self.bpyImg.user_clear()

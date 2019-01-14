@@ -362,7 +362,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 			# Load raster
 			try:
-				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL)
+				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
 			except (IOError, OverlapError) as e:
 				return self.err(str(e))
 
