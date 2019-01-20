@@ -31,7 +31,7 @@ OSM_TAGS = [
 ]
 
 
-class BGIS_PREFS_SHOW(Operator):
+class BGIS_OT_pref_show(Operator):
 
 	bl_idname = "bgis.pref_show"
 	bl_description = 'Display BlenderGIS addons preferences'
@@ -266,7 +266,7 @@ class PredefCRS():
 #################
 # Collection of operators to manage predefinates CRS
 
-class PREDEF_CRS_ADD(Operator):
+class BGIS_OT_add_predef_crs(Operator):
 	bl_idname = "bgis.add_predef_crs"
 	bl_description = 'Add predefinate CRS'
 	bl_label = "Add"
@@ -344,8 +344,7 @@ class PREDEF_CRS_ADD(Operator):
 			bpy.ops.wm.save_userpref()
 		return {'FINISHED'}
 
-
-class PREDEF_CRS_RMV(Operator):
+class BGIS_OT_rmv_predef_crs(Operator):
 
 	bl_idname = "bgis.rmv_predef_crs"
 	bl_description = 'Remove predefinate CRS'
@@ -362,7 +361,7 @@ class PREDEF_CRS_RMV(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-class PREDEF_CRS_RESET(Operator):
+class BGIS_OT_reset_predef_crs(Operator):
 
 	bl_idname = "bgis.reset_predef_crs"
 	bl_description = 'Reset predefinate CRS'
@@ -375,7 +374,7 @@ class PREDEF_CRS_RESET(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-class PREDEF_CRS_EDIT(Operator):
+class BGIS_OT_edit_predef_crs(Operator):
 
 	bl_idname = "bgis.edit_predef_crs"
 	bl_description = 'Edit predefinate CRS'
@@ -414,7 +413,7 @@ class PREDEF_CRS_EDIT(Operator):
 #################
 # Collection of operators to manage predefinates OSM Tags
 
-class OSM_TAG_ADD(Operator):
+class BGIS_OT_add_osm_tag(Operator):
 	bl_idname = "bgis.add_osm_tag"
 	bl_description = 'Add new predefinate OSM filter tag'
 	bl_label = "Add"
@@ -434,8 +433,7 @@ class OSM_TAG_ADD(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-
-class OSM_TAG_RMV(Operator):
+class BGIS_OT_rmv_osm_tag(Operator):
 
 	bl_idname = "bgis.rmv_osm_tag"
 	bl_description = 'Remove predefinate OSM filter tag'
@@ -452,7 +450,7 @@ class OSM_TAG_RMV(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-class OSM_TAGS_RESET(Operator):
+class BGIS_OT_reset_osm_tags(Operator):
 
 	bl_idname = "bgis.reset_osm_tags"
 	bl_description = 'Reset predefinate OSM filter tag'
@@ -465,7 +463,7 @@ class OSM_TAGS_RESET(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-class OSM_TAG_EDIT(Operator):
+class BGIS_OT_edit_osm_tag(Operator):
 
 	bl_idname = "bgis.edit_osm_tag"
 	bl_description = 'Edit predefinate OSM filter tag'
@@ -493,16 +491,16 @@ class OSM_TAG_EDIT(Operator):
 		return {'FINISHED'}
 
 classes = [
-BGIS_PREFS_SHOW,
+BGIS_OT_pref_show,
 BGIS_PREFS,
-PREDEF_CRS_ADD,
-PREDEF_CRS_RMV,
-PREDEF_CRS_RESET,
-PREDEF_CRS_EDIT,
-OSM_TAG_ADD,
-OSM_TAG_RMV,
-OSM_TAGS_RESET,
-OSM_TAG_EDIT
+BGIS_OT_add_predef_crs,
+BGIS_OT_rmv_predef_crs,
+BGIS_OT_reset_predef_crs,
+BGIS_OT_edit_predef_crs,
+BGIS_OT_add_osm_tag,
+BGIS_OT_rmv_osm_tag,
+BGIS_OT_reset_osm_tags,
+BGIS_OT_edit_osm_tag
 ]
 
 def register():

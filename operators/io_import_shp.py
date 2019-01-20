@@ -48,7 +48,7 @@ dbf fields type:
 """
 
 
-class IMPORT_SHP_FILE_DIALOG(Operator):
+class IMPORTGIS_OT_shapefile_file_dialog(Operator):
 	"""Select shp file, loads the fields and start importgis.shapefile_props_dialog operator"""
 
 	bl_idname = "importgis.shapefile_file_dialog"
@@ -87,7 +87,7 @@ class IMPORT_SHP_FILE_DIALOG(Operator):
 
 
 
-class IMPORT_SHP_PROPS_DIALOG(Operator):
+class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 	"""Shapefile importer properties dialog"""
 
 	bl_idname = "importgis.shapefile_props_dialog"
@@ -292,7 +292,7 @@ class IMPORT_SHP_PROPS_DIALOG(Operator):
 		return{'FINISHED'}
 
 
-class IMPORT_SHP(Operator):
+class IMPORTGIS_OT_shapefile(Operator):
 	"""Import from ESRI shapefile file format (.shp)"""
 
 	bl_idname = "importgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
@@ -730,9 +730,9 @@ class IMPORT_SHP(Operator):
 		return {'FINISHED'}
 
 classes = [
-	IMPORT_SHP_FILE_DIALOG,
-	IMPORT_SHP_PROPS_DIALOG,
-	IMPORT_SHP
+	IMPORTGIS_OT_shapefile_file_dialog,
+	IMPORTGIS_OT_shapefile_props_dialog,
+	IMPORTGIS_OT_shapefile
 ]
 
 def register():

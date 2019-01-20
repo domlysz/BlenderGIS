@@ -8,7 +8,7 @@ from .utils import getBBOX
 from ..core.maths.interpo import scale
 
 
-class Analysis_nodes(Operator):
+class TERRAIN_ANALYSIS_OT_build_nodes(Operator):
 	'''Create material node thee to analysis height, slope and aspect'''
 	bl_idname = "analysis.nodes"
 	bl_description  = "Create height, slope and aspect material nodes setup for Cycles"
@@ -359,7 +359,7 @@ class Analysis_nodes(Operator):
 		return {'FINISHED'}
 
 def register():
-	bpy.utils.register_class(Analysis_nodes)
+	bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
 
 def unregister():
-	bpy.utils.unregister_class(Analysis_nodes)
+	bpy.utils.unregister_class(TERRAIN_ANALYSIS_OT_build_nodes)

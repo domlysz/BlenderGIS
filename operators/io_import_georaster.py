@@ -48,7 +48,7 @@ from bpy.types import Operator
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
-class IMPORT_GEORAST(Operator, ImportHelper):
+class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	"""Import georeferenced raster (need world file)"""
 	bl_idname = "importgis.georaster"  # important since its how bpy.ops.importgis.georaster is constructed (allows calling operator from python console or another script)
 	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
@@ -449,7 +449,7 @@ class IMPORT_GEORAST(Operator, ImportHelper):
 
 
 def register():
-	bpy.utils.register_class(IMPORT_GEORAST)
+	bpy.utils.register_class(IMPORTGIS_OT_georaster)
 
 def unregister():
-	bpy.utils.unregister_class(IMPORT_GEORAST)
+	bpy.utils.unregister_class(IMPORTGIS_OT_georaster)

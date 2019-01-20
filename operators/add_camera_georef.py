@@ -27,7 +27,7 @@ from ..geoscene import GeoScene
 
 
 
-class SetGeorenderCam(bpy.types.Operator):
+class CAMERA_OT_add_georender_cam(bpy.types.Operator):
 	'''
 	Add a new georef camera or update an existing one
 	A georef camera is a top view orthographic camera that can be used to render a map
@@ -191,7 +191,7 @@ class SetGeorenderCam(bpy.types.Operator):
 
 
 def register():
-	bpy.utils.register_class(SetGeorenderCam)
+	bpy.utils.register_class(CAMERA_OT_add_georender_cam)
 
 def unregister():
-	bpy.utils.unregister_class(SetGeorenderCam)
+	bpy.utils.unregister_class(CAMERA_OT_add_georender_cam)

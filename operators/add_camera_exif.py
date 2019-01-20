@@ -70,7 +70,7 @@ def newTargetCamera(scene, name, location, focalLength):
 
 
 
-class SetGeophotosCam(Operator):
+class CAMERA_OT_geophotos_add(Operator):
     bl_idname = "camera.geophotos"
     bl_description  = "Create cameras from geotagged photos"
     bl_label = "Exif cam"
@@ -212,7 +212,7 @@ class SetGeophotosCam(Operator):
         return {'FINISHED'}
 
 
-class SetActiveGeophotoCam(Operator):
+class CAMERA_OT_geophotos_setactive(Operator):
     bl_idname = "camera.geophotos_setactive"
     bl_description  = "Switch active geophoto camera"
     bl_label = "Switch geophoto camera"
@@ -284,8 +284,8 @@ class SetActiveGeophotoCam(Operator):
         return {'FINISHED'}
 
 classes = [
-	SetGeophotosCam,
-	SetActiveGeophotoCam
+	CAMERA_OT_geophotos_add,
+	CAMERA_OT_geophotos_setactive
 ]
 
 def register():

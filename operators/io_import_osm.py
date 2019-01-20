@@ -496,7 +496,7 @@ class OSM_IMPORT():
 
 #######################
 
-class OSM_FILE(Operator, OSM_IMPORT):
+class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 
 	bl_idname = "importgis.osm_file"
 	bl_description = 'Select and import osm xml file'
@@ -589,7 +589,7 @@ class OSM_FILE(Operator, OSM_IMPORT):
 
 ########################
 
-class OSM_QUERY(Operator, OSM_IMPORT):
+class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 	"""Import from Open Street Map"""
 
 	bl_idname = "importgis.osm_query"
@@ -670,8 +670,8 @@ class OSM_QUERY(Operator, OSM_IMPORT):
 		return {'FINISHED'}
 
 classes = [
-	OSM_FILE,
-	OSM_QUERY
+	IMPORTGIS_OT_osm_file,
+	IMPORTGIS_OT_osm_query
 ]
 
 def register():

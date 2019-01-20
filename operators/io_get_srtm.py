@@ -18,7 +18,7 @@ from ..core.settings import getSetting
 USER_AGENT = getSetting('user_agent')
 
 
-class SRTM_QUERY(Operator):
+class IMPORTGIS_OT_srtm_query(Operator):
 	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
 
 	bl_idname = "importgis.srtm_query"
@@ -130,7 +130,7 @@ class SRTM_QUERY(Operator):
 
 
 def register():
-	bpy.utils.register_class(SRTM_QUERY)
+	bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
 
 def unregister():
-	bpy.utils.unregister_class(SRTM_QUERY)
+	bpy.utils.unregister_class(IMPORTGIS_OT_srtm_query)

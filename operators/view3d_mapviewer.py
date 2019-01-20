@@ -341,7 +341,7 @@ def drawZoomBox(self, context):
 
 ###############
 
-class MAP_START(Operator):
+class VIEW3D_OT_map_start(Operator):
 
 	bl_idname = "view3d.map_start"
 	bl_description = 'Toggle 2d map navigation'
@@ -519,7 +519,7 @@ class MAP_START(Operator):
 ###############
 
 
-class MAP_VIEWER(Operator):
+class VIEW3D_OT_map_viewer(Operator):
 
 	bl_idname = "view3d.map_viewer"
 	bl_description = 'Toggle 2d map navigation'
@@ -967,7 +967,7 @@ class MAP_VIEWER(Operator):
 
 ####################################
 
-class MAP_SEARCH(bpy.types.Operator):
+class VIEW3D_OT_map_search(bpy.types.Operator):
 
 	bl_idname = "view3d.map_search"
 	bl_description = 'Search for a place and move scene origin to it'
@@ -1005,9 +1005,9 @@ class MAP_SEARCH(bpy.types.Operator):
 
 
 classes = [
-	MAP_START,
-	MAP_VIEWER,
-	MAP_SEARCH
+	VIEW3D_OT_map_start,
+	VIEW3D_OT_map_viewer,
+	VIEW3D_OT_map_search
 ]
 
 def register():

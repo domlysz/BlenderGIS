@@ -342,8 +342,8 @@ class GeoScene():
 ################  OPERATORS ######################
 from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
 
-class GEOSCENE_COORDS_VIEWER(Operator):
-	bl_idname = "geoscene.coords"
+class GEOSCENE_OT_coords_viewer(Operator):
+	bl_idname = "geoscene.coords_viewer"
 	bl_description = ''
 	bl_label = ""
 	bl_options = {'INTERNAL', 'UNDO'}
@@ -377,7 +377,7 @@ class GEOSCENE_COORDS_VIEWER(Operator):
 		return {'RUNNING_MODAL'}
 
 
-class GEOSCENE_SET_CRS(Operator):
+class GEOSCENE_OT_set_crs(Operator):
 	'''
 	use the enum of predefinates crs defined in addon prefs
 	to select and switch scene crs definition
@@ -426,7 +426,7 @@ class GEOSCENE_SET_CRS(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
-class GEOSCENE_INIT_ORG(Operator):
+class GEOSCENE_OT_init_org(Operator):
 
 	bl_idname = "geoscene.init_org"
 	bl_description = 'Init scene origin custom props at location 0,0'
@@ -443,7 +443,7 @@ class GEOSCENE_INIT_ORG(Operator):
 			geoscn.crsx, geoscn.crsy = 0, 0
 		return {'FINISHED'}
 
-class GEOSCENE_EDIT_ORG_GEO(Operator):
+class GEOSCENE_OT_edit_org_geo(Operator):
 
 	bl_idname = "geoscene.edit_org_geo"
 	bl_description = 'Edit scene origin longitude/latitude'
@@ -469,7 +469,7 @@ class GEOSCENE_EDIT_ORG_GEO(Operator):
 			geoscn.setOriginGeo(self.lon, self.lat)
 		return {'FINISHED'}
 
-class GEOSCENE_EDIT_ORG_PRJ(Operator):
+class GEOSCENE_OT_edit_org_prj(Operator):
 
 	bl_idname = "geoscene.edit_org_prj"
 	bl_description = 'Edit scene origin in projected system'
@@ -495,7 +495,7 @@ class GEOSCENE_EDIT_ORG_PRJ(Operator):
 			geoscn.setOriginPrj(self.x, self.y)
 		return {'FINISHED'}
 
-class GEOSCENE_LINK_ORG_GEO(Operator):
+class GEOSCENE_OT_link_org_geo(Operator):
 
 	bl_idname = "geoscene.link_org_geo"
 	bl_description = 'Link scene origin lat long'
@@ -516,7 +516,7 @@ class GEOSCENE_LINK_ORG_GEO(Operator):
 		return {'FINISHED'}
 
 
-class GEOSCENE_LINK_ORG_PRJ(Operator):
+class GEOSCENE_OT_link_org_prj(Operator):
 
 	bl_idname = "geoscene.link_org_prj"
 	bl_description = 'Link scene origin in crs space'
@@ -537,7 +537,7 @@ class GEOSCENE_LINK_ORG_PRJ(Operator):
 		return {'FINISHED'}
 
 
-class GEOSCENE_CLEAR_ORG(Operator):
+class GEOSCENE_OT_clear_org(Operator):
 
 	bl_idname = "geoscene.clear_org"
 	bl_description = 'Clear scene origin coordinates'
@@ -549,7 +549,7 @@ class GEOSCENE_CLEAR_ORG(Operator):
 		geoscn.delOrigin()
 		return {'FINISHED'}
 
-class GEOSCENE_CLEAR_GEOREF(Operator):
+class GEOSCENE_OT_clear_georef(Operator):
 
 	bl_idname = "geoscene.clear_georef"
 	bl_description = 'Clear all georef infos'
@@ -615,7 +615,7 @@ def setCrsy(self, y):
 
 ################  PANEL ######################
 
-class GEOSCENE_PANEL(Panel):
+class GEOSCENE_PT_georef(Panel):
 	bl_category = "View"#"GIS"
 	bl_label = "Geoscene"
 	bl_space_type = "VIEW_3D"
@@ -632,7 +632,7 @@ class GEOSCENE_PANEL(Panel):
 
 		georefManagerLayout(self, context)
 
-		layout.operator("geoscene.coords", icon='WORLD', text='Geo-coordinates')
+		layout.operator("geoscene.coords_viewer", icon='WORLD', text='Geo-coordinates')
 
 #hidden props used as display options in georef manager panel
 class GLOBAL_PROPS(PropertyGroup):
@@ -757,16 +757,16 @@ def georefManagerLayout(self, context):
 ###########################
 
 classes = [
-	GEOSCENE_COORDS_VIEWER,
-	GEOSCENE_SET_CRS,
-	GEOSCENE_INIT_ORG,
-	GEOSCENE_EDIT_ORG_GEO,
-	GEOSCENE_EDIT_ORG_PRJ,
-	GEOSCENE_LINK_ORG_GEO,
-	GEOSCENE_LINK_ORG_PRJ,
-	GEOSCENE_CLEAR_ORG,
-	GEOSCENE_CLEAR_GEOREF,
-	GEOSCENE_PANEL,
+	GEOSCENE_OT_coords_viewer,
+	GEOSCENE_OT_set_crs,
+	GEOSCENE_OT_init_org,
+	GEOSCENE_OT_edit_org_geo,
+	GEOSCENE_OT_edit_org_prj,
+	GEOSCENE_OT_link_org_geo,
+	GEOSCENE_OT_link_org_prj,
+	GEOSCENE_OT_clear_org,
+	GEOSCENE_OT_clear_georef,
+	GEOSCENE_PT_georef,
 	GLOBAL_PROPS
 ]
 

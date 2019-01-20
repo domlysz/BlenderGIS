@@ -24,7 +24,7 @@ from .utils import rasterExtentToMesh, geoRastUVmap, setDisplacer
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
 
-class IMPORT_ASCII_GRID(Operator, ImportHelper):
+class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
     """Import ESRI ASCII grid file"""
     bl_idname = "importgis.asc_file"  # important since its how bpy.ops.importgis.asc is constructed (allows calling operator from python console or another script)
     #bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
@@ -298,7 +298,7 @@ class IMPORT_ASCII_GRID(Operator, ImportHelper):
         return {'FINISHED'}
 
 def register():
-	bpy.utils.register_class(IMPORT_ASCII_GRID)
+	bpy.utils.register_class(IMPORTGIS_OT_ascii_grid)
 
 def unregister():
-	bpy.utils.unregister_class(IMPORT_ASCII_GRID)
+	bpy.utils.unregister_class(IMPORTGIS_OT_ascii_grid)

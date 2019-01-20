@@ -40,7 +40,7 @@ node = None
 
 #Set up a propertyGroup and populate a CollectionProperty
 #########################################
-class CustomItem(PropertyGroup):
+class RECLASS_PG_color(PropertyGroup):
 
 	#Define update function for FloatProperty
 	def updStop(item, context):
@@ -175,7 +175,7 @@ def scene_update(scn):
 
 #Set up ui list
 #########################################
-class Reclass_uilist(UIList):
+class RECLASS_UL_stops(UIList):
 
 	def getAspectLabels(self):
 		vals = [round(item.val,2) for item in bpy.context.scene.uiListCollec]
@@ -229,7 +229,7 @@ class Reclass_uilist(UIList):
 
 #Make a Panel
 #########################################
-class Reclass_panel(Panel):
+class RECLASS_PT_reclassify(Panel):
 	"""Creates a panel in the properties of node editor"""
 	bl_label = "Reclassify"
 	bl_idname = "reclass_panel"
@@ -246,7 +246,7 @@ class Reclass_panel(Panel):
 				layout.prop(scn, "analysisMode")
 				row = layout.row()
 				#Draw ui list with template_list function
-				row.template_list("Reclass_uilist", "", scn, "uiListCollec", scn, "uiListIndex", rows=10)
+				row.template_list("RECLASS_UL_stops", "", scn, "uiListCollec", scn, "uiListIndex", rows=10)
 				#Draw side tools
 				col = row.column(align=True)
 				col.operator("reclass.list_add", text="", icon='ADD')
@@ -259,7 +259,7 @@ class Reclass_panel(Panel):
 				col.operator("reclass.flip", text="", icon='ARROW_LEFTRIGHT')
 				col.operator("reclass.quick_gradient", text="", icon="COLOR")
 				col.operator("reclass.svg_gradient", text="", icon="GROUP_VCOL")
-				col.operator("reclass.exportsvg", text="", icon="FORWARD")
+				col.operator("reclass.export_svg", text="", icon="FORWARD")
 				col.separator()
 				col.operator("reclass.auto", text="", icon='FULLSCREEN_ENTER')
 				##col.separator()
@@ -277,7 +277,7 @@ class Reclass_panel(Panel):
 #Make Operators to manage ui list
 #########################################
 
-class Reclass_switchInterpolation(Operator):
+class RECLASS_OT_switch_interpolation(Operator):
 	'''Switch color interpolation (continuous / discrete)'''
 	bl_idname = "reclass.switch_interpolation"
 	bl_label = "Switch color interpolation (continuous or discrete)"
@@ -292,7 +292,7 @@ class Reclass_switchInterpolation(Operator):
 			cr.interpolation = 'LINEAR'
 		return {'FINISHED'}
 
-class Reclass_flip(Operator):
+class RECLASS_OT_flip(Operator):
 	'''Flip color ramp'''
 	bl_idname = "reclass.flip"
 	bl_label = "Flip color ramp"
@@ -315,7 +315,7 @@ class Reclass_flip(Operator):
 		populateList(node)
 		return {'FINISHED'}
 
-class Reclass_refresh(Operator):
+class RECLASS_OT_refresh(Operator):
 	"""Refresh list to match node setting"""
 	bl_idname = "reclass.list_refresh"
 	bl_label = "Populate list"
@@ -326,7 +326,7 @@ class Reclass_refresh(Operator):
 		return {'FINISHED'}
 
 
-class Reclass_clear(Operator):
+class RECLASS_OT_clear(Operator):
 	"""Clear color ramp"""
 	bl_idname = "reclass.list_clear"
 	bl_label = "Clear list"
@@ -347,7 +347,7 @@ class Reclass_clear(Operator):
 		return{'FINISHED'}
 
 
-class Reclass_addStop(Operator):
+class RECLASS_OT_add(Operator):
 	"""Add stop"""
 	bl_idname = "reclass.list_add"
 	bl_label = "Add stop"
@@ -380,7 +380,7 @@ class Reclass_addStop(Operator):
 		return {'FINISHED'}
 
 
-class Reclass_rmStop(Operator):
+class RECLASS_OT_rm(Operator):
 	"""Remove stop"""
 	bl_idname = "reclass.list_rm"
 	bl_label = "Remove Stop"
@@ -464,7 +464,7 @@ def getValues():
 	return values
 
 
-class Reclass_auto(Operator):
+class RECLASS_OT_auto(Operator):
 	'''Auto reclass by equal interval or fixed classe number'''
 	bl_idname = "reclass.auto"
 	bl_label = "Reclass by equal interval or fixed classe number"
@@ -637,12 +637,12 @@ interpoMethods = [('LINEAR', 'Linear', "Linear interpolation"),
 
 
 #QUICK GRADIENT
-class ColorList(PropertyGroup):
+class RECLASS_PG_color_preview(PropertyGroup):
 	color: FloatVectorProperty(subtype='COLOR', min=0, max=1, size=4)
 
 
 
-class Reclass_quickGradient(Operator):
+class RECLASS_OT_quick_gradient(Operator):
 	'''Quick colors gradient edit'''
 	bl_idname = "reclass.quick_gradient"
 	bl_label = "Quick colors gradient edit"
@@ -764,7 +764,7 @@ svgFiles = filesList(svgGradientFolder, '.svg')
 
 colorPreviewRange = 20
 
-class Reclass_svgGradient(Operator):
+class RECLASS_OT_svg_gradient(Operator):
 	'''Define colors gradient with presets'''
 	bl_idname = "reclass.svg_gradient"
 	bl_label = "Define colors gradient with presets"
@@ -868,9 +868,9 @@ class Reclass_svgGradient(Operator):
 		return {'FINISHED'}
 
 
-class Reclass_exportSVG(Operator):
+class RECLASS_OT_export_svg(Operator):
 	'''Export current gradient to SVG file'''
-	bl_idname = "reclass.exportsvg"
+	bl_idname = "reclass.export_svg"
 	bl_label = "Export current gradient to SVG file"
 
 	name: StringProperty(description="Put name of SVG file")
@@ -940,29 +940,29 @@ class Reclass_exportSVG(Operator):
 
 
 classes = [
-	CustomItem,
-	ColorList,
-	Reclass_uilist,
-	Reclass_panel,
-	Reclass_switchInterpolation,
-	Reclass_flip,
-	Reclass_refresh,
-	Reclass_clear,
-	Reclass_addStop,
-	Reclass_rmStop,
-	Reclass_auto,
-	Reclass_quickGradient,
-	Reclass_svgGradient,
-	Reclass_exportSVG
+	RECLASS_PG_color,
+	RECLASS_PG_color_preview,
+	RECLASS_UL_stops,
+	RECLASS_PT_reclassify,
+	RECLASS_OT_switch_interpolation,
+	RECLASS_OT_flip,
+	RECLASS_OT_refresh,
+	RECLASS_OT_clear,
+	RECLASS_OT_add,
+	RECLASS_OT_rm,
+	RECLASS_OT_auto,
+	RECLASS_OT_quick_gradient,
+	RECLASS_OT_svg_gradient,
+	RECLASS_OT_export_svg
 ]
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
 	#Create uilist collections
-	bpy.types.Scene.uiListCollec = CollectionProperty(type=CustomItem)
+	bpy.types.Scene.uiListCollec = CollectionProperty(type=RECLASS_PG_color)
 	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist
-	bpy.types.Scene.colorRampPreview = CollectionProperty(type=ColorList)
+	bpy.types.Scene.colorRampPreview = CollectionProperty(type=RECLASS_PG_color_preview)
 	#Add handlers
 	bpy.app.handlers.depsgraph_update_post.append(scene_update)
 	#

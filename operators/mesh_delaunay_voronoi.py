@@ -30,7 +30,7 @@ def checkEqual(lst):
 	return lst[1:] == lst[:-1]
 
 
-class OBJECT_OT_TriangulateButton(bpy.types.Operator):
+class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 	bl_idname = "tesselation.delaunay" #name used to refer to this operator (button)
 	bl_label = "Triangulation" #operator's label
 	bl_description = "Terrain points cloud Delaunay triangulation in 2.5D" #tooltip
@@ -95,7 +95,7 @@ class OBJECT_OT_TriangulateButton(bpy.types.Operator):
 		self.report({'INFO'}, "Mesh created (" + str(len(triangles)) + " triangles)")
 		return {'FINISHED'}
 
-class OBJECT_OT_VoronoiButton(bpy.types.Operator):
+class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 	bl_idname = "tesselation.voronoi" #name used to refer to this operator (button)
 	bl_label = "Diagram" #operator's label
 	bl_description = "Points cloud Voronoi diagram in 2D" #tooltip
@@ -181,8 +181,8 @@ class OBJECT_OT_VoronoiButton(bpy.types.Operator):
 		return {'FINISHED'}
 
 classes = [
-	OBJECT_OT_TriangulateButton,
-	OBJECT_OT_VoronoiButton
+	OBJECT_OT_tesselation_delaunay,
+	OBJECT_OT_tesselation_voronoi
 ]
 
 def register():

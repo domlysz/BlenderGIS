@@ -16,7 +16,7 @@ from ..geoscene import GeoScene
 
 from ..core.proj import SRS
 
-class EXPORT_SHP(Operator, ExportHelper):
+class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
 	bl_idname = "exportgis.shapefile" # important since its how bpy.ops.import.shapefile is constructed (allows calling operator from python console or another script)
 	#bl_idname rules: must contain one '.' (dot) charactere, no capital letters, no reserved words (like 'import')
@@ -282,7 +282,7 @@ class EXPORT_SHP(Operator, ExportHelper):
 
 
 def register():
-	bpy.utils.register_class(EXPORT_SHP)
+	bpy.utils.register_class(EXPORTGIS_OT_shapefile)
 
 def unregister():
-	bpy.utils.unregister_class(EXPORT_SHP)
+	bpy.utils.unregister_class(EXPORTGIS_OT_shapefile)
