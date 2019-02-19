@@ -2,12 +2,11 @@
 shapefile.py
 Provides read and write support for ESRI Shapefiles.
 author: jlawhead<at>geospatialpython.com
-date: 2018/09/01
-version: 2.0.0
+version: 2.1.0
 Compatible with Python versions 2.7-3.x
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 from struct import pack, unpack, calcsize, error, Struct
 import os
@@ -458,8 +457,8 @@ class _Record(list):
         """
         return dict((f, self[i]) for f, i in self.__field_positions.items())
 
-    def __str__(self):
-        return 'Record #{} '.format(self.__oid)
+    def __repr__(self):
+        return 'Record #{}: {}'.format(self.__oid, list(self))
 
     def __dir__(self):
         """
@@ -468,14 +467,50 @@ class _Record(list):
 
         :return: List of method names and fields
         """
-        attrs = [attr for attr in vars(type(self)) if not attr.startswith('_')]
-        return attrs + self.__field_positions.values() # plus field names (random order)
+        default = list(dir(type(self))) # default list methods and attributes of this class
+        fnames = list(self.__field_positions.keys()) # plus field names (random order)
+        return default + fnames 
         
 class ShapeRecord(object):
-    """A ShapeRecord object containing a shape along with its attributes."""
+    """A ShapeRecord object containing a shape along with its attributes.
+    Provides the GeoJSON __geo_interface__ to return a Feature dictionary."""
     def __init__(self, shape=None, record=None):
         self.shape = shape
         self.record = record
+
+    @property
+    def __geo_interface__(self):
+        return {'type': 'Feature',
+                'properties': self.record.as_dict(),
+                'geometry': self.shape.__geo_interface__}
+
+class Shapes(list):
+    """A class to hold a list of Shape objects. Subclasses list to ensure compatibility with
+    former work and allows to use all the optimazations of the builtin list.
+    In addition to the list interface, this also provides the GeoJSON __geo_interface__
+    to return a GeometryCollection dictionary. """
+
+    def __repr__(self):
+        return 'Shapes: {}'.format(list(self))
+
+    @property
+    def __geo_interface__(self):
+        return {'type': 'GeometryCollection',
+                'geometries': [g.__geo_interface__ for g in self]}
+
+class ShapeRecords(list):
+    """A class to hold a list of ShapeRecord objects. Subclasses list to ensure compatibility with
+    former work and allows to use all the optimazations of the builtin list.
+    In addition to the list interface, this also provides the GeoJSON __geo_interface__
+    to return a FeatureCollection dictionary. """
+
+    def __repr__(self):
+        return 'ShapeRecords: {}'.format(list(self))
+
+    @property
+    def __geo_interface__(self):
+        return {'type': 'FeatureCollection',
+                'features': [f.__geo_interface__ for f in self]}
 
 class ShapefileException(Exception):
     """An exception to handle shapefile specific problems."""
@@ -586,9 +621,7 @@ class Reader(object):
         features = []
         for feat in self.iterShapeRecords():
             fdict = {'type': 'Feature',
-                     'properties': dict(*zip(fieldnames,
-                                             list(feat.record)
-                                             )),
+                     'properties': dict(zip(fieldnames,feat.record)),
                      'geometry': feat.shape.__geo_interface__}
             features.append(fdict)
         return {'type': 'FeatureCollection',
@@ -749,14 +782,18 @@ class Reader(object):
             record.z = _Array('d', unpack("<%sd" % nPoints, f.read(nPoints * 8)))
         # Read m extremes and values
         if shapeType in (13,15,18,23,25,28,31):
-            (mmin, mmax) = unpack("<2d", f.read(16))
+            if next - f.tell() >= 16:
+                (mmin, mmax) = unpack("<2d", f.read(16))
             # Measure values less than -10e38 are nodata values according to the spec
-            record.m = []
-            for m in _Array('d', unpack("<%sd" % nPoints, f.read(nPoints * 8))):
-                if m > NODATA:
-                    record.m.append(m)
-                else:
-                    record.m.append(None)
+            if next - f.tell() >= nPoints * 8:
+                record.m = []
+                for m in _Array('d', unpack("<%sd" % nPoints, f.read(nPoints * 8))):
+                    if m > NODATA:
+                        record.m.append(m)
+                    else:
+                        record.m.append(None)
+            else:
+                record.m = [None for _ in range(nPoints)]
         # Read a single point
         if shapeType in (1,11,21):
             record.points = [_Array('d', unpack("<2d", f.read(16)))]
@@ -764,8 +801,11 @@ class Reader(object):
         if shapeType == 11:
             record.z = list(unpack("<d", f.read(8)))
         # Read a single M value
-        if shapeType == 21 or (shapeType == 11 and f.tell() < next):
-            (m,) = unpack("<d", f.read(8))
+        if shapeType in (21,11):
+            if next - f.tell() >= 8:
+                (m,) = unpack("<d", f.read(8))
+            else:
+                m = NODATA
             # Measure values less than -10e38 are nodata values according to the spec
             if m > NODATA:
                 record.m = [m]
@@ -823,7 +863,7 @@ class Reader(object):
         shp.seek(0,2)
         self.shpLength = shp.tell()
         shp.seek(100)
-        shapes = []
+        shapes = Shapes()
         while shp.tell() < self.shpLength:
             shapes.append(self.__shape())
         return shapes
@@ -857,9 +897,9 @@ class Reader(object):
             else:
                 idx = len(fieldDesc[name]) - 1
             fieldDesc[name] = fieldDesc[name][:idx]
-            fieldDesc[name] = u(fieldDesc[name], "ascii")
+            fieldDesc[name] = u(fieldDesc[name], self.encoding, self.encodingErrors)
             fieldDesc[name] = fieldDesc[name].lstrip()
-            fieldDesc[1] = u(fieldDesc[1], "ascii")
+            fieldDesc[1] = u(fieldDesc[1], 'ascii')
             self.fields.append(fieldDesc)
         terminator = dbf.read(1)
         if terminator != b"\r":
@@ -995,9 +1035,8 @@ class Reader(object):
     def shapeRecords(self):
         """Returns a list of combination geometry/attribute records for
         all records in a shapefile."""
-        shapeRecords = []
-        return [ShapeRecord(shape=rec[0], record=rec[1]) \
-                                for rec in zip(self.shapes(), self.records())]
+        return ShapeRecords([ShapeRecord(shape=rec[0], record=rec[1]) \
+                                for rec in zip(self.shapes(), self.records())])
 
     def iterShapeRecords(self):
         """Returns a generator of combination geometry/attribute records for
@@ -1270,7 +1309,7 @@ class Writer(object):
         year -= 1900
         # Remove deletion flag placeholder from fields
         for field in self.fields:
-            if str(field[0]).startswith("Deletion"):
+            if field[0].startswith("Deletion"):
                 self.fields.remove(field)
         numRecs = self.recNum
         numFields = len(self.fields)
@@ -1285,10 +1324,10 @@ class Writer(object):
         # Field descriptors
         for field in self.fields:
             name, fieldType, size, decimal = field
-            name = b(name, 'ascii', self.encodingErrors)
+            name = b(name, self.encoding, self.encodingErrors)
             name = name.replace(b' ', b'_')
             name = name.ljust(11).replace(b' ', b'\x00')
-            fieldType = b(fieldType, 'ascii', self.encodingErrors)
+            fieldType = b(fieldType, 'ascii')
             size = int(size)
             fld = pack('<11sc4xBB14x', name, fieldType, size, decimal)
             f.write(fld)
@@ -1834,7 +1873,7 @@ def test(**kwargs):
     # run tests
     runner = doctest.DocTestRunner(checker=Py23DocChecker(), verbose=verbosity)
     with open("README.md","rb") as fobj:
-        test = doctest.DocTestParser().get_doctest(string=fobj.read().decode("utf8"), globs={}, name="README", filename="README.md", lineno=0)
+        test = doctest.DocTestParser().get_doctest(string=fobj.read().decode("utf8").replace('\r\n','\n'), globs={}, name="README", filename="README.md", lineno=0)
     failure_count, test_count = runner.run(test)
 
     # print results
