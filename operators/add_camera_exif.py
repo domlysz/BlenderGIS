@@ -174,7 +174,7 @@ class CAMERA_OT_geophotos_add(Operator):
             elif self.exifMode == "EMPTY":
                 newEmpty(scn, name, location)
             else:
-                scn.cursor_location = location
+                scn.cursor.location = location
 
 
             if self.exifMode in ["TARGET_CAMERA","CAMERA"]:

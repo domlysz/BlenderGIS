@@ -568,7 +568,7 @@ class VIEW3D_OT_map_viewer(Operator):
 		view3d = context.area.spaces.active
 		bpy.ops.view3d.view_axis(type='TOP')
 		view3d.region_3d.view_perspective = 'ORTHO'
-		context.scene.cursor_location = (0, 0, 0)
+		context.scene.cursor.location = (0, 0, 0)
 		if not self.prefs.lockOrigin:
 			#bpy.ops.view3d.view_center_cursor()
 			view3d.region_3d.view_location = (0, 0, 0)
