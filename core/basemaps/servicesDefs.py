@@ -234,7 +234,7 @@ SOURCES = {
 			"SERVICE" : 'WMS',
 			"VERSION" : '1.3.0',
 			"REQUEST" : 'GetMap',
-			"CRS" : 'EPSG:{CRS}',
+			"CRS" : '{CRS}',
 			"LAYERS" : '{LAY}',
 			"FORMAT" : 'image/{FORMAT}',
 			"STYLES" : '{STYLE}',
@@ -296,7 +296,7 @@ SOURCES = {
 				"format" : 'png', "style" : 'bdparcellaire', "zmin" : 0, "zmax" : 22}
 		},
 		"urlTemplate": {
-			"BASE_URL" : 'http://gpp3-wxs.ign.fr/yvmoikafaddadzmxvh6sdmjb/wmts?',
+			"BASE_URL" : 'https://wxs.ign.fr/an7nvfzojv5wa96dsga5nk8w/geoportail/wmts?',
 			"SERVICE" : 'WMTS',
 			"VERSION" : '1.0.0',
 			"REQUEST" : 'GetTile',
