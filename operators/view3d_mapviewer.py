@@ -495,7 +495,8 @@ class MAP_START(bpy.types.Operator):
 	def invoke(self, context, event):
 
 		if not HAS_PIL and not HAS_GDAL and not HAS_IMGIO:
-			self.report({'ERROR'}, "No imaging library available. Please install Python GDAL or Pillow module")
+			self.report({'ERROR'}, "No imaging library available. ImageIO module was not correctly installed. \
+			Please reinstall it or try to install Python GDAL or Pillow module")
 			return {'CANCELLED'}
 
 		if not context.area.type == 'VIEW_3D':
