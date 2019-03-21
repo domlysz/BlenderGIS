@@ -32,7 +32,7 @@ try:
 	from .lib import imageio
 	imageio.plugins._freeimage.get_freeimage_lib() #try to download freeimage lib
 except Exception as e:
-	print("Can't install imageio lib ".format(e))
+	print("Can't install imageio lib {}".format(e))
 	HAS_IMGIO = False
 else:
 	HAS_IMGIO = True
