@@ -68,6 +68,13 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
+		if bbox.ymin > 60:
+			self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
+			return {'CANCELLED'}
+		if bbox.ymax < -56:
+			self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
+			return {'CANCELLED'}
+
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
