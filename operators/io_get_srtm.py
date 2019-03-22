@@ -1,6 +1,9 @@
 import os
 import time
 
+import logging
+log = logging.getLogger(__name__)
+
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
@@ -88,7 +91,8 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		e = 'east={}'.format(xmax)
 		s = 'south={}'.format(ymin)
 		n = 'north={}'.format(ymax)
-		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
+		url = 'http://opentopo.sdsc.edu/otr/getdem?demtypes=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
+		log.debug(url)
 
 		# Download the file from url and save it locally
 		# opentopo return a geotiff object in wgs84
@@ -105,8 +109,8 @@ class IMPORTGIS_OT_srtm_query(Operator):
 				data = response.read() # a `bytes` object
 				outFile.write(data) #
 		except (URLError, HTTPError) as err:
-			#print(err.code, err.reason, err.headers)
-			self.report({'ERROR'}, "Cannot reach OpenTopography web service at {} : {}".format(url, err))
+			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
+			self.report({'ERROR'}, "Cannot reach OpenTopography web service, check logs for more infos")
 			return {'CANCELLED'}
 
 		if not onMesh:
