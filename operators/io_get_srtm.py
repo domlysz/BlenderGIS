@@ -62,7 +62,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			self.report({'ERROR'}, "Please define the query extent in orthographic top view or by selecting a reference object")
 			return {'CANCELLED'}
 
-		if bbox.dimensions.x > 20000 or bbox.dimensions.y > 20000:
+		if bbox.dimensions.x > 1000000 or bbox.dimensions.y > 1000000:
 			self.report({'ERROR'}, "Too large extent")
 			return {'CANCELLED'}
 
