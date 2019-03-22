@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 #import DelaunayVoronoi
 import bpy
+import time
 from .utils import computeVoronoiDiagram, computeDelaunayTriangulation
 
 class Point:
@@ -37,6 +38,9 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 	bl_options = {"UNDO"}
 
 	def execute(self, context):
+		w = context.window
+		w.cursor_set('WAIT')
+		t0 = time.clock()
 		#Get selected obj
 		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
@@ -92,7 +96,8 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 		tinObj.select_set(True)
 		obj.select_set(False)
 		#Report
-		self.report({'INFO'}, "Mesh created (" + str(len(triangles)) + " triangles)")
+		t = round(time.clock() - t0, 2)
+		self.report({'INFO'}, "{} triangles created in {} seconds".format(len(triangles), t))
 		return {'FINISHED'}
 
 class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
@@ -112,6 +117,9 @@ class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 	"""
 
 	def execute(self, context):
+		w = context.window
+		w.cursor_set('WAIT')
+		t0 = time.clock()
 		#Get selected obj
 		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
@@ -174,10 +182,11 @@ class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 		voronoiObj.select_set(True)
 		obj.select_set(False)
 		#Report
+		t = round(time.clock() - t0, 2)
 		if self.meshType == "Edges":
-			self.report({'INFO'}, "Mesh created ("+str(len(edgesIdx))+" edges)")
+			self.report({'INFO'}, "{} edges created in {} seconds".format(len(edgesIdx), t))
 		else:
-			self.report({'INFO'}, "Mesh created ("+str(len(polyIdx))+" polygons)")
+			self.report({'INFO'}, "{} polygons created in {} seconds".format(len(polyIdx), t))
 		return {'FINISHED'}
 
 classes = [
