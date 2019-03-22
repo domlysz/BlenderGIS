@@ -1,3 +1,5 @@
+import logging
+#logging.basicConfig(level=logging.getLevelName('INFO'))
 
 from .checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_IMGIO, HAS_PIL
 from .settings import getSettings, setSettings

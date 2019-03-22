@@ -50,6 +50,7 @@ BASEMAPS = True
 DROP = True
 
 import bpy, os
+import logging
 
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core.settings import getSettings, setSettings
@@ -234,13 +235,17 @@ def register():
 		if BASEMAPS:
 			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
 
-	#config core settings
+	#set core settings
 	preferences = bpy.context.preferences.addons[__package__].preferences
 	cfg = getSettings()
 	cfg['proj_engine'] = preferences.projEngine
 	cfg['img_engine'] = preferences.imgEngine
 	setSettings(cfg)
 
+	#setup logging level
+	logging.basicConfig() #stdout stream
+	logger = logging.getLogger(__name__)
+	logger.setLevel(logging.getLevelName(preferences.logLevel))
 
 def unregister():
 

@@ -1,4 +1,5 @@
 import json
+import logging
 
 import bpy
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
@@ -184,6 +185,21 @@ class BGIS_PREFS(AddonPreferences):
 		description = "Update shading mode to display raster's texture",
 		default = True)
 
+	################
+	#System
+	def updateLogLevel(self, context):
+		logger = logging.getLogger(PKG)
+		logger.setLevel(logging.getLevelName(self.logLevel))
+
+	logLevel: EnumProperty(
+		name = "Logging level",
+		description = "Select the logging level",
+		items = [('DEBUG', 'Debug', ''), ('INFO', 'Info', ''), ('WARNING', 'Warning', ''), ('ERROR', 'Error', ''), ('CRITICAL', 'Critical', '')],
+		update = updateLogLevel,
+		default = 'INFO'
+		)
+
+	################
 	def draw(self, context):
 		layout = self.layout
 
@@ -227,6 +243,10 @@ class BGIS_PREFS(AddonPreferences):
 		row.prop(self, "adjust3Dview")
 		row.prop(self, "forceTexturedSolid")
 
+		#System
+		box = layout.box()
+		box.label(text='System')
+		box.prop(self, "logLevel")
 
 #######################
 

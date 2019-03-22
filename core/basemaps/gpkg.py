@@ -16,7 +16,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
-
+import logging
+log = logging.getLogger(__name__)
 
 import os
 import io
@@ -77,7 +78,7 @@ class GeoPackage():
 			db.execute('SELECT table_name FROM gpkg_tile_matrix LIMIT 1')
 			db.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM gpkg_tiles LIMIT 1')
 		except Exception as e:
-			print('Incorrect GPKG schema ' + str(e))
+			log.error('Incorrect GPKG schema', exc_info=True)
 			db.close()
 			return False
 		else:

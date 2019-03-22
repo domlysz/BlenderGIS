@@ -18,6 +18,9 @@
 #  ***** GPL LICENSE BLOCK *****
 
 #built-in imports
+import logging
+log = logging.getLogger(__name__)
+
 import math
 import threading
 import queue
@@ -38,6 +41,12 @@ from ..proj.srs import SRS
 from ..settings import getSetting
 USER_AGENT = getSetting('user_agent')
 
+# Set mosaic backgroung image color, it will be the base color for area not covered
+# by the map service (ie when requests return non valid data)
+MOSAIC_BKG_COLOR = (128,128,128,255)
+
+EMPTY_TILE_COLOR = (255,192,203,255) #color for cached tile with empty data
+CORRUPTED_TILE_COLOR = (255,0,0,255) #color for cached tile which is non valid image data
 
 class TileMatrix():
 	"""
@@ -566,7 +575,7 @@ class MapService():
 		"""
 
 		url = self.buildUrl(laykey, col, row, zoom)
-		#print(url)
+		log.debug(url)
 
 		try:
 			#make request
@@ -576,8 +585,7 @@ class MapService():
 			data = handle.read()
 			handle.close()
 		except Exception as e:
-			print("Can't download tile x{} y{}. Error {}".format(col, row, e))
-			#print(url)
+			log.error("Can't download tile x{} y{}. Error {}".format(col, row, e))
 			data = None
 
 		#Make sure the stream is correct
@@ -585,6 +593,9 @@ class MapService():
 			format = imghdr.what(None, data)
 			if format is None:
 				data = None
+
+		if data is None:
+			log.debug("Invalid tile data for request {}".format(url))
 
 		return data
 
@@ -633,7 +644,7 @@ class MapService():
 		try:
 			_bbox = reprojBbox(crs2, crs1, bbox)
 		except Exception as e:
-			print('WARN : cannot reproj tile bbox - ' + str(e))
+			log.warning('Cannot reproj tile bbox - ' + str(e))
 			return None
 
 		#list, download and merge the tiles required to build this one (recursive call)
@@ -831,7 +842,7 @@ class MapService():
 
 		if not bigTiff:
 			#Create numpy image in memory
-			mosaic = NpImage.new(img_w, img_h, bkgColor=(255,255,255,255), georef=georef)
+			mosaic = NpImage.new(img_w, img_h, bkgColor=MOSAIC_BKG_COLOR, georef=georef)
 			chunkSize = rq.nbTiles
 		else:
 			#Create bigtiff file on disk
@@ -859,16 +870,18 @@ class MapService():
 					return None
 
 				col, row, z, data = tile
+
+				#TODO corrupted or empty tiles must be deleted from cache are fetched again
 				if data is None:
 					#create an empty tile
-					img = NpImage.new(tileSize, tileSize, bkgColor=(128,128,128,255))
+					img = NpImage.new(tileSize, tileSize, bkgColor=EMPTY_TILE_COLOR)
 				else:
 					try:
 						img = NpImage(data)
 					except Exception as e:
-						print(str(e))
+						log.error('Corrupted tile on cache', exc_info=True)
 						#create an empty tile if we are unable to get a valid stream
-						img = NpImage.new(tileSize, tileSize, bkgColor=(255,192,203,255))
+						img = NpImage.new(tileSize, tileSize, bkgColor=CORRUPTED_TILE_COLOR)
 
 
 				posx = (col - rq.firstCol) * tileSize

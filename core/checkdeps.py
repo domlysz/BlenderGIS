@@ -1,4 +1,5 @@
-
+import logging
+log = logging.getLogger(__name__)
 
 #GDAL
 try:
@@ -32,7 +33,7 @@ try:
 	from .lib import imageio
 	imageio.plugins._freeimage.get_freeimage_lib() #try to download freeimage lib
 except Exception as e:
-	print("Can't install imageio lib ".format(e))
+	log.error("Cannot install ImageIO's Freeimage plugin", exc_info=True)
 	HAS_IMGIO = False
 else:
 	HAS_IMGIO = True
