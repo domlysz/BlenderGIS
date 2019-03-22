@@ -50,9 +50,12 @@ BASEMAPS = True
 DROP = True
 
 import bpy, os
-import logging
 
-from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
+import logging
+#temporary set log level, will be overriden reading addon prefs
+logging.basicConfig(level=logging.getLevelName('INFO')) #stdout stream
+
+#from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core.settings import getSettings, setSettings
 
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
@@ -235,17 +238,16 @@ def register():
 		if BASEMAPS:
 			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
 
-	#set core settings
+	#Setup prefs
 	preferences = bpy.context.preferences.addons[__package__].preferences
+	#>>logger
+	logger = logging.getLogger(__name__)
+	logger.setLevel(logging.getLevelName(preferences.logLevel)) #will affect all child logger
+	#>>core settings
 	cfg = getSettings()
 	cfg['proj_engine'] = preferences.projEngine
 	cfg['img_engine'] = preferences.imgEngine
 	setSettings(cfg)
-
-	#setup logging level
-	logging.basicConfig() #stdout stream
-	logger = logging.getLogger(__name__)
-	logger.setLevel(logging.getLevelName(preferences.logLevel))
 
 def unregister():
 

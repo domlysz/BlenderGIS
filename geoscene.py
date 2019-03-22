@@ -17,6 +17,8 @@
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
 
+import logging
+log = logging.getLogger(__name__)
 
 import bpy
 from bpy.props import (StringProperty, IntProperty, FloatProperty, BoolProperty,
@@ -133,7 +135,7 @@ class GeoScene():
 		except Exception as e:
 			if self.hasOriginPrj:
 				self.delOriginPrj()
-				print('Warning, origin proj has been deleted because the property could not be updated. ' + str(e))
+				log.warning('Origin proj has been deleted because the property could not be updated', exc_info=True)
 
 	def setOriginPrj(self, x, y):
 		self.crsx, self.crsy = x, y
@@ -142,7 +144,7 @@ class GeoScene():
 		except Exception as e:
 			if self.hasOriginGeo:
 				self.delOriginGeo()
-				print('Warning, origin geo has been deleted because the property could not be updated. ' + str(e))
+				log.warning('Origin geo has been deleted because the property could not be updated', exc_info=True)
 
 	def updOriginPrj(self, x, y, updObjLoc=True):
 		'''Update/move scene origin passing absolute coordinates'''
@@ -436,7 +438,7 @@ class GEOSCENE_OT_init_org(Operator):
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
 		if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
-			print('Warning, cannot init scene origin because it already exist')
+			log.warning('Cannot init scene origin because it already exist')
 			return {'CANCELLED'}
 		else:
 			geoscn.lon, geoscn.lat = 0, 0

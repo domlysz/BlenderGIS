@@ -6,8 +6,10 @@ try:
 	from osgeo import gdal
 except:
 	HAS_GDAL = False
+	log.debug('GDAL Python binding unavailable')
 else:
 	HAS_GDAL = True
+	log.debug('GDAL Python binding available')
 
 
 #PyProj
@@ -15,8 +17,10 @@ try:
 	import pyproj
 except:
 	HAS_PYPROJ = False
+	log.debug('PyProj unavailable')
 else:
 	HAS_PYPROJ = True
+	log.debug('PyProj available')
 
 
 #PIL/Pillow
@@ -24,8 +28,10 @@ try:
 	from PIL import Image
 except:
 	HAS_PIL = False
+	log.debug('Pillow unavailable')
 else:
 	HAS_PIL = True
+	log.debug('Pillow available')
 
 
 #Imageio freeimage plugin
@@ -37,3 +43,4 @@ except Exception as e:
 	HAS_IMGIO = False
 else:
 	HAS_IMGIO = True
+	log.debug('ImageIO Freeimage plugin available')
