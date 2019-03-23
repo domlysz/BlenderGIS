@@ -46,11 +46,11 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 	def getClusterValues(cluster):
 		i, j = cluster
 		return data[i:j+1]
-		
+
 	def getClusterCentroid(cluster):
 		values = getClusterValues(cluster)
 		return sum(values) / len(values)
-		
+
 	n = len(data)
 	if k >= n:
 		raise ValueError('Too many expected classes')
@@ -76,15 +76,15 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 
 	while changeOccured:
 		loopCounter += 1
-		
+
 		# Will be set to true if at least one border has been adjusted
 		changeOccured = False
-		
+
 		# Step 2 : for each border...
 		for i in range(k-1):
 			c1 = clusters[i] #current cluster
 			c2 = clusters[i+1] #next cluster
-			
+
 			#tag if this border has been adjusted or not
 			adjusted = False
 
@@ -106,7 +106,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 					adjusted = True
 				else:
 					break
-			
+
 			# Test left border of next cluster only if we don't have adjusted the right border of current cluster
 			if not adjusted:
 				# Test the distance between the left border of the next cluster and the neightbors centroids
@@ -127,24 +127,24 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 						adjusted = True
 					else:
 						break
-			
+
 			# Loop again if some borders were adjusted
 			# or stop looping if no more move are possible
 			if adjusted:
 				changeOccured = True
-		
+
 		# Update centroids and compute the bigger shift
 		newCentroids = [getClusterCentroid(c) for c in clusters]
 		biggest_shift = max([abs(newCentroids[i] - centroids[i]) for i in range(k)])
 		centroids = newCentroids
-		
+
 		# Force stopping the main loop ...
 		# > if the centroids have stopped moving much (in the case we set a cutoff value)
 		# > or if we reach max iteration value (in the case we set a maxIter value)
 		if (cutoff and biggest_shift < cutoff) or (maxIter and loopCounter == maxIter):
 			break
-	
-	print("Converged after %s iterations" % loopCounter)
+
+	#print("Converged after %s iterations" % loopCounter)
 	return clusters
 
 
@@ -153,7 +153,7 @@ def kmeans1d(data, k, cutoff=False, maxIter=False):
 
 def getClustersValues(data, clusters):
 	return [data[i:j+1] for i, j in clusters]
-	
+
 def getBreaks(data, clusters, includeBounds=False):
 	if includeBounds:
 		return [data[0]] + [data[j] for i, j in clusters]
@@ -164,14 +164,14 @@ def getBreaks(data, clusters, includeBounds=False):
 
 if __name__ == '__main__':
 	import random, time
-	
+
 	#make data with a gap between 1000 and 2000
 	data = [random.uniform(0, 1000) for i in range(10000)]
 	data.extend([random.uniform(2000, 4000) for i in range(10000)])
 	data.sort()
-	
+
 	k = 4
-	
+
 	print('---------------')
 	print('%i values, %i classes' %(len(data),k))
 	t1 = time.clock()
@@ -181,8 +181,7 @@ if __name__ == '__main__':
 
 	print('Breaks :')
 	print(getBreaks(data, clusters))
-	
+
 	print('Clusters details (nb values, min, max) :')
 	for clusterValues in getClustersValues(data, clusters):
 		print( len(clusterValues), clusterValues[0], clusterValues[-1] )
-

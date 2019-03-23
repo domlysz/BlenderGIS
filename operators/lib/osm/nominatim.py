@@ -3,6 +3,9 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
     getattr(ssl, '_create_unverified_context', None)):
     ssl._create_default_https_context = ssl._create_unverified_context
 
+import logging
+log = logging.getLogger(__name__)
+
 import json
 
 from urllib.request import urlopen
@@ -22,6 +25,8 @@ def nominatimQuery(
     url += 'format=' + format
     url += '&q=' + quote_plus(query)
     url += '&limit=' + str(limit)
+
+    log.debug('Nominatim search request : {}'.format(url))
 
     req = Request(url)
     if referer:

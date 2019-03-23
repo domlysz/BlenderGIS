@@ -21,6 +21,8 @@
 import math
 import os
 import threading
+import logging
+log = logging.getLogger(__name__)
 
 #bpy imports
 import bpy
@@ -193,6 +195,8 @@ class BaseMap(GeoScene):
 		if self.crs != self.tm.CRS:
 			bbox = reprojBbox(self.crs, self.tm.CRS, bbox)
 		'''
+
+		log.debug('Bounding box request : {}'.format(bbox))
 
 		#Stop thread if the request is same as previous
 		#TODO
@@ -482,7 +486,7 @@ class VIEW3D_OT_map_start(Operator):
 		#check cache folder
 		folder = prefs.cacheFolder
 		if folder == "" or not os.path.exists(folder):
-			self.report({'ERROR'}, "Please define a valid cache folder path")
+			self.report({'ERROR'}, "Please define a valid cache folder path in addon's preferences")
 			return {'CANCELLED'}
 
 		if self.dialog == 'MAP':
@@ -990,11 +994,12 @@ class VIEW3D_OT_map_search(bpy.types.Operator):
 		try:
 			results = nominatimQuery(self.query, referer='bgis', user_agent=USER_AGENT)
 		except Exception as e:
-			print('Failed query : ' + str(e))
+			log.error('Failed Nominatim query', exc_info=True)
 			return {'CANCELLED'}
 		if len(results) == 0:
 			return {'CANCELLED'}
 		else:
+			log.debug('Nominatim search results : {}'.format([r['display_name'] for r in results]))
 			result = results[0]
 			lat, lon = float(result['lat']), float(result['lon'])
 			if geoscn.isGeoref:

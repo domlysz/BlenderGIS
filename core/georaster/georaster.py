@@ -21,6 +21,9 @@
 
 import os
 
+import logging
+log = logging.getLogger(__name__)
+
 from ..lib import Tyf #geotags reader
 
 from .georef import GeoRef
@@ -139,7 +142,7 @@ class GeoRaster():
 		try:
 			self.georef = GeoRef.fromTyf(tif)
 		except Exception as e:
-			print('Warning : cannot extract georefencing informations from tif tags. {}'.format(e))
+			log.warning('Cannot extract georefencing informations from tif tags', exc_info=True)
 			pass
 
 

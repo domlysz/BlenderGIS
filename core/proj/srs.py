@@ -16,6 +16,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
+import logging
+log = logging.getLogger(__name__)
 
 from .utm import UTM, UTM_EPSG_CODES
 from .srv import EPSGIO
@@ -40,7 +42,7 @@ class SRS():
 			cls(crs)
 			return True
 		except Exception as e:
-			print('Cannot initialize crs : ' + str(e))
+			log.error('Cannot initialize crs', exc_info=True)
 			return False
 
 	def __init__(self, crs):

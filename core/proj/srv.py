@@ -16,7 +16,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
-
+import logging
+log = logging.getLogger(__name__)
 
 
 from urllib.request import Request, urlopen
@@ -41,10 +42,10 @@ class EPSGIO():
 			urlopen(rq, timeout=1)
 			return True
 		except URLError as e:
-			print('Cannot ping {} web service, {}'.format(url, e.reason))
+			log.error('Cannot ping {} web service, {}'.format(url, e.reason))
 			return False
 		except HTTPError as e:
-			print('Cannot ping {} web service, http error {}'.format(url, e.code))
+			lor.error('Cannot ping {} web service, http error {}'.format(url, e.code))
 			return False
 		except:
 			raise
@@ -61,12 +62,13 @@ class EPSGIO():
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
 
+		log.debug(url)
+
 		try:
 			rq = Request(url, headers={'User-Agent': USER_AGENT})
 			response = urlopen(rq).read().decode('utf8')
 		except (URLError, HTTPError) as err:
-			#print(err.code, err.reason, err.headers)
-			print(url)
+			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 			raise
 
 		obj = json.loads(response)
@@ -104,13 +106,13 @@ class EPSGIO():
 		result = []
 		for part in parts:
 			url = urlTemplate.replace("{POINTS}", part)
+			log.debug(url)
 
 			try:
 				rq = Request(url, headers={'User-Agent': USER_AGENT})
 				response = urlopen(rq).read().decode('utf8')
 			except (URLError, HTTPError) as err:
-				#print(err.code, err.reason, err.headers)
-				print(url)
+				log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 				raise
 
 			obj = json.loads(response)
@@ -123,20 +125,18 @@ class EPSGIO():
 		query = str(query).replace(' ', '+')
 		url = "http://epsg.io/?q={QUERY}&format=json"
 		url = url.replace("{QUERY}", query)
+		log.debug('Search crs : {}'.format(url))
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		response = urlopen(rq).read().decode('utf8')
 		obj = json.loads(response)
-		'''
-		for res in obj['results']:
-			#print( res['name'], res['code'], res['proj4'] )
-			print( res['code'], res['name'] )
-		'''
+		log.debug('Search results : {}'.format([ (r['code'], r['name']) for r in obj['results'] ]))
 		return obj['results']
 
 	@staticmethod
 	def getEsriWkt(epsg):
 		url = "http://epsg.io/{CODE}.esriwkt"
 		url = url.replace("{CODE}", str(epsg))
+		log.debug(url)
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		wkt = urlopen(rq).read().decode('utf8')
 		return wkt

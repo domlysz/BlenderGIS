@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
-
+import logging
+log = logging.getLogger(__name__)
 import os
 import colorsys
 from xml.dom.minidom import parse, parseString
@@ -238,19 +239,19 @@ class Gradient():
 		try:
 			domData = parse(svg)
 		except Exception as e:
-			print("Cannot parse svg file : " + str(e))
+			log.error("Cannot parse svg file : {}".format(e))
 			return False
 		linearGradients = domData.getElementsByTagName('linearGradient')
 		nbGradients = len(linearGradients)
 		if nbGradients == 0:
-			print("No gradient in this SVG")
+			log.error("No gradient in this SVG")
 			return False
 		elif nbGradients > 1:
-			print('Only the first gradient will be imported')
+			log.error('Only the first gradient will be imported')
 		linearGradient = linearGradients[0]
 		stops = linearGradient.getElementsByTagName('stop')
 		if len(stops) <= 1:
-			print('No enough stops')
+			log.error('No enough stops')
 			return False
 		#begin import
 		for stop in stops:
@@ -326,7 +327,7 @@ class Gradient():
 		try:
 			idx = self.colors.index(color)
 		except ValueError as e :
-			print('Cannot remove color from this gradient : {}'.format(e))
+			log.error('Cannot remove color from this gradient : {}'.format(e))
 			return False
 		else:
 			self.stops.pop(idx)
@@ -336,7 +337,7 @@ class Gradient():
 		try:
 			idx = self.positions.index(pos)
 		except ValueError as e:
-			print('Cannot remove position from this gradient : {}'.format(e))
+			log.error('Cannot remove position from this gradient : {}'.format(e))
 			return False
 		else:
 			self.stops.pop(idx)

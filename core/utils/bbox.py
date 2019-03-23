@@ -20,6 +20,8 @@
 #  ***** GPL LICENSE BLOCK *****
 
 from . import XY
+import logging
+log = logging.getLogger(__name__)
 
 class BBOX(dict):
 	'''A class to represent a bounding box'''
@@ -128,7 +130,7 @@ class BBOX(dict):
 	def toGeo(self, geoscn):
 		'''Convert the BBOX into Spatial Ref System space defined in Scene'''
 		if geoscn.isBroken or not geoscn.isGeoref:
-			print('Warning : cannot convert bbox, invalid georef ')
+			log.warning('Cannot convert bbox, invalid georef')
 			return None
 		xmax = geoscn.crsx + (self.xmax * geoscn.scale)
 		ymax = geoscn.crsy + (self.ymax * geoscn.scale)
