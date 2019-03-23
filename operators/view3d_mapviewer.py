@@ -76,6 +76,8 @@ class BaseMap(GeoScene):
 		prefs = context.preferences.addons[PKG].preferences
 		cacheFolder = prefs.cacheFolder
 
+		self.synchOrj = prefs.synchOrj
+
 		#Get resampling algo preference and set the constant
 		MapService.RESAMP_ALG = prefs.resamplAlg
 
@@ -97,7 +99,7 @@ class BaseMap(GeoScene):
 		if not self.hasCRS:
 			self.crs = self.tm.CRS
 		if not self.hasOriginPrj:
-			self.setOriginPrj(0, 0)
+			self.setOriginPrj(0, 0, self.synchOrj)
 		if not self.hasScale:
 			self.scale = 1
 		if not self.hasZoom:
@@ -161,7 +163,7 @@ class BaseMap(GeoScene):
 
 	def moveOrigin(self, dx, dy, useScale=True, updObjLoc=True):
 		'''Move scene origin and update props'''
-		self.moveOriginPrj(dx, dy, useScale, updObjLoc) #geoscene function
+		self.moveOriginPrj(dx, dy, useScale, updObjLoc, self.synchOrj) #geoscene function
 
 	def request(self):
 		'''Request map service to build a mosaic of required tiles to cover view3d area'''
@@ -426,6 +428,7 @@ class VIEW3D_OT_map_start(Operator):
 			layout.prop(addonPrefs, "zoomToMouse")
 			layout.prop(addonPrefs, "lockObj")
 			layout.prop(addonPrefs, "lockOrigin")
+			layout.prop(addonPrefs, "synchOrj")
 
 		elif self.dialog == 'MAP':
 			layout.prop(self, 'src', text='Source')

@@ -33,6 +33,31 @@ from .operators.utils import mouseTo3d
 
 PKG = __package__
 
+'''
+Policy :
+This module manages in priority the CRS coordinates of the scene's origin and
+updates the corresponding longitude/latitude only if it can to do the math.
+
+A scene is considered correctly georeferenced when at least a valid CRS is defined
+and the coordinates of scene's origin in this CRS space is set. A geoscene will be
+broken if the origin is set but not the CRS or if the origin is only set as longitude/latitude.
+
+Changing the CRS will raise an error if updating existing origin coordinate is not possible.
+
+Both methods setOriginGeo() and setOriginPrj() try a projection task to maintain
+coordinates synchronized. Failing reprojecion does not abort the exec, but will
+trigger deletion of unsynch coordinates. Synchronization can be disable for
+setOriginPrj() method only.
+
+Except setOriginGeo() method, dealing directly with longitude/latitude
+automatically trigger a reprojection task which will raise an error if failing.
+
+Sequences of methods :
+moveOriginPrj() | updOriginPrj() > setOriginPrj() > [reprojPt()]
+moveOriginGeo() > updOriginGeo() > reprojPt() > updOriginPrj() > setOriginPrj()
+
+Standalone properties (lon, lat, crsx et crsy) can be edited independently without any extra checks.
+'''
 
 class SK():
 	"""Alias to Scene Keys used to store georef infos"""
@@ -137,22 +162,26 @@ class GeoScene():
 				self.delOriginPrj()
 				log.warning('Origin proj has been deleted because the property could not be updated', exc_info=True)
 
-	def setOriginPrj(self, x, y):
+	def setOriginPrj(self, x, y, synch=True):
 		self.crsx, self.crsy = x, y
-		try:
-			self.lon, self.lat = reprojPt(self.crs, 4326, x, y)
-		except Exception as e:
-			if self.hasOriginGeo:
-				self.delOriginGeo()
-				log.warning('Origin geo has been deleted because the property could not be updated', exc_info=True)
+		if synch:
+			try:
+				self.lon, self.lat = reprojPt(self.crs, 4326, x, y)
+			except Exception as e:
+				if self.hasOriginGeo:
+					self.delOriginGeo()
+					log.warning('Origin geo has been deleted because the property could not be updated', exc_info=True)
+		elif self.hasOriginGeo:
+			self.delOriginGeo()
+			log.warning('Origin geo has been deleted because coordinate synchronization is disable')
 
-	def updOriginPrj(self, x, y, updObjLoc=True):
+	def updOriginPrj(self, x, y, updObjLoc=True, synch=True):
 		'''Update/move scene origin passing absolute coordinates'''
 		if not self.hasOriginPrj:
 			raise Exception("Cannot update an unset origin.")
 		dx = x - self.crsx
 		dy = y - self.crsy
-		self.setOriginPrj(x, y)
+		self.setOriginPrj(x, y, synch)
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)
 
@@ -171,16 +200,15 @@ class GeoScene():
 		y = self.lat + dy
 		self.updOriginGeo(x, y, updObjLoc=updObjLoc)
 
-
-	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True):
+	def moveOriginPrj(self, dx, dy, useScale=True, updObjLoc=True, synch=True):
 		'''Move scene origin passing relative deltas'''
 		if not self.hasOriginPrj:
 			raise Exception("Cannot move an unset origin.")
 
 		if useScale:
-			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale)
+			self.setOriginPrj(self.crsx + dx * self.scale, self.crsy + dy * self.scale, synch)
 		else:
-			self.setOriginPrj(self.crsx + dx, self.crsy + dy)
+			self.setOriginPrj(self.crsx + dx, self.crsy + dy, synch)
 
 		if updObjLoc:
 			self._moveObjLoc(dx, dy)

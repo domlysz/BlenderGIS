@@ -158,6 +158,10 @@ class BGIS_PREFS(AddonPreferences):
 		set = setCacheFolder
 		)
 
+	synchOrj: BoolProperty(
+		name="Synch. lat/long",
+		description='Keep geo origin synchronized with crs origin. Can be slow with remote reprojection services',
+		default=True)
 
 	zoomToMouse: BoolProperty(name="Zoom to mouse", description='Zoom towards the mouse pointer position', default=True)
 
@@ -223,7 +227,7 @@ class BGIS_PREFS(AddonPreferences):
 		row.prop(self, "zoomToMouse")
 		row.prop(self, "lockObj")
 		row.prop(self, "lockOrigin")
-		row.label(text='Font color:')
+		row.prop(self, "synchOrj")
 		row = box.row()
 		row.prop(self, "resamplAlg")
 
