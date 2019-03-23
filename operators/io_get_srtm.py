@@ -91,7 +91,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		e = 'east={}'.format(xmax)
 		s = 'south={}'.format(ymin)
 		n = 'north={}'.format(ymax)
-		url = 'http://opentopo.sdsc.edu/otr/getdem?demtypes=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
+		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
 		log.debug(url)
 
 		# Download the file from url and save it locally
