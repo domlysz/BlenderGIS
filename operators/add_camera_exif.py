@@ -20,6 +20,9 @@
 import os
 from math import pi
 
+import logging
+log = logging.getLogger(__name__)
+
 import bpy
 from bpy.props import StringProperty, CollectionProperty, EnumProperty
 from bpy.types import Panel, Operator, OperatorFileListElement
@@ -130,7 +133,8 @@ class CAMERA_OT_geophotos_add(Operator):
             try:
                 exif = Tyf.open(filepath)
             except Exception as e:
-                self.report({'ERROR'},"Unable to open file. " + str(e))
+                log.error("Unable to open file", exc_info=True)
+                self.report({'ERROR'},"Unable to open file. Checks logs for more infos.")
                 return {'CANCELLED'}
 
             #tags = {t.key:exif[t.key] for t in exif.exif.tags() if t.key != 'Unknown' }
@@ -157,7 +161,8 @@ class CAMERA_OT_geophotos_add(Operator):
             try:
                 x, y = reprojPt(4326, geoscn.crs, lon, lat)
             except Exception as e:
-                self.report({'ERROR'},"Reprojection error. " + str(e))
+                log.erro("Reprojection fails", exc_info=True)
+                self.report({'ERROR'},"Reprojection error. Check logs for more infos.")
                 return {'CANCELLED'}
 
             try:

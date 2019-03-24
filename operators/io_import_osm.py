@@ -3,6 +3,9 @@ import time
 import json
 import random
 
+import logging
+log = logging.getLogger(__name__)
+
 import bpy
 import bmesh
 from bpy.types import Operator, Panel, AddonPreferences
@@ -181,7 +184,8 @@ class OSM_IMPORT():
 		try:
 			rprj = Reproj(4326, dstCRS)
 		except Exception as e:
-			self.report({'ERROR'}, "Unable to reproject data. " + str(e))
+			log.error('Unable to reproject data', exc_info=True)
+			self.report({'ERROR'}, "Unable to reproject data ckeck logs for more infos")
 			return {'FINISHED'}
 
 		if self.useElevObj:
@@ -483,8 +487,7 @@ class OSM_IMPORT():
 							try:
 								relation.objects.link(obj)
 							except Exception as e:
-								#print('Unable to put ' + obj.name + ' in ' + name)
-								print(str(e)) #error already in group
+								log.error('Object {} already in group {}'.format(obj.name, name), exc_info=True)
 
 				#cleanup
 				if not relation.objects:
@@ -555,7 +558,7 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 		#	result = api.parse_xml(f.read()) #WARNING read() load all the file into memory
 		result = api.parse_xml(self.filepath)
 		t = time.clock() - t0
-		print('parsed in %f' % t)
+		log.info('File parsed in {} seconds'.format(round(t, 2)))
 
 		#Get bbox
 		bounds = result.bounds
@@ -566,7 +569,8 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 			try:
 				geoscn.crs = utm.lonlat_to_epsg(lon, lat)
 			except Exception as e:
-				self.report({'ERROR'}, str(e))
+				log.error("Cannot set UTM CRS", exc_info=True)
+				self.report({'ERROR'}, "Cannot set UTM CRS, ckeck logs for more infos")
 				return {'CANCELLED'}
 		#Set scene origin georef
 		if not geoscn.hasOriginPrj:
@@ -577,7 +581,7 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 		t0 = time.clock()
 		self.build(context, result, geoscn.crs)
 		t = time.clock() - t0
-		print('build in %f' % t)
+		log.info('Mesh build in {} seconds'.format(round(t, 2)))
 
 		bbox = getBBOX.fromScn(scn)
 		adjust3Dview(context, bbox)
@@ -652,15 +656,16 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 		api = overpy.Overpass()
 
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
-		# print(query) # can fails with non utf8 chars
+		log.debug('Overpass query : {}'.format(query)) # can fails with non utf8 chars
+
 		try:
 			result = api.query(query)
 		except Exception as e:
-			print(str(e))
-			self.report({'ERROR'}, "Overpass query failed")
+			log.error("Overpass query failed", exc_info=True)
+			self.report({'ERROR'}, "Overpass query failed, ckeck logs for more infos.")
 			return {'CANCELLED'}
 		else:
-			print('Overpass query success')
+			log.info('Overpass query successful')
 
 		self.build(context, result, geoscn.crs)
 

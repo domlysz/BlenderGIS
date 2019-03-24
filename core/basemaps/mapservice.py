@@ -720,8 +720,9 @@ class MapService():
 		cache = self.getCache(laykey, toDstGrid)
 		missing = cache.listMissingTiles(tiles)
 		nMissing = len(missing)
+		nExists = self.nbTiles - len(missing)
+		log.debug("{} tiles requested, {} already in cache, {} remains to download".format(self.nbTiles, nExists, nMissing))
 		if cpt:
-			nExists = self.nbTiles - len(missing)
 			self.cptTiles += nExists
 
 		#Downloading tiles

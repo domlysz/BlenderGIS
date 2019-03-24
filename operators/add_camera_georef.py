@@ -16,7 +16,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
-
+import logging
+log = logging.getLogger(__name__)
 
 import bpy
 from mathutils import Vector

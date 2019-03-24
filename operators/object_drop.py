@@ -18,6 +18,8 @@
 
 # Original Drop to Ground addon code from Unnikrishnan(kodemax), Florian Meyer(testscreenings)
 
+import logging
+log = logging.getLogger(__name__)
 
 import bpy
 import bmesh
@@ -117,13 +119,13 @@ class OBJECT_OT_drop_to_ground(Operator):
             if not minLoc:
                 msg = "Object {} is of type {} works only with Use Center option " \
                           "checked".format(ob.name, ob.type)
-                print(msg)
+                log.info(msg)
 
             x, y = minLoc.x, minLoc.y
             hit = rayCaster.rayCast(x, y)
 
             if not hit.hit:
-                print(ob.name + " did not hit the Active Object")
+                log.info(ob.name + " did not hit the Active Object")
                 continue
 
             # simple drop down

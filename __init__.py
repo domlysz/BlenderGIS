@@ -53,7 +53,8 @@ import bpy, os
 
 import logging
 #temporary set log level, will be overriden reading addon prefs
-logging.basicConfig(level=logging.getLevelName('INFO')) #stdout stream
+logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
+logging.basicConfig(level=logging.getLevelName('INFO'), format=logsFormat) #stdout stream
 
 #from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core.settings import getSettings, setSettings

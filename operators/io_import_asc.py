@@ -6,7 +6,9 @@ import string
 import bpy
 import math
 import string
-from pprint import pprint
+
+import logging
+log = logging.getLogger(__name__)
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
@@ -92,11 +94,6 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
             georefManagerLayout(self, context)
 
 
-    def err(self, msg):
-        '''Report error throught a Blender's message box'''
-        self.report({'ERROR'}, msg)
-        return {'CANCELLED'}
-
     def total_lines(self, filename):
         """
         Count newlines in file.
@@ -169,7 +166,8 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
             try:
                 geoscn.crs = self.fileCRS
             except Exception as e:
-                self.report({'ERROR'}, str(e))
+                log.error("Cannot set scene crs", exc_info=True)
+                self.report({'ERROR'}, "Cannot set scene crs, check logs for more infos")
                 return {'CANCELLED'}
 
         #build reprojector objects
@@ -185,7 +183,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
         #Path
         filename = self.filepath
         name = os.path.splitext(os.path.basename(filename))[0]
-        print('Importing {}...'.format(filename))
+        log.info('Importing {}...'.format(filename))
 
         f = open(filename, 'r')
         meta_re = re.compile('^([^\s]+)\s+([^\s]+)$')  # 'abc  123'
@@ -195,7 +193,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
             m = meta_re.match(line)
             if m:
                 meta[m.group(1).lower()] = m.group(2)
-        print(pprint(meta))
+        log.debug(meta)
 
         # step allows reduction during import, only taking every Nth point
         step = self.step
@@ -218,7 +216,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
         # now set the correct offset for the mesh
         if rprj:
             reprojection['to'] = XY(*rprjToScene.pt(*reprojection['from']))
-            print('{name} reprojected from {from} to {to}'.format(**reprojection, name=name))
+            log.debug('{name} reprojected from {from} to {to}'.format(**reprojection, name=name))
         else:
             reprojection['to'] = reprojection['from']
 
@@ -244,7 +242,8 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
             # spec doesn't require newline separated rows so make it handle a single line of all values
             coldata = read(f, ncols)
             if len(coldata) != ncols:
-                self.report({'ERROR'}, 'Incorrect number of columns for row {row}. Expected {expected}, got {actual}.'.format(row=nrows-y, expected=ncols, actual=len(coldata)))
+                log.error('Incorrect number of columns for row {row}. Expected {expected}, got {actual}.'.format(row=nrows-y, expected=ncols, actual=len(coldata)))
+                self.report({'ERROR'}, 'Incorrect number of columns for row, check logs for more infos')
                 return {'CANCELLED'}
 
             for i in range(step - 1):
@@ -261,7 +260,8 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
                     try:
                         vertices.append(pt + (float(coldata[x]),))
                     except ValueError as e:
-                        self.report({'ERROR'}, 'Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
+                        log.error('Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
+                        self.report({'ERROR'}, 'Cannot convert value to float')
                         return {'CANCELLED'}
 
         if self.importMode == 'MESH':

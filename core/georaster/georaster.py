@@ -142,7 +142,7 @@ class GeoRaster():
 		try:
 			self.georef = GeoRef.fromTyf(tif)
 		except Exception as e:
-			log.warning('Cannot extract georefencing informations from tif tags', exc_info=True)
+			log.warning('Cannot extract georefencing informations from tif tags')#, exc_info=True)
 			pass
 
 

@@ -450,7 +450,8 @@ class GEOSCENE_OT_set_crs(Operator):
 		try:
 			geoscn.crs = prefs.predefCrs
 		except Exception as err:
-			self.report({'ERROR'}, 'Cannot update crs. '+str(err))
+			log.error('Cannot update crs', exc_info=True)
+			self.report({'ERROR'}, 'Cannot update crs. Check logs form more info')
 			return {'CANCELLED'}
 		#
 		context.area.tag_redraw()
@@ -538,7 +539,8 @@ class GEOSCENE_OT_link_org_geo(Operator):
 			try:
 				geoscn.lon, geoscn.lat = reprojPt(geoscn.crs, 4326, geoscn.crsx, geoscn.crsy)
 			except Exception as err:
-				self.report({'ERROR'}, str(err))
+				log.error('Cannot compute lat/lon coordinates', exc_info=True)
+				self.report({'ERROR'}, 'Cannot compute lat/lon. Check logs for more infos.')
 				return {'CANCELLED'}
 		else:
 			self.report({'ERROR'}, 'No enough infos')
@@ -559,7 +561,8 @@ class GEOSCENE_OT_link_org_prj(Operator):
 			try:
 				geoscn.crsx, geoscn.crsy = reprojPt(4326, geoscn.crs, geoscn.lon, geoscn.lat)
 			except Exception as err:
-				self.report({'ERROR'}, str(err))
+				log.error('Cannot compute crs coordinates', exc_info=True)
+				self.report({'ERROR'}, 'Cannot compute crs coordinates. Check logs for more infos.')
 				return {'CANCELLED'}
 		else:
 			self.report({'ERROR'}, 'No enough infos')

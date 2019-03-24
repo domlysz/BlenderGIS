@@ -24,6 +24,9 @@ import numpy as np
 import bpy, bmesh
 import math
 
+import logging
+log = logging.getLogger(__name__)
+
 from ...core.georaster import GeoRaster
 
 
@@ -261,7 +264,8 @@ class bpyGeoRaster(GeoRaster):
 		try:
 			self.bpyImg = bpy.data.images.load(self.path)
 		except Exception as e:
-			raise IOError("Unable to open raster : {}".format(e))
+			log.error("Unable to open raster", exc_info=True)
+			raise IOError("Unable to open raster") #it will not print traceback (instead of a bare raise)
 		if pack:
 			#WARN : packed image can only be stored as png and this format does not support float32 datatype
 			self.bpyImg.pack()

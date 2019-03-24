@@ -4,6 +4,8 @@ import bpy
 import bmesh
 import mathutils
 
+import logging
+log = logging.getLogger(__name__)
 
 from ..core.lib.shapefile import Writer as shpWriter
 from ..core.lib.shapefile import POINTZ, POLYLINEZ, POLYGONZ, MULTIPOINTZ
@@ -94,14 +96,16 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		objs = bpy.context.selected_objects
 		if len(objs) == 0 or len(objs)>1:
 			self.report({'INFO'}, "Selection is empty or too much object selected")
-			print("Selection is empty or too much object selected")
 			return {'CANCELLED'}
 		obj = objs[0]
 		if obj.type != 'MESH':
 			self.report({'INFO'}, "Selection isn't a mesh")
-			print("Selection isn't a mesh")
 			return {'CANCELLED'}
 		'''
+
+		if not self.selectedObj or not self.selectedColl:
+			self.report({'ERROR'}, "Nothing to export")
+			return {'CANCELLED'}
 
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
@@ -109,11 +113,11 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			try:
 				wkt = crs.getWKT()
 			except Exception as e:
-				print('Warning : cannot convert crs to wkt. {}'.format(e))
+				log.warning('Cannot convert crs to wkt', exc_info=True)
 				wkt = None
 		elif geoscn.isBroken:
-				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'CANCELLED'}
+			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+			return {'CANCELLED'}
 		else:
 			dx, dy = (0, 0)
 			wkt = None
@@ -124,6 +128,9 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		elif self.mode == 'COLLEC':
 			objects = bpy.data.collections[self.selectedColl].all_objects
 
+		if len(objects) == 0:
+			self.report({'ERROR'}, "No object to export")
+			return {'CANCELLED'}
 
 		outShp = shpWriter(filePath)
 		if self.exportType == 'POLYGONZ':
@@ -165,7 +172,6 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 						else:
 							outShp.field(k, fieldType, nLen, dLen)
 
-
 		for i, obj in enumerate(objects):
 
 			loc = obj.location
@@ -178,7 +184,6 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					continue
 					'''
 					self.report({'ERROR'}, "No vertice to export")
-					print("No vertice to export")
 					return {'CANCELLED'}
 					'''
 
@@ -201,7 +206,6 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					continue
 					'''
 					self.report({'ERROR'}, "No edge to export")
-					print("No edge to export")
 					return {'CANCELLED'}
 					'''
 
@@ -227,7 +231,6 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					continue
 					'''
 					self.report({'ERROR'}, "No face to export")
-					print("No face to export")
 					return {'CANCELLED'}
 					'''
 
@@ -261,7 +264,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 						try:
 							v = float(v)
 						except ValueError:
-							print('Cannot cast value {} to float for appending field {}, NULL value will be inserted instead'.format(v, k))
+							log.info('Cannot cast value {} to float for appending field {}, NULL value will be inserted instead'.format(v, k))
 							v = None
 					attributes[k] = v
 				attributes.update({f[0]:None for f in outShp.fields if f[0] not in attributes.keys()})
@@ -277,7 +280,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			prj.close()
 
 		self.report({'INFO'}, "Export complete")
-		print("Export complete")
+
 		return {'FINISHED'}
 
 

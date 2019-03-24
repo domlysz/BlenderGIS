@@ -26,6 +26,9 @@ import math
 from mathutils import Vector
 import numpy as np#Ship with Blender since 2.70
 
+import logging
+log = logging.getLogger(__name__)
+
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 
@@ -193,11 +196,6 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 		split.prop(self, "rastCRS", text='')
 		row.operator("bgis.add_predef_crs", text='', icon='ADD')
 
-	def err(self, msg):
-		'''Report error throught a Blender's message box'''
-		self.report({'ERROR'}, msg)
-		return {'CANCELLED'}
-
 	@classmethod
 	def poll(cls, context):
 		return context.mode == 'OBJECT'
@@ -226,7 +224,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				geoscn.crs = rastCRS
 			except Exception as e:
-				self.report({'ERROR'}, str(e))
+				log.error("Cannot set scene crs", exc_info=True)
+				self.report({'ERROR'}, "Cannot set scene crs, check logs for more infos")
 				return {'CANCELLED'}
 
 		#Raster reprojection throught UV mapping
@@ -250,7 +249,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				rast = bpyGeoRaster(filePath)
 			except IOError as e:
-				return self.err(str(e))
+				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+				return {'CANCELLED'}
 			#Get or set georef dx, dy
 			if not geoscn.isGeoref:
 				dx, dy = rast.center.x, rast.center.y
@@ -274,17 +274,22 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 		######################################
 		if self.importMode == 'BKG':#background
 			if rprj:
-				return self.err("Raster reprojection not possible in background mode") #TODO, do gdal true reproj
+				#TODO, do gdal true reproj
+				self.report({'ERROR'}, "Raster reprojection is not possible in background mode")
+				return {'CANCELLED'}
 			#Load raster
 			try:
 				rast = bpyGeoRaster(filePath)
 			except IOError as e:
-				return self.err(str(e))
+				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+				return {'CANCELLED'}
 			#Check pixel size and rotation
 			if rast.rotation.xy != [0,0]:
-				return self.err("Cannot rotate background image")
+				self.report({'ERROR'}, "Cannot apply a rotation in background image mode")
+				return {'CANCELLED'}
 			if abs(round(rast.pxSize.x, 3)) != abs(round(rast.pxSize.y, 3)):
-				return self.err("Background image needs equal pixel size in map units in both x ans y axis")
+				self.report({'ERROR'}, "Background image needs equal pixel size in map units in both x ans y axis")
+				return {'CANCELLED'}
 			#
 			trueSizeX = rast.geoSize.x
 			trueSizeY = rast.geoSize.y
@@ -315,7 +320,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 		######################################
 		if self.importMode == 'MESH':
 			if not geoscn.isGeoref or len(self.objectsLst) == 0:
-				return self.err("There isn't georef mesh to apply on")
+				self.report({'ERROR'}, "There isn't georef mesh to apply on")
+				return {'CANCELLED'}
 			# Get choosen object
 			obj = scn.objects[int(self.objectsLst)]
 			# Select and active this obj
@@ -328,8 +334,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			#Load raster
 			try:
 				rast = bpyGeoRaster(filePath, subBoxGeo=subBox)
-			except (IOError, OverlapError) as e:
-				return self.err(str(e))
+			except IOError as e:
+				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+				return {'CANCELLED'}
+			except OverlapError:
+				self.report({'ERROR'}, "Non overlap data")
+				return {'CANCELLED'}
 			# Add UV map texture layer
 			mesh = obj.data
 			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')
@@ -346,7 +356,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			# Get reference plane
 			if self.demOnMesh:
 				if not geoscn.isGeoref or len(self.objectsLst) == 0:
-					return self.err("There isn't georef mesh to apply on")
+					self.report({'ERROR'}, "There isn't georef mesh to apply on")
+					return {'CANCELLED'}
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
 				mesh = obj.data
@@ -363,8 +374,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			# Load raster
 			try:
 				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
-			except (IOError, OverlapError) as e:
-				return self.err(str(e))
+			except IOError as e:
+				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+				return {'CANCELLED'}
+			except OverlapError:
+				self.report({'ERROR'}, "Non overlap data")
+				return {'CANCELLED'}
 
 			# If needed, create a new plane object from raster extent
 			if not self.demOnMesh:
@@ -405,7 +420,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			subBox = None
 			if self.clip:
 				if not geoscn.isGeoref or len(self.objectsLst) == 0:
-					return self.err("No working extent")
+					self.report({'ERROR'}, "No working extent")
+					return {'CANCELLED'}
 				# Get choosen object
 				obj = scn.objects[int(self.objectsLst)]
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
@@ -415,8 +431,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			# Load raster
 			try:
 				grid = GeoRaster(filePath, subBoxGeo=subBox, useGDAL=HAS_GDAL)
-			except (IOError, OverlapError) as e:
-				return self.err(str(e))
+			except IOError as e:
+				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+				return {'CANCELLED'}
+			except OverlapError:
+				self.report({'ERROR'}, "Non overlap data")
+				return {'CANCELLED'}
 
 			if not geoscn.isGeoref:
 				dx, dy = grid.center.x, grid.center.y

@@ -7,6 +7,8 @@ import bmesh
 import math
 from mathutils import Vector
 
+import logging
+log = logging.getLogger(__name__)
 
 from ..core.lib.shapefile import Reader as shpReader
 
@@ -82,7 +84,7 @@ class IMPORTGIS_OT_shapefile_file_dialog(Operator):
 		if os.path.exists(self.filepath):
 			bpy.ops.importgis.shapefile_props_dialog('INVOKE_DEFAULT', filepath=self.filepath)
 		else:
-			self.report({'ERROR'}, "Invalid file")
+			self.report({'ERROR'}, "Invalid filepath")
 		return{'FINISHED'}
 
 
@@ -106,7 +108,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		try:
 			shp = shpReader(self.filepath)
 		except Exception as e:
-			print("Warning : unable to read shapefile {}".format(e))
+			log.warning("Unable to read shapefile fields", exc_info=True)
 			return fieldsItems
 		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
 		for i, field in enumerate(fields):
@@ -270,8 +272,8 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 
 		geoscn = GeoScene()
 		if geoscn.isBroken:
-				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
-				return {'CANCELLED'}
+			self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
+			return {'CANCELLED'}
 
 		if geoscn.isGeoref:
 			if self.reprojection:
@@ -286,7 +288,8 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 				fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
 				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
-			self.report({'ERROR'}, str(e))
+			log.error('Shapefile import fails', exc_info=True)
+			self.report({'ERROR'}, 'Shapefile import fails, check logs.')
 			return {'CANCELLED'}
 
 		return{'FINISHED'}
@@ -345,16 +348,17 @@ class IMPORTGIS_OT_shapefile(Operator):
 		shpName = os.path.basename(self.filepath)[:-4]
 
 		#Get shp reader
-		print("Read shapefile...")
+		log.info("Read shapefile...")
 		try:
 			shp = shpReader(self.filepath)
 		except Exception as e:
-			self.report({'ERROR'}, "Unable to read shapefile : " + str(e))
+			log.error("Unable to read shapefile", exc_info=True)
+			self.report({'ERROR'}, "Unable to read shapefile, check logs")
 			return {'CANCELLED'}
 
 		#Check shape type
 		shpType = featureType[shp.shapeType]
-		print('Feature type : ' + shpType)
+		log.info('Feature type : ' + shpType)
 		if shpType not in ['Point','PolyLine','Polygon','PointZ','PolyLineZ','PolygonZ']:
 			self.report({'ERROR'}, "Cannot process multipoint, multipointZ, pointM, polylineM, polygonM and multipatch feature type")
 			return {'CANCELLED'}
@@ -370,7 +374,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		#Get fields
 		fields = [field for field in shp.fields if field[0] != 'DeletionFlag'] #ignore default DeletionFlag field
 		fieldsNames = [field[0] for field in fields]
-		#print("DBF fields : "+str(fieldsNames))
+		log.debug("DBF fields : "+str(fieldsNames))
 
 		if self.separateObjects or self.fieldElevName or self.fieldObjName or self.fieldExtrudeName:
 			self.useDbf = True
@@ -381,14 +385,16 @@ class IMPORTGIS_OT_shapefile(Operator):
 			try:
 				nameFieldIdx = fieldsNames.index(self.fieldObjName)
 			except Exception as e:
-				self.report({'ERROR'}, "Unable to find name field. " + str(e))
+				log.error('Unable to find name field', exc_info=True)
+				self.report({'ERROR'}, "Unable to find name field")
 				return {'CANCELLED'}
 
 		if self.fieldElevName:
 			try:
 				zFieldIdx = fieldsNames.index(self.fieldElevName)
 			except Exception as e:
-				self.report({'ERROR'}, "Unable to find elevation field. " + str(e))
+				log.error('Unable to find elevation field', exc_info=True)
+				self.report({'ERROR'}, "Unable to find elevation field")
 				return {'CANCELLED'}
 
 			if fields[zFieldIdx][1] not in ['N', 'F', 'L'] :
@@ -399,6 +405,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 			try:
 				extrudeFieldIdx = fieldsNames.index(self.fieldExtrudeName)
 			except ValueError:
+				log.error('Unable to find extrusion field', exc_info=True)
 				self.report({'ERROR'}, "Unable to find extrusion field")
 				return {'CANCELLED'}
 
@@ -419,16 +426,18 @@ class IMPORTGIS_OT_shapefile(Operator):
 			try:
 				geoscn.crs = shpCRS
 			except Exception as e:
-				self.report({'ERROR'}, str(e))
+				log.error("Cannot set scene crs", exc_info=True)
+				self.report({'ERROR'}, "Cannot set scene crs, check logs for more infos")
 				return {'CANCELLED'}
 
 		#Init reprojector class
 		if geoscn.crs != shpCRS:
-			print("Data will be reprojected from " + shpCRS + " to " + geoscn.crs)
+			log.info("Data will be reprojected from {} to {}".format(shpCRS, geoscn.crs))
 			try:
 				rprj = Reproj(shpCRS, geoscn.crs)
 			except Exception as e:
-				self.report({'ERROR'}, "Unable to reproject data. " + str(e))
+				log.error('Reprojection fails', exc_info=True)
+				self.report({'ERROR'}, "Unable to reproject data, check logs for more infos.")
 				return {'CANCELLED'}
 			if rprj.iproj == 'EPSGIO':
 				if shp.numRecords > 100:
@@ -499,7 +508,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 				try: #prevent "_shape object has no attribute parts" error
 					partsIdx = shape.parts
 				except Exception as e:
-					print('Warning feature {} : {}'.format(i, e))
+					log.warning('Cannot access "parts" attribute for feature {} : {}'.format(i, e))
 					partsIdx = [0]
 			nbParts = len(partsIdx)
 
@@ -520,7 +529,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 				try:
 					offset = float(record[extrudeFieldIdx])
 				except Exception as e:
-					print('Warning feature {} : cannot extract extrusion value. Error {}'.format(i, e))
+					log.waring('Cannot extract extrusion value for feature {} : {}'.format(i, e))
 					offset = 0 #null values will be set to zero
 
 			#Iter over parts
@@ -548,7 +557,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 						try:
 							z = float(record[zFieldIdx])
 						except Exception as e:
-							print('Warning feature {}: cannot extract elevation value. Error {}'.format(i, e))
+							log.warning('Cannot extract elevation value for feature {} : {}'.format(i, e))
 							z = 0 #null values will be set to zero
 
 					elif shpType[-1] == 'Z' and self.elevSource == 'GEOM':
@@ -633,7 +642,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 					try:
 						name = record[nameFieldIdx]
 					except Exception as e:
-						print('Warning feature {}: cannot extract name value. Error {}'.format(i, e))
+						log.warning('Cannot extract name value for feature {} : {}'.format(i, e))
 						name = ''
 					# null values will return a bytes object containing a blank string of length equal to fields length definition
 					if isinstance(name, bytes):
@@ -719,7 +728,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		bm.free()
 
 		t = time.clock() - t0
-		print('Build in %f seconds' % t)
+		log.info('Build in %f seconds' % t)
 
 		#Adjust grid size
 		if prefs.adjust3Dview:
