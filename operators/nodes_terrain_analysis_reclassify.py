@@ -232,7 +232,6 @@ class RECLASS_UL_stops(UIList):
 class RECLASS_PT_reclassify(Panel):
 	"""Creates a panel in the properties of node editor"""
 	bl_label = "Reclassify"
-	bl_idname = "reclass_panel"
 	bl_space_type = 'NODE_EDITOR'
 	bl_region_type = 'UI'
 	bl_category = "Node"
