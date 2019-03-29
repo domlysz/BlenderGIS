@@ -55,12 +55,12 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		#Validate selection
 		objs = bpy.context.selected_objects
 		aObj = context.active_object
-		if isTopView(context):
-			onMesh = False
-			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
-		elif len(objs) == 1 and aObj.type == 'MESH':
+		if len(objs) == 1 and aObj.type == 'MESH':
 			onMesh = True
 			bbox = getBBOX.fromObj(aObj).toGeo(geoscn)
+		elif isTopView(context):
+			onMesh = False
+			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		else:
 			self.report({'ERROR'}, "Please define the query extent in orthographic top view or by selecting a reference object")
 			return {'CANCELLED'}
