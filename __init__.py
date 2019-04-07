@@ -56,6 +56,11 @@ import logging
 logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
 logging.basicConfig(level=logging.getLevelName('INFO'), format=logsFormat) #stdout stream
 
+import ssl
+if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
+	getattr(ssl, '_create_unverified_context', None)):
+	ssl._create_default_https_context = ssl._create_unverified_context
+
 #from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core.settings import getSettings, setSettings
 
