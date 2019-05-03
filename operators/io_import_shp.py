@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import os, sys, time
+import os, sys, time, glob, re
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
@@ -192,6 +192,12 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			description="Warning : can be very slow with lot of features",
 			default=False )
 
+	#Animate across shapefiles
+	animate = BoolProperty(
+			name="Animate",
+			description="Animate across other shapefiles in the same folder",
+			default=False )
+
 	#Name objects from field
 	useFieldName: BoolProperty(
 			name="Object name from field",
@@ -226,6 +232,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		if self.separateObjects:
 			layout.prop(self, 'useFieldName')
 		else:
+			layout.prop(self, 'animate')
 			self.useFieldName = False
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
@@ -284,9 +291,58 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			shpCRS = self.shpCRS
 
 		try:
-			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
-				fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
-				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+			if self.animate:
+				basedir = os.path.dirname(self.filepath)
+				files = glob.glob(os.path.join(basedir, "*.shp"))
+				files.sort()
+				objects = []
+				for f in files:
+					bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=f, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+					obj = bpy.context.selected_objects[0]
+					objects.append(obj)
+					log.info("{} has {} vertices".format(obj.name, len(obj.data.vertices)))
+				max_vertex_count = max([len(obj.data.vertices) for obj in objects])
+				log.info("max vertex count is {}".format(max_vertex_count))
+				base_obj = objects[0]
+				# This is object that will hold the shape keys
+				vertex_count = len(base_obj.data.vertices)
+				if vertex_count < max_vertex_count:
+					# Ensure there are enough vertices to represent the highest level of definition
+					n_cuts_required = int(math.ceil(float(max_vertex_count) / vertex_count))
+					subsurf = base_obj.modifiers.new("SUBSURF", "SUBSURF")
+					subsurf.levels = n_cuts_required
+					bpy.context.view_layer.objects.active = base_obj
+					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
+
+				try:
+					index = re.search(r'\d+', base_obj.name).group()
+				except:
+					index = 0
+
+				base_obj.shape_key_add(name=index)
+				base_obj.name = base_obj.name.replace(index, "")
+
+				for i, other_obj in enumerate(objects):
+					if i == 0:
+						continue
+					try:
+						index = re.search(r'\d+', other_obj.name).group()
+					except:
+						index += 1
+					base_obj.shape_key_add(name=index)
+					for j, vertex in enumerate(other_obj.data.vertices):
+						base_obj.data.shape_keys.key_blocks[i].data[j].co = vertex.co
+
+				for obj in objects[1:]:
+					bpy.data.objects.remove(obj, do_unlink = True)
+
+
+			else:
+				bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+					fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+					extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			log.error('Shapefile import fails', exc_info=True)
 			self.report({'ERROR'}, 'Shapefile import fails, check logs.')
