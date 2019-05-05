@@ -48,6 +48,7 @@ TERRAIN_NODES = True
 TERRAIN_RECLASS = True
 BASEMAPS = True
 DROP = True
+EXPORT_KML = True
 
 import bpy, os
 
@@ -94,6 +95,9 @@ if BASEMAPS:
 	from .operators import view3d_mapviewer
 if DROP:
 	from .operators import object_drop
+if EXPORT_KML:
+	from .operators import io_export_kml
+	from .operators import io_export_kmz
 
 
 import bpy.utils.previews as iconsLib
@@ -111,13 +115,16 @@ class VIEW3D_MT_menu_gis_import(bpy.types.Menu):
 			self.layout.operator("importgis.osm_file", icon_value=icons_dict["osm"].icon_id, text="Open Street Map xml (.osm)")
 		if IMPORT_ASC:
 			self.layout.operator('importgis.asc_file', icon_value=icons_dict["asc"].icon_id, text="ESRI ASCII Grid (.asc)")
-
+        
 class VIEW3D_MT_menu_gis_export(bpy.types.Menu):
 	bl_label = "Export"
 	def draw(self, context):
 		if EXPORT_SHP:
 			self.layout.operator('exportgis.shapefile', text="Shapefile (.shp)", icon_value=icons_dict["shp"].icon_id)
-
+		if EXPORT_KML:
+			self.layout.operator('exportgis.kml_file', icon_value=icons_dict["kml"].icon_id, text="Kml (.kml)")
+			self.layout.operator('exportgis.kmz_file', icon_value=icons_dict["kmz"].icon_id, text="Kmz (.kmz)")
+         
 class VIEW3D_MT_menu_gis_webgeodata(bpy.types.Menu):
 	bl_label = "Web geodata"
 	def draw(self, context):
@@ -218,6 +225,9 @@ def register():
 		io_import_osm.register()
 	if IMPORT_ASC:
 		io_import_asc.register()
+	if EXPORT_KML:
+		io_export_kml.register()
+		io_export_kmz.register()
 	if DELAUNAY:
 		mesh_delaunay_voronoi.register()
 	if DROP:
@@ -286,6 +296,9 @@ def unregister():
 		io_import_osm.unregister()
 	if IMPORT_ASC:
 		io_import_asc.unregister()
+	if EXPORT_KML:
+		io_export_kml.unregister()
+		io_export_kmz.unregister()
 	if DELAUNAY:
 		mesh_delaunay_voronoi.unregister()
 	if DROP:
