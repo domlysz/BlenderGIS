@@ -69,7 +69,7 @@ class EXPORTGIS_OT_kmz_file(Operator, ExportHelper):
 
     # ExportHelper class properties
     filename_ext = ".kmz"
-    filter_glob = StringProperty(
+    filter_glob: StringProperty(
             default="*.kmz",
             options={'HIDDEN'},
             )
