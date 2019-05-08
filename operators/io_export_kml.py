@@ -67,7 +67,7 @@ class EXPORTGIS_OT_kml_file(Operator, ExportHelper):
     bl_options = {"UNDO"}
 
     filename_ext = ".kml"
-    filter_glob = StringProperty(
+    filter_glob: StringProperty(
             default="*.kml",
             options={'HIDDEN'},
             )
