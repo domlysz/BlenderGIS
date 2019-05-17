@@ -318,22 +318,36 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 
 				try:
 					index = re.search(r'\d+', base_obj.name).group()
+					base_obj.name = base_obj.name.replace(index, "")
+					index = int(index)
 				except:
 					index = 0
 
-				base_obj.shape_key_add(name=index)
-				base_obj.name = base_obj.name.replace(index, "")
+				base_obj.shape_key_add(name=str(index))
+
+				frames = []
 
 				for i, other_obj in enumerate(objects):
 					if i == 0:
 						continue
 					try:
-						index = re.search(r'\d+', other_obj.name).group()
+						index = int(re.search(r'\d+', other_obj.name).group())
 					except:
 						index += 1
-					base_obj.shape_key_add(name=index)
+					base_obj.shape_key_add(name=str(index))
+					frames.append(index)
 					for j, vertex in enumerate(other_obj.data.vertices):
 						base_obj.data.shape_keys.key_blocks[i].data[j].co = vertex.co
+
+				for k, frame in enumerate(frames):
+					if k > 0:
+						base_obj.data.shape_keys.key_blocks[k].value = 0.0
+						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k - 1])
+					base_obj.data.shape_keys.key_blocks[k].value = 1.0
+					base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k])
+					if k < len(frames) - 1:
+						base_obj.data.shape_keys.key_blocks[k].value = 0.0
+						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k + 1])
 
 				for obj in objects[1:]:
 					bpy.data.objects.remove(obj, do_unlink = True)
