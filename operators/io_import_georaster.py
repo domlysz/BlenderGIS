@@ -343,6 +343,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			# Add UV map texture layer
 			mesh = obj.data
 			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')
+			uvTxtLayer.active = True
 			# UV mapping
 			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
 			# Add material and texture
