@@ -307,15 +307,23 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 				log.info("max vertex count is {}".format(max_vertex_count))
 				base_obj = objects[0] # This is object that will hold the shape keys
 				for obj in objects:
+					bpy.context.view_layer.objects.active = obj
+					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
+					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="TRIANGULATE")
 					vertex_count = len(obj.data.vertices)
 					n_cuts_required = int(math.ceil(math.log(float(max_vertex_count) / vertex_count, 2)))
 					if n_cuts_required >= 1:
 						# Ensure there are enough vertices to represent the highest level of definition
 						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
 						subsurf.levels = n_cuts_required
-						bpy.context.view_layer.objects.active = obj
 						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
 						log.info("after {} cuts, {} now has {} vertices".format(n_cuts_required, obj.name, len(obj.data.vertices)))
+					vertex_count = len(obj.data.vertices)
+					ratio = max_vertex_count / vertex_count
+					decimate = obj.modifiers.new("DECIMATE", "DECIMATE")
+					decimate.ratio = ratio
+					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="DECIMATE")
+					log.info("after decimating with ratio {}, {} now has {} vertices".format(ratio, obj.name, len(obj.data.vertices)))
 
 				try:
 					index = re.search(r'\d+', base_obj.name).group()
