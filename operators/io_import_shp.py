@@ -305,16 +305,17 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					log.info("{} has {} vertices".format(obj.name, len(obj.data.vertices)))
 				max_vertex_count = max([len(obj.data.vertices) for obj in objects])
 				log.info("max vertex count is {}".format(max_vertex_count))
-				base_obj = objects[0]
-				# This is object that will hold the shape keys
-				vertex_count = len(base_obj.data.vertices)
-				if vertex_count < max_vertex_count:
-					# Ensure there are enough vertices to represent the highest level of definition
-					n_cuts_required = int(math.ceil(float(max_vertex_count) / vertex_count))
-					subsurf = base_obj.modifiers.new("SUBSURF", "SUBSURF")
-					subsurf.levels = n_cuts_required
-					bpy.context.view_layer.objects.active = base_obj
-					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
+				base_obj = objects[0] # This is object that will hold the shape keys
+				for obj in objects:
+					vertex_count = len(obj.data.vertices)
+					n_cuts_required = int(math.ceil(math.log(float(max_vertex_count) / vertex_count, 2)))
+					if n_cuts_required >= 1:
+						# Ensure there are enough vertices to represent the highest level of definition
+						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
+						subsurf.levels = n_cuts_required
+						bpy.context.view_layer.objects.active = obj
+						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
+						log.info("after {} cuts, {} now has {} vertices".format(n_cuts_required, obj.name, len(obj.data.vertices)))
 
 				try:
 					index = re.search(r'\d+', base_obj.name).group()
