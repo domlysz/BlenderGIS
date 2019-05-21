@@ -311,19 +311,32 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					log.info("{} has {} vertices".format(obj.name, len(obj.data.vertices)))
 
 				base_obj = objects[-1] # This is object that will hold the shape keys
-				bpy.context.view_layer.objects.active = base_obj
 				base_obj.name = base_obj.name.replace(str(base_obj["frame"]), "")
 
-				frames = [base_obj["frame"]]
+				bpy.ops.object.duplicate()
+				duplicated_base = bpy.context.view_layer.objects.active
+				# Use a duplicated object as a reference for iterative shrinkwrapping
 
-				for obj in objects[-2::-1]:
-					shrinkwrap = base_obj.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
+				frames = [base_obj["frame"]]
+				base_obj.shape_key_add(name=str(base_obj["frame"]))
+
+				for obj in objects[::-1]:
+					if obj == base_obj:
+						continue
+					shrinkwrap = duplicated_base.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
 					shrinkwrap.target = obj
-					bpy.ops.object.modifier_apply(apply_as='SHAPE', modifier="SHRINKWRAP")
-					base_obj.data.shape_keys.key_blocks[-1].name = str(obj["frame"])
+					#shrinkwrap.wrap_method = "NEAREST_VERTEX"
+					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SHRINKWRAP")
+					# Copy vertex data from shrinkwrapped duplicate as a shape key
+					base_obj.shape_key_add(name=str(obj["frame"]))
+					for j, vertex in enumerate(duplicated_base.data.vertices):
+						base_obj.data.shape_keys.key_blocks[str(obj["frame"])].data[j].co = vertex.co
 					frames.append(obj["frame"])
 
+				bpy.data.objects.remove(duplicated_base, do_unlink = True)
+
 				for k, frame in enumerate(frames):
+					# Create keyframes
 					if k > 0:
 						base_obj.data.shape_keys.key_blocks[k].value = 0.0
 						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k - 1])
