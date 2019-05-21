@@ -296,60 +296,32 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 				files = glob.glob(os.path.join(basedir, "*.shp"))
 				files.sort()
 				objects = []
+				frame = 0
 				for f in files:
 					bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=f, shpCRS=shpCRS, elevSource=self.vertsElevSource,
 						fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
 						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 					obj = bpy.context.selected_objects[0]
+					try:
+						frame = int(re.search(r'\d+', obj.name).group())
+					except:
+						frame += 1
+					obj["frame"] = frame
 					objects.append(obj)
 					log.info("{} has {} vertices".format(obj.name, len(obj.data.vertices)))
-				max_vertex_count = max([len(obj.data.vertices) for obj in objects])
-				log.info("max vertex count is {}".format(max_vertex_count))
-				base_obj = objects[0] # This is object that will hold the shape keys
-				for obj in objects:
-					bpy.context.view_layer.objects.active = obj
-					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
-					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="TRIANGULATE")
-					vertex_count = len(obj.data.vertices)
-					n_cuts_required = int(math.ceil(math.log(float(max_vertex_count) / vertex_count, 2)))
-					if vertex_count < max_vertex_count and n_cuts_required < 1:
-						n_cuts_required = 1
-					if n_cuts_required >= 1:
-						# Ensure there are enough vertices to represent the highest level of definition
-						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
-						subsurf.levels = n_cuts_required
-						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
-						log.info("after {} cuts, {} now has {} vertices".format(n_cuts_required, obj.name, len(obj.data.vertices)))
-					for i in range(5):
-						vertex_count = len(obj.data.vertices)
-						ratio = max_vertex_count / vertex_count
-						decimate = obj.modifiers.new("DECIMATE", "DECIMATE")
-						decimate.ratio = ratio
-						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="DECIMATE")
-						log.info("after decimating with ratio {}, {} now has {} vertices".format(ratio, obj.name, len(obj.data.vertices)))
 
-				try:
-					index = re.search(r'\d+', base_obj.name).group()
-					base_obj.name = base_obj.name.replace(index, "")
-					index = int(index)
-				except:
-					index = 0
+				base_obj = objects[-1] # This is object that will hold the shape keys
+				bpy.context.view_layer.objects.active = base_obj
+				base_obj.name = base_obj.name.replace(str(base_obj["frame"]), "")
 
-				base_obj.shape_key_add(name=str(index))
+				frames = [base_obj["frame"]]
 
-				frames = [index]
-
-				for i, other_obj in enumerate(objects):
-					if i == 0:
-						continue
-					try:
-						index = int(re.search(r'\d+', other_obj.name).group())
-					except:
-						index += 1
-					base_obj.shape_key_add(name=str(index))
-					frames.append(index)
-					for j, vertex in enumerate(other_obj.data.vertices):
-						base_obj.data.shape_keys.key_blocks[i].data[j].co = vertex.co
+				for obj in objects[-2::-1]:
+					shrinkwrap = base_obj.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
+					shrinkwrap.target = obj
+					bpy.ops.object.modifier_apply(apply_as='SHAPE', modifier="SHRINKWRAP")
+					base_obj.data.shape_keys.key_blocks[-1].name = str(obj["frame"])
+					frames.append(obj["frame"])
 
 				for k, frame in enumerate(frames):
 					if k > 0:
@@ -361,8 +333,9 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 						base_obj.data.shape_keys.key_blocks[k].value = 0.0
 						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k + 1])
 
-				for obj in objects[1:]:
-					bpy.data.objects.remove(obj, do_unlink = True)
+				for obj in objects:
+					if obj != base_obj:
+						bpy.data.objects.remove(obj, do_unlink = True)
 
 
 			else:
