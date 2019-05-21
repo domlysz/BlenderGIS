@@ -307,8 +307,21 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					except:
 						frame += 1
 					obj["frame"] = frame
+
+					vertex_count = len(obj.data.vertices)
+					log.info("{} has {} vertices".format(obj.name, vertex_count))
+					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
+					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="TRIANGULATE")
+
+					# Subsurf to smooth edges
+					n_cuts_required = int(round(math.log(500.0 / vertex_count, 2)))
+					if n_cuts_required >= 1:
+						print(n_cuts_required)
+						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
+						subsurf.levels = n_cuts_required
+						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
 					objects.append(obj)
-					log.info("{} has {} vertices".format(obj.name, len(obj.data.vertices)))
+					log.info("After triangulation / subsurf {} has {} vertices".format(obj.name, len(obj.data.vertices)))
 
 				base_obj = objects[-1] # This is object that will hold the shape keys
 				base_obj.name = base_obj.name.replace(str(base_obj["frame"]), "")
