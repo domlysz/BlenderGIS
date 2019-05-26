@@ -235,7 +235,7 @@ class RECLASS_PT_reclassify(Panel):
 	bl_label = "Reclassify"
 	bl_space_type = 'NODE_EDITOR'
 	bl_region_type = 'UI'
-	bl_category = "Node"
+	bl_category = "Item"
 
 	def draw(self, context):
 		node = context.active_node
