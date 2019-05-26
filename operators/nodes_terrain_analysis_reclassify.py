@@ -146,6 +146,7 @@ def setBounds():
 #########################################
 @persistent
 def scene_update(scn):
+	'keep colorramp node and reclass panel in synch'
 	global obj
 	global mat
 	global node
@@ -153,14 +154,15 @@ def scene_update(scn):
 	activeObj = bpy.context.view_layer.objects.active
 	if activeObj is not None:
 		activeMat = activeObj.active_material
-		depsgraph = bpy.context.evaluated_depsgraph_get()
 		if activeMat is not None and activeMat.use_nodes:
 			activeNode = activeMat.node_tree.nodes.active
 			#check color ramp node edits
-			#if activeMat.is_updated: #no more available in 2.8
-			if depsgraph.id_type_updated('MATERIAL'): #not sure if it's the best way to do this check
-				#if activeNode.bl_idname == 'ShaderNodeValToRGB':
+			#>issue : activeMat.is_updated function is no more available in 2.8, use depsgraph instead
+			'''
+			depsgraph = bpy.context.evaluated_depsgraph_get() #cause recursion depth error
+			if depsgraph.id_type_updated('MATERIAL'):
 				populateList(activeNode)
+			'''
 			#check selected obj
 			if obj != activeObj:
 				obj = activeObj
