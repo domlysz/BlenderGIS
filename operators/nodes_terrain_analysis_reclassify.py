@@ -428,8 +428,7 @@ def getValues():
 	scn = bpy.context.scene
 	obj = bpy.context.view_layer.objects.active
 	#make a temp mesh with modifiers apply
-	#mesh = obj.data #modifiers not apply
-	mesh = obj.to_mesh(scn, apply_modifiers=True, settings='PREVIEW')
+	mesh = obj.to_mesh()
 	mesh.transform(obj.matrix_world)
 	#
 	mode = scn.analysisMode
@@ -459,7 +458,7 @@ def getValues():
 				values.append(a)
 	values.sort()
 	#remove temp mesh
-	bpy.data.meshes.remove(mesh)
+	obj.to_mesh_clear()
 
 	return values
 
