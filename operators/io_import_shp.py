@@ -309,7 +309,9 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					obj["frame"] = frame
 
 					vertex_count = len(obj.data.vertices)
-					log.info("{} has {} vertices".format(obj.name, vertex_count))
+					area = sum(p.area for p in obj.data.polygons)
+					obj["area"] = area
+					log.info("{} has {} vertices and an area of {}".format(obj.name, vertex_count, area))
 					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
 					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="TRIANGULATE")
 
@@ -323,17 +325,20 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					objects.append(obj)
 					log.info("After triangulation / subsurf {} has {} vertices".format(obj.name, len(obj.data.vertices)))
 
-				base_obj = objects[-1] # This is object that will hold the shape keys
+				# Strategy here is to take the largest object, then progressively shrinkwrap it onto each smaller object in turn
+				# To do this, first sort objects by area descending
+				objects.sort(key=lambda x: x["area"], reverse=True)
+				base_obj = objects[0] # This is the largest object / the object that will hold the shape keys
+				print("base_obj is " + base_obj.name)
 				base_obj.name = base_obj.name.replace(str(base_obj["frame"]), "")
 
 				bpy.ops.object.duplicate()
 				duplicated_base = bpy.context.view_layer.objects.active
 				# Use a duplicated object as a reference for iterative shrinkwrapping
 
-				frames = [base_obj["frame"]]
 				base_obj.shape_key_add(name=str(base_obj["frame"]))
 
-				for obj in objects[::-1]:
+				for obj in objects:
 					if obj == base_obj:
 						continue
 					shrinkwrap = duplicated_base.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
@@ -344,20 +349,21 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					base_obj.shape_key_add(name=str(obj["frame"]))
 					for j, vertex in enumerate(duplicated_base.data.vertices):
 						base_obj.data.shape_keys.key_blocks[str(obj["frame"])].data[j].co = vertex.co
-					frames.append(obj["frame"])
 
 				bpy.data.objects.remove(duplicated_base, do_unlink = True)
+				frames = sorted(o["frame"] for o in objects)
 
 				for k, frame in enumerate(frames):
 					# Create keyframes
+					sframe = str(frame)
 					if k > 0:
-						base_obj.data.shape_keys.key_blocks[k].value = 0.0
-						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k - 1])
-					base_obj.data.shape_keys.key_blocks[k].value = 1.0
-					base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k])
+						base_obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k - 1])
+					base_obj.data.shape_keys.key_blocks[sframe].value = 1.0
+					base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k])
 					if k < len(frames) - 1:
-						base_obj.data.shape_keys.key_blocks[k].value = 0.0
-						base_obj.data.shape_keys.key_blocks[k].keyframe_insert(data_path='value', frame=frames[k + 1])
+						base_obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k + 1])
 
 				for obj in objects:
 					if obj != base_obj:
