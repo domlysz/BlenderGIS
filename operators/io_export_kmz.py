@@ -3,10 +3,11 @@ import os
 import zipfile
 import bpy
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty
+from bpy.props import StringProperty, EnumProperty, FloatProperty, IntProperty
 from bpy.types import Operator
 from ..geoscene import GeoScene
 from ..core.proj import Reproj
+
 
 KMZ_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
@@ -49,7 +50,7 @@ KMZ_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 			<LineString>
 				<extrude>1</extrude>
 				<tessellate>1</tessellate>
-				<altitudeMode>absolute</altitudeMode>
+				<altitudeMode>%s</altitudeMode>
 				<coordinates>
                     %s
                 </coordinates>
@@ -74,9 +75,24 @@ class EXPORTGIS_OT_kmz_file(Operator, ExportHelper):
             options={'HIDDEN'},
             )
 
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'exportType')
+    mode: EnumProperty(
+        name="altitude mode",
+        items=(
+            ("relative", "Relative altitudes", "Relative altitudes"),
+            ("absolute", "Absolute altitudes", "Absolute altitudes")),
+        default="relative"
+    )
+    altitude: FloatProperty(
+        name="reference altitude",
+        description="altitude of level 0",
+        default=0
+    )
+    max_waypoints: IntProperty(
+        name="waypoints",
+        description="maximum waypoints",
+        min=1,
+        default=99
+    )
 
     def execute(self, context):
         filePath = self.filepath
@@ -119,19 +135,25 @@ class EXPORTGIS_OT_kmz_file(Operator, ExportHelper):
             else:
                 verts = []
 
-        if len(verts) == 0:
+        n_verts = len(verts)
+
+        if n_verts < 1:
             self.report({'ERROR'}, "No vertice to export")
             print("No vertice to export")
             return {'FINISHED'}
+
         rprj = Reproj(geoscn.crs, 4326)
         pts = []
-        for vert in verts:
-            x, y, alt = tM @ vert.co.to_3d()
-            # Extract coords & adjust values against object location & shift against georef deltas
-            lon, lat = rprj.pt( x + dx, y + dy)
-            pts.append("{:.15f},{:.15f},{:.15f}".format(lon, lat, alt))
 
-        xmlString = KMZ_TEMPLATE % (filename, filename, " ".join(pts))
+        every_vert = max(1, int(n_verts / self.max_waypoints))
+
+        for i, vert in enumerate(verts):
+            if (i % every_vert) == 0 or i == (n_verts - 1):
+                x, y, alt = tM @ vert.co.to_3d()
+                # Extract coords & adjust values against object location & shift against georef deltas
+                lon, lat = rprj.pt(x + dx, y + dy)
+                pts.append("{:.15f},{:.15f},{:.15f}".format(lon, lat, alt - self.altitude))
+        xmlString = KMZ_TEMPLATE % (filename, filename, self.mode, " ".join(pts))
         kml_doc = os.path.join(folder, 'doc.kml')
         with open(kml_doc, "w") as f:
             f.write(xmlString)
