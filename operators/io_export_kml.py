@@ -2,7 +2,7 @@
 import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty
+from bpy.props import StringProperty, EnumProperty, FloatProperty
 from bpy.types import Operator
 from ..geoscene import GeoScene
 from ..core.proj import Reproj
@@ -49,7 +49,7 @@ KML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 			<LineString>
 				<extrude>1</extrude>
 				<tessellate>1</tessellate>
-				<altitudeMode>absolute</altitudeMode>
+				<altitudeMode>%s</altitudeMode>
 				<coordinates>
                     %s
                 </coordinates>
@@ -58,6 +58,7 @@ KML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </Document>
 </kml>
 """
+
 
 class EXPORTGIS_OT_kml_file(Operator, ExportHelper):
     """Export single path to KML file format (.kml)"""
@@ -68,10 +69,22 @@ class EXPORTGIS_OT_kml_file(Operator, ExportHelper):
 
     filename_ext = ".kml"
     filter_glob: StringProperty(
-            default="*.kml",
-            options={'HIDDEN'},
-            )
-   
+        default="*.kml",
+        options={'HIDDEN'},
+    )
+    mode: EnumProperty(
+        name="altitude mode",
+        items=(
+            ("relative", "Relative altitudes", "Relative altitudes"),
+            ("absolute", "Absolute altitudes", "Absolute altitudes")),
+        default="relative"
+    )
+    altitude: FloatProperty(
+        name="reference altitude",
+        description="altitude of level 0",
+        default=0
+    )
+
     def execute(self, context):
         filePath = self.filepath
         folder = os.path.dirname(filePath)
@@ -123,21 +136,22 @@ class EXPORTGIS_OT_kml_file(Operator, ExportHelper):
         for vert in verts:
             x, y, alt = tM @ vert.co.to_3d()
             # Extract coords & adjust values against object location & shift against georef deltas
-            lon, lat = rprj.pt( x + dx, y + dy)
-            pts.append("{:.15f},{:.15f},{:.15f}".format(lon, lat, alt))
+            lon, lat = rprj.pt(x + dx, y + dy)
+            pts.append("{:.15f},{:.15f},{:.15f}".format(lon, lat, alt - self.altitude))
 
-        xmlString = KML_TEMPLATE % (filename, filename, " ".join(pts))
+        xmlString = KML_TEMPLATE % (filename, filename, self.mode, " ".join(pts))
 
         with open(self.filepath, "w") as f:
             f.write(xmlString)
-        
+
         self.report({'INFO'}, "Export complete")
         print("Export complete")
         return {'FINISHED'}
 
 
 def register():
-	bpy.utils.register_class(EXPORTGIS_OT_kml_file)
+    bpy.utils.register_class(EXPORTGIS_OT_kml_file)
+
 
 def unregister():
-	bpy.utils.unregister_class(EXPORTGIS_OT_kml_file)
+    bpy.utils.unregister_class(EXPORTGIS_OT_kml_file)
