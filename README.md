@@ -1,7 +1,6 @@
 Blender GIS
 ==========
-A new version for Blender 2.80 beta is already available in the dedicated branch.
-Until official 2.8 release, the master branch is for Blender 2.79 only.
+Blender minimal version : 2.8
 
 
 [Full documentation](https://github.com/domlysz/BlenderGIS/wiki/Home)
