@@ -1,5 +1,6 @@
 import json
 import logging
+log = logging.getLogger(__name__)
 
 import bpy
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
@@ -529,7 +530,12 @@ BGIS_OT_edit_osm_tag
 
 def register():
 	for cls in classes:
-		bpy.utils.register_class(cls)
+		try:
+			bpy.utils.register_class(cls)
+		except ValueError:
+			log.error('Cannot register {}'.format(cls), exc_info=True)
+
+
 
 def unregister():
 	for cls in classes:
