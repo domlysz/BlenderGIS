@@ -176,7 +176,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 
 			loc = obj.location
 			bm = bmesh.new()
-			bm.from_object(obj, context.depsgraph, deform=True) #'deform' allows to consider modifier deformation
+			bm.from_object(obj, context.evaluated_depsgraph_get(), deform=True) #'deform' allows to consider modifier deformation
 			bm.transform(obj.matrix_world)
 
 			if self.exportType == 'POINTZ':

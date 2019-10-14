@@ -36,7 +36,7 @@ class DropToGround():
 		self.mw = self.ground.matrix_world
 		self.mwi = self.mw.inverted()
 		if self.method == 'BVH':
-			self.bvh = BVHTree.FromObject(self.ground, bpy.context.depsgraph, deform=True)
+			self.bvh = BVHTree.FromObject(self.ground, bpy.context.evaluated_depsgraph_get(), deform=True)
 
 	def rayCast(self, x, y):
 		#Hit vector
