@@ -164,7 +164,7 @@ SOURCES = {
 			"MAPNIK" : {"urlKey" : '', "name" : 'Mapnik', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 19}
 		},
 		"urlTemplate": "http://tile.openstreetmap.org/{Z}/{X}/{Y}.png",
-		"referer": "http://www.openstreetmap.org"
+		"referer": "https://www.openstreetmap.org"
 	},
 
 
