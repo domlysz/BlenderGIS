@@ -100,7 +100,7 @@ class OBJECT_OT_drop_to_ground(Operator):
 
     def execute(self, context):
 
-        bpy.context.scene.update() #needed to make raycast function redoable
+        bpy.context.view_layer.update() #needed to make raycast function redoable (evaluate objects)
         ground = context.active_object
         obs = context.selected_objects
         if ground in obs:
