@@ -464,14 +464,29 @@ class GEOSCENE_OT_init_org(Operator):
 	bl_label = "Init origin"
 	bl_options = {'INTERNAL', 'UNDO'}
 
+	lonlat = BoolProperty(
+		name = "As lonlat",
+		description = "Set origin coordinate as longitude and latitude"
+		)
+
+	x: FloatProperty()
+	y: FloatProperty()
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self, width=200)
+
 	def execute(self, context):
 		geoscn = GeoScene(context.scene)
 		if geoscn.hasOriginGeo or geoscn.hasOriginPrj:
 			log.warning('Cannot init scene origin because it already exist')
 			return {'CANCELLED'}
 		else:
-			geoscn.lon, geoscn.lat = 0, 0
-			geoscn.crsx, geoscn.crsy = 0, 0
+			#geoscn.lon, geoscn.lat = 0, 0
+			#geoscn.crsx, geoscn.crsy = 0, 0
+			if self.lonlat:
+				geoscn.setOriginGeo(self.x, self.y)
+			else:
+				geoscn.setOriginPrj(self.x, self.y)
 		return {'FINISHED'}
 
 class GEOSCENE_OT_edit_org_geo(Operator):
