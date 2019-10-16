@@ -46,7 +46,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			name="Mode",
 			description="Select the export strategy",
 			items=[ ('COLLEC', 'Collection', "Export a collection of object"),
-			('OBJ', 'Single object', "Export a single mesh")]
+			('OBJ', 'Single object', "Export a single mesh")],
+			default='OBJ'
 			)
 
 	def listCollections(self, context):
@@ -127,6 +128,10 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			objects = [scn.objects[int(self.selectedObj)]]
 		elif self.mode == 'COLLEC':
 			objects = bpy.data.collections[self.selectedColl].all_objects
+			objects = [obj for obj in objects if obj.type == 'MESH']
+			if not objects:
+				self.report({'ERROR'}, "Nothing to export")
+				return {'CANCELLED'}
 
 		if len(objects) == 0:
 			self.report({'ERROR'}, "No object to export")
