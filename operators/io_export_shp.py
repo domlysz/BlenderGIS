@@ -192,8 +192,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					return {'CANCELLED'}
 					'''
 
-				#Extract coords & adjust values against object location & shift against georef deltas
-				pts = [[v.co.x+loc.x+dx, v.co.y+loc.y+dy, v.co.z+loc.z] for v in bm.verts]
+				#Extract coords & adjust values against georef deltas
+				pts = [[v.co.x+dx, v.co.y+dy, v.co.z] for v in bm.verts]
 
 				if self.mode == 'OBJ':
 					for j, pt in enumerate(pts):
@@ -216,8 +216,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 
 				lines = []
 				for edge in bm.edges:
-					#Extract coords & adjust values against object location & shift against georef deltas
-					line = [(vert.co.x+loc.x+dx, vert.co.y+loc.y+dy, vert.co.z+loc.z) for vert in edge.verts]
+					#Extract coords & adjust values against georef deltas
+					line = [(vert.co.x+dx, vert.co.y+dy, vert.co.z) for vert in edge.verts]
 					lines.append(line)
 
 				if self.mode == 'OBJ':
@@ -242,8 +242,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 				#build geom
 				polygons = []
 				for face in bm.faces:
-					#Extract coords & adjust values against object location & shift against georef deltas
-					poly = [(vert.co.x+loc.x+dx, vert.co.y+loc.y+dy, vert.co.z+loc.z) for vert in face.verts]
+					#Extract coords & adjust values against georef deltas
+					poly = [(vert.co.x+dx, vert.co.y+dy, vert.co.z) for vert in face.verts]
 					poly.append(poly[0])#close poly
 					#In Blender face is up if points are in anticlockwise order
 					#for shapefiles, face's up with clockwise order
