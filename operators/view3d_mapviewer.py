@@ -246,9 +246,11 @@ class BaseMap(GeoScene):
 
 		#Set background size
 		sizex = img_w * res / self.scale
+		sizey = img_h * res / self.scale
+		size = max([sizex, sizey])
 		#self.bkg.empty_display_size = sizex #limited to 1000
 		self.bkg.empty_display_size = 1 #a size of 1 means image width=1bu
-		self.bkg.scale = (sizex, sizex, 1)
+		self.bkg.scale = (size, size, 1)
 
 		#Set background offset (image origin does not match scene origin)
 		dx = (self.crsx - img_ox) / self.scale
