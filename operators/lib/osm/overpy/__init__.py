@@ -273,7 +273,7 @@ class Result(object):
         return result
 
     @classmethod
-    def from_xml(cls, data, api=None):
+    def from_xml(cls, data, api=None, iterparse=False):
         """
         Create a new instance and load data from xml object.
 
@@ -290,19 +290,33 @@ class Result(object):
             isFile = os.path.exists(data)
         except:
             isFile = False
-        if not isFile:
-            data = StringIO(data)
-        root = ET.iterparse(data, events=("start", "end"))
-        elem_clss = {'node':Node, 'way':Way, 'relation':Relation}
-        for event, child in root:
-            if event == 'start':
-                if child.tag.lower() == 'bounds':
-                    result._bounds = {k:float(v) for k, v in child.attrib.items()}
-                if child.tag.lower() in elem_clss:
-                    elem_cls = elem_clss[child.tag.lower()]
-                    result.append(elem_cls.from_xml(child, result=result))
-            elif event == 'end':
-                child.clear()
+
+        if not iterparse:
+            #Method 1 : full parsing at once
+            if isFile:
+                with open(data, 'r') as f:
+                    data = f.read() #all file in memory
+            root = ET.fromstring(data)
+            for elem_cls in [Node, Way, Relation]:
+                for child in root:
+                    if child.tag.lower() == elem_cls._type_value:
+                        result.append(elem_cls.from_xml(child, result=result))
+        else:
+            #Method 2 : iter parsing (memory friendly)
+            #WARNING Issue #198
+            if not isFile:
+                data = StringIO(data)
+            root = ET.iterparse(data, events=("start", "end"))
+            elem_clss = {'node':Node, 'way':Way, 'relation':Relation}
+            for event, child in root:
+                if event == 'start':
+                    if child.tag.lower() == 'bounds':
+                        result._bounds = {k:float(v) for k, v in child.attrib.items()}
+                    if child.tag.lower() in elem_clss:
+                        elem_cls = elem_clss[child.tag.lower()]
+                        result.append(elem_cls.from_xml(child, result=result))
+                elif event == 'end':
+                    child.clear()
 
         return result
 
