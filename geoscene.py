@@ -464,7 +464,7 @@ class GEOSCENE_OT_init_org(Operator):
 	bl_label = "Init origin"
 	bl_options = {'INTERNAL', 'UNDO'}
 
-	lonlat = BoolProperty(
+	lonlat: BoolProperty(
 		name = "As lonlat",
 		description = "Set origin coordinate as longitude and latitude"
 		)
