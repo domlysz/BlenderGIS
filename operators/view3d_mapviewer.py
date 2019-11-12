@@ -674,6 +674,8 @@ class VIEW3D_OT_map_viewer(Operator):
 									viewLoc += deltaVect
 								else:
 									dx, dy, dz = deltaVect
+									if not self.prefs.lockObj and self.map.bkg is not None:
+										self.map.bkg.location  -= deltaVect
 									self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
 						self.map.get()
 
@@ -723,6 +725,8 @@ class VIEW3D_OT_map_viewer(Operator):
 									viewLoc += deltaVect
 								else:
 									dx, dy, dz = deltaVect
+									if not self.prefs.lockObj and self.map.bkg is not None:
+										self.map.bkg.location  -= deltaVect
 									self.map.moveOrigin(dx, dy, updObjLoc=self.updObjLoc)
 						self.map.get()
 
