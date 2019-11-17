@@ -4,6 +4,13 @@ import bpy
 import time
 from .utils import computeVoronoiDiagram, computeDelaunayTriangulation
 
+try:
+	from mathutils.geometry import delaunay_2d_cdt
+except ImportError:
+	NATIVE = False
+else:
+	NATIVE = True
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -58,33 +65,54 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 		r = obj.rotation_euler
 		s = obj.scale
 		mesh = obj.data
-		vertsPts = [vertex.co for vertex in mesh.vertices]
-		#Remove duplicate
-		verts= [[vert.x, vert.y, vert.z] for vert in vertsPts]
-		nDupli, nZcolinear = unique(verts)
-		nVerts = len(verts)
-		log.info("{} duplicates points ignored".format(nDupli))
-		log.info("{} z colinear points excluded".format(nZcolinear))
-		if nVerts < 3:
-			self.report({'ERROR'}, "Not enough points")
-			return {'CANCELLED'}
-		#Check colinear
-		xValues = [pt[0] for pt in verts]
-		yValues = [pt[1] for pt in verts]
-		if checkEqual(xValues) or checkEqual(yValues):
-			self.report({'ERROR'}, "Points are colinear")
-			return {'CANCELLED'}
-		#Triangulate
-		log.info("Triangulate {} points...".format(nVerts))
-		vertsPts= [Point(vert[0], vert[1], vert[2]) for vert in verts]
-		triangles = computeDelaunayTriangulation(vertsPts)
-		triangles = [tuple(reversed(tri)) for tri in triangles]#reverse point order --> if all triangles are specified anticlockwise then all faces up
-		log.info("Getting {} triangles".format(len(triangles)))
-		#Create new mesh structure
-		log.info("Create mesh...")
-		tinMesh = bpy.data.meshes.new("TIN") #create a new mesh
-		tinMesh.from_pydata(verts, [], triangles) #Fill the mesh with triangles
-		tinMesh.update(calc_edges=True) #Update mesh with new data
+
+		if NATIVE:
+			'''
+			Use native Delaunay triangulation function : delaunay_2d_cdt(verts, edges, faces, output_type, epsilon) >> [verts, edges, faces, orig_verts, orig_edges, orig_faces]
+			The three returned orig lists give, for each of verts, edges, and faces, the list of input element indices corresponding to the positionally same output element. For edges, the orig indices start with the input edges and then continue with the edges implied by each of the faces (n of them for an n-gon).
+			Output type :
+			# 0 => triangles with convex hull.
+			# 1 => triangles inside constraints.
+			# 2 => the input constraints, intersected.
+			# 3 => like 2 but with extra edges to make valid BMesh faces.
+			'''
+			log.info("Triangulate {} points...".format(len(mesh.vertices)))
+			verts, edges, faces, overts, oedges, ofaces  = delaunay_2d_cdt([v.co.to_2d() for v in mesh.vertices], [], [], 0, 0.1)
+			verts = [ (v.x, v.y, mesh.vertices[overts[i][0]].co.z) for i, v in enumerate(verts)] #retrieve z values
+			log.info("Getting {} triangles".format(len(faces)))
+			log.info("Create mesh...")
+			tinMesh = bpy.data.meshes.new("TIN")
+			tinMesh.from_pydata(verts, edges, faces)
+			tinMesh.update()
+		else:
+			vertsPts = [vertex.co for vertex in mesh.vertices]
+			#Remove duplicate
+			verts = [[vert.x, vert.y, vert.z] for vert in vertsPts]
+			nDupli, nZcolinear = unique(verts)
+			nVerts = len(verts)
+			log.info("{} duplicates points ignored".format(nDupli))
+			log.info("{} z colinear points excluded".format(nZcolinear))
+			if nVerts < 3:
+				self.report({'ERROR'}, "Not enough points")
+				return {'CANCELLED'}
+			#Check colinear
+			xValues = [pt[0] for pt in verts]
+			yValues = [pt[1] for pt in verts]
+			if checkEqual(xValues) or checkEqual(yValues):
+				self.report({'ERROR'}, "Points are colinear")
+				return {'CANCELLED'}
+			#Triangulate
+			log.info("Triangulate {} points...".format(nVerts))
+			vertsPts = [Point(vert[0], vert[1], vert[2]) for vert in verts]
+			faces = computeDelaunayTriangulation(vertsPts)
+			faces = [tuple(reversed(tri)) for tri in faces]#reverse point order --> if all triangles are specified anticlockwise then all faces up
+			log.info("Getting {} triangles".format(len(faces)))
+			#Create new mesh structure
+			log.info("Create mesh...")
+			tinMesh = bpy.data.meshes.new("TIN") #create a new mesh
+			tinMesh.from_pydata(verts, [], faces) #Fill the mesh with triangles
+			tinMesh.update(calc_edges=True) #Update mesh with new data
+
 		#Create an object with that mesh
 		tinObj = bpy.data.objects.new("TIN", tinMesh)
 		#Place object
@@ -98,7 +126,7 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 		obj.select_set(False)
 		#Report
 		t = round(time.clock() - t0, 2)
-		msg = "{} triangles created in {} seconds".format(len(triangles), t)
+		msg = "{} triangles created in {} seconds".format(len(faces), t)
 		self.report({'INFO'}, msg)
 		#log.info(msg) #duplicate log
 		return {'FINISHED'}
