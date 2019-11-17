@@ -298,7 +298,12 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
         return {'FINISHED'}
 
 def register():
-	bpy.utils.register_class(IMPORTGIS_OT_ascii_grid)
+	try:
+		bpy.utils.register_class(IMPORTGIS_OT_ascii_grid)
+	except ValueError as e:
+		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		unregister()
+		bpy.utils.register_class(IMPORTGIS_OT_ascii_grid)
 
 def unregister():
 	bpy.utils.unregister_class(IMPORTGIS_OT_ascii_grid)

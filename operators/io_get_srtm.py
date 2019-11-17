@@ -141,7 +141,12 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 
 def register():
-	bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+	try:
+		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+	except ValueError as e:
+		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		unregister()
+		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
 
 def unregister():
 	bpy.utils.unregister_class(IMPORTGIS_OT_srtm_query)

@@ -10,6 +10,9 @@ from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, 
 from bpy.types import PropertyGroup, UIList, Panel, Operator
 from bpy.app.handlers import persistent
 
+import logging
+log = logging.getLogger(__name__)
+
 from .utils import getBBOX
 
 from ..core.utils.gradient import Color, Stop, Gradient
@@ -959,7 +962,12 @@ classes = [
 
 def register():
 	for cls in classes:
-		bpy.utils.register_class(cls)
+		try:
+			bpy.utils.register_class(cls)
+		except ValueError as e:
+			log.warning('{} is already registered, now unregister and retry... '.format(cls))
+			bpy.utils.unregister_class(cls)
+			bpy.utils.register_class(cls)
 	#Create uilist collections
 	bpy.types.Scene.uiListCollec = CollectionProperty(type=RECLASS_PG_color)
 	bpy.types.Scene.uiListIndex = IntProperty() #used to store the index of the selected item in the uilist

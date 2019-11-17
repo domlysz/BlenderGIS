@@ -1027,7 +1027,13 @@ classes = [
 
 def register():
 	for cls in classes:
-		bpy.utils.register_class(cls)
+		try:
+			bpy.utils.register_class(cls)
+		except ValueError as e:
+			#log.error('Cannot register {}'.format(cls), exc_info=True)
+			log.warning('{} is already registered, now unregister and retry... '.format(cls))
+			bpy.utils.unregister_class(cls)
+			bpy.utils.register_class(cls)
 
 def unregister():
 	for cls in classes:

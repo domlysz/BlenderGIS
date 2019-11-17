@@ -55,6 +55,7 @@ import logging
 #temporary set log level, will be overriden reading addon prefs
 logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
 logging.basicConfig(level=logging.getLevelName('INFO'), format=logsFormat) #stdout stream
+logger = logging.getLogger(__name__)
 
 import ssl
 if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
@@ -204,7 +205,12 @@ def register():
 	geoscene.register()
 
 	for menu in menus:
-		bpy.utils.register_class(menu)
+		try:
+			bpy.utils.register_class(menu)
+		except ValueError as e:
+			logger.warning('{} is already registered, now unregister and retry... '.format(cls))
+			bpy.utils.unregister_class(menu)
+			bpy.utils.register_class(menu)
 
 	if BASEMAPS:
 		view3d_mapviewer.register()
@@ -247,7 +253,7 @@ def register():
 	#Setup prefs
 	preferences = bpy.context.preferences.addons[__package__].preferences
 	#>>logger
-	logger = logging.getLogger(__name__)
+	#logger = logging.getLogger(__name__)
 	logger.setLevel(logging.getLevelName(preferences.logLevel)) #will affect all child logger
 	#>>core settings
 	cfg = getSettings()

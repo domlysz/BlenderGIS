@@ -162,7 +162,13 @@ class OBJECT_OT_drop_to_ground(Operator):
         return {'FINISHED'}
 
 def register():
-	bpy.utils.register_class(OBJECT_OT_drop_to_ground)
+	try:
+		bpy.utils.register_class(OBJECT_OT_drop_to_ground)
+	except ValueError as e:
+		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		unregister()
+		bpy.utils.register_class(OBJECT_OT_drop_to_ground)
+
 
 def unregister():
 	bpy.utils.unregister_class(OBJECT_OT_drop_to_ground)

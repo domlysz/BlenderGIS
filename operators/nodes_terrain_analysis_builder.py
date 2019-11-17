@@ -3,6 +3,9 @@ import math
 import bpy
 from bpy.types import Panel, Operator
 
+import logging
+log = logging.getLogger(__name__)
+
 from .utils import getBBOX
 
 from ..core.maths.interpo import scale
@@ -359,7 +362,12 @@ class TERRAIN_ANALYSIS_OT_build_nodes(Operator):
 		return {'FINISHED'}
 
 def register():
-	bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
+	try:
+		bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
+	except ValueError as e:
+		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		unregister()
+		bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
 
 def unregister():
 	bpy.utils.unregister_class(TERRAIN_ANALYSIS_OT_build_nodes)

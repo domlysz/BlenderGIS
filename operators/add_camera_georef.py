@@ -192,7 +192,13 @@ class CAMERA_OT_add_georender_cam(bpy.types.Operator):
 
 
 def register():
-	bpy.utils.register_class(CAMERA_OT_add_georender_cam)
+	try:
+		bpy.utils.register_class(CAMERA_OT_add_georender_cam)
+	except ValueError as e:
+		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		unregister()
+		bpy.utils.register_class(CAMERA_OT_add_georender_cam)
+
 
 def unregister():
 	bpy.utils.unregister_class(CAMERA_OT_add_georender_cam)
