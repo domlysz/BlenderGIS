@@ -48,6 +48,7 @@ TERRAIN_NODES = True
 TERRAIN_RECLASS = True
 BASEMAPS = True
 DROP = True
+EARTH_SPHERE = True
 
 import bpy, os
 
@@ -95,6 +96,8 @@ if BASEMAPS:
 	from .operators import view3d_mapviewer
 if DROP:
 	from .operators import object_drop
+if EARTH_SPHERE:
+	from .operators import mesh_earth_sphere
 
 
 import bpy.utils.previews as iconsLib
@@ -144,6 +147,10 @@ class VIEW3D_MT_menu_gis_mesh(bpy.types.Menu):
 		if DELAUNAY:
 			self.layout.operator("tesselation.delaunay", icon_value=icons_dict["delaunay"].icon_id, text='Delaunay')
 			self.layout.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
+		if EARTH_SPHERE:
+			self.layout.operator("earth.sphere", icon="WORLD", text='lonlat to sphere')
+			#self.layout.operator("earth.curvature", icon="SPHERECURVE", text='Earth curvature correction')
+			self.layout.operator("earth.curvature", icon_value=icons_dict["curve"].icon_id, text='Earth curvature correction')
 
 class VIEW3D_MT_menu_gis_object(bpy.types.Menu):
 	bl_label = "Object"
@@ -238,6 +245,8 @@ def register():
 		nodes_terrain_analysis_builder.register()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.register()
+	if EARTH_SPHERE:
+		mesh_earth_sphere.register()
 
 	#menus
 	bpy.types.VIEW3D_MT_editor_menus.append(add_gis_menu)
@@ -306,6 +315,8 @@ def unregister():
 		nodes_terrain_analysis_builder.unregister()
 	if TERRAIN_RECLASS:
 		nodes_terrain_analysis_reclassify.unregister()
+	if EARTH_SPHERE:
+		mesh_earth_sphere.unregister()
 
 if __name__ == "__main__":
 	register()
