@@ -270,7 +270,7 @@ class BaseMap(GeoScene):
 		#Compute 3dview FOV and needed z distance to see the maximum extent that
 		#can be draw at full res (area 3d needs enough pixels otherwise the image will appears downgraded)
 		#WARN seems these formulas does not works properly in Blender2.8
-		view3D_aperture = 32 #Blender constant (see source code)
+		view3D_aperture = 36 #Blender constant (see source code)
 		view3D_zoom = 2 #Blender constant (see source code)
 		fov = 2 * math.atan(view3D_aperture / (self.view3d.lens*2) ) #fov equation
 		fov = math.atan(math.tan(fov/2) * view3D_zoom) * 2 #zoom correction (see source code)
