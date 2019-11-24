@@ -189,6 +189,10 @@ class OSM_IMPORT():
 			return {'FINISHED'}
 
 		if self.useElevObj:
+			if not self.objElevLst:
+				log.error('There is no elevation object in the scene to get elevation from')
+				self.report({'ERROR'}, "There is no elevation object in the scene to get elevation from")
+				return {'FINISHED'}
 			elevObj = scn.objects[int(self.objElevLst)]
 			rayCaster = DropToGround(scn, elevObj)
 
