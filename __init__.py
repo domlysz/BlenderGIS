@@ -215,7 +215,7 @@ def register():
 		try:
 			bpy.utils.register_class(menu)
 		except ValueError as e:
-			logger.warning('{} is already registered, now unregister and retry... '.format(cls))
+			logger.warning('{} is already registered, now unregister and retry... '.format(menu))
 			bpy.utils.unregister_class(menu)
 			bpy.utils.register_class(menu)
 

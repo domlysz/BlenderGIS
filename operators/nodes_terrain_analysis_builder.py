@@ -365,7 +365,7 @@ def register():
 	try:
 		bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
 	except ValueError as e:
-		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		log.warning('{} is already registered, now unregister and retry... '.format(TERRAIN_ANALYSIS_OT_build_nodes))
 		unregister()
 		bpy.utils.register_class(TERRAIN_ANALYSIS_OT_build_nodes)
 

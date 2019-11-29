@@ -165,7 +165,7 @@ def register():
 	try:
 		bpy.utils.register_class(OBJECT_OT_drop_to_ground)
 	except ValueError as e:
-		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		log.warning('{} is already registered, now unregister and retry... '.format(OBJECT_OT_drop_to_ground))
 		unregister()
 		bpy.utils.register_class(OBJECT_OT_drop_to_ground)
 

@@ -293,7 +293,7 @@ def register():
 	try:
 		bpy.utils.register_class(EXPORTGIS_OT_shapefile)
 	except ValueError as e:
-		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		log.warning('{} is already registered, now unregister and retry... '.format(EXPORTGIS_OT_shapefile))
 		unregister()
 		bpy.utils.register_class(EXPORTGIS_OT_shapefile)
 

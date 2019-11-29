@@ -195,7 +195,7 @@ def register():
 	try:
 		bpy.utils.register_class(CAMERA_OT_add_georender_cam)
 	except ValueError as e:
-		log.warning('{} is already registered, now unregister and retry... '.format(cls))
+		log.warning('{} is already registered, now unregister and retry... '.format(CAMERA_OT_add_georender_cam))
 		unregister()
 		bpy.utils.register_class(CAMERA_OT_add_georender_cam)
 
