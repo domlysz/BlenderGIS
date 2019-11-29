@@ -255,9 +255,10 @@ def register():
 	if not bpy.app.background: #no ui when running as background
 		wm = bpy.context.window_manager
 		kc =  wm.keyconfigs.active
-		km = kc.keymaps['3D View']
-		if BASEMAPS:
-			kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
+		if '3D View' in kc.keymaps:
+			km = kc.keymaps['3D View']
+			if BASEMAPS:
+				kmi = km.keymap_items.new(idname='view3d.map_start', type='NUMPAD_ASTERIX', value='PRESS')
 
 	#Setup prefs
 	preferences = bpy.context.preferences.addons[__package__].preferences
@@ -277,10 +278,11 @@ def unregister():
 
 	if not bpy.app.background: #no ui when running as background
 		wm = bpy.context.window_manager
-		km = wm.keyconfigs.active.keymaps['3D View']
-		if BASEMAPS:
-			if 'view3d.map_start' in km.keymap_items:
-				kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
+		if '3D View' in  wm.keyconfigs.active.keymaps:
+			km = wm.keyconfigs.active.keymaps['3D View']
+			if BASEMAPS:
+				if 'view3d.map_start' in km.keymap_items:
+					kmi = km.keymap_items.remove(km.keymap_items['view3d.map_start'])
 
 	bpy.types.VIEW3D_MT_editor_menus.remove(add_gis_menu)
 
