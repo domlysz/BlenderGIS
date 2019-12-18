@@ -637,10 +637,10 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'CANCELLED'}
 
-		if isTopView(context):
-			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
-		elif len(objs) == 1 and aObj.type == 'MESH':
+		if len(objs) == 1 and aObj.type == 'MESH':
 			bbox = getBBOX.fromObj(aObj).toGeo(geoscn)
+		elif isTopView(context):
+			bbox = getBBOX.fromTopView(context).toGeo(geoscn)
 		else:
 			self.report({'ERROR'}, "Please define the query extent in orthographic top view or by selecting a reference object")
 			return {'CANCELLED'}
