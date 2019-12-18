@@ -169,7 +169,7 @@ class getBBOX():
 		'''Create a 3D BBOX from Blender Scene
 		union of bounding box of all objects containing in the scene'''
 		#objs = scn.collection.objects
-		objs = [obj for obj in scn.collection.objects if obj.empty_display_type != 'IMAGE']
+		objs = [obj for obj in scn.collection.all_objects if obj.empty_display_type != 'IMAGE']
 		if len(objs) == 0:
 			scnBbox = BBOX(0,0,0,0,0,0)
 		else:

@@ -130,7 +130,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			importMode = 'DEM',
 			subdivision = 'subsurf',
 			demOnMesh = True,
-			objectsLst = [str(i) for i, obj in enumerate(scn.collection.objects) if obj.name == bpy.context.active_object.name][0],
+			objectsLst = [str(i) for i, obj in enumerate(scn.collection.all_objects) if obj.name == bpy.context.active_object.name][0],
 			clip = False,
 			fillNodata = False)
 
