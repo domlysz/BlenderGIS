@@ -181,6 +181,7 @@ class BaseMap(GeoScene):
 		dx, dy, dz = self.reg3d.view_location
 		ox = self.crsx + (dx * self.scale)
 		oy = self.crsy + (dy * self.scale)
+		log.debug('Computing bounding box w:{}, h:{}, vloc:({},{},{}), z:{}, r:{}'.format(w, h, dx, dy, dz, z, res))
 		xmin = ox - w/2 * res * self.scale
 		ymax = oy + h/2 * res * self.scale
 		xmax = ox + w/2 * res * self.scale
