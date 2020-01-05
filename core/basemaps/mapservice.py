@@ -227,6 +227,7 @@ class TileMatrix():
 			dy = self.originy - y
 		else:
 			dy = y - self.originy
+		log.debug('Computing tile number x {} y {} z {} r {} dx {} dy {}'.format(x, y, zoom, res, dx, dy))
 		col = dx / geoTileSize
 		row = dy / geoTileSize
 		col = int(math.floor(col))
