@@ -45,7 +45,7 @@ broken if the origin is set but not the CRS or if the origin is only set as long
 Changing the CRS will raise an error if updating existing origin coordinate is not possible.
 
 Both methods setOriginGeo() and setOriginPrj() try a projection task to maintain
-coordinates synchronized. Failing reprojecion does not abort the exec, but will
+coordinates synchronized. Failing reprojection does not abort the exec, but will
 trigger deletion of unsynch coordinates. Synchronization can be disable for
 setOriginPrj() method only.
 
@@ -409,7 +409,7 @@ class GEOSCENE_OT_coords_viewer(Operator):
 
 class GEOSCENE_OT_set_crs(Operator):
 	'''
-	use the enum of predefinates crs defined in addon prefs
+	use the enum of predefinites crs defined in addon prefs
 	to select and switch scene crs definition
 	'''
 
