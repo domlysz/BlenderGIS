@@ -257,7 +257,7 @@ class BGIS_PREFS(AddonPreferences):
 
 class PredefCRS():
 
-	'''Collection of methods (callable at class level) to deal with predefinates CRS dictionnary'''
+	'''Collection of methods (callable at class level) to deal with predefined CRS dictionary'''
 
 	@staticmethod
 	def getData():
@@ -279,7 +279,7 @@ class PredefCRS():
 
 	@classmethod
 	def getEnumItems(cls):
-		'''Return a list of predefinate crs usable to fill a bpy EnumProperty'''
+		'''Return a list of predefined crs usable to fill a bpy EnumProperty'''
 		crsItems = []
 		data = cls.getData()
 		for srid, name in data.items():
