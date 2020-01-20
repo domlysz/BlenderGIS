@@ -14,7 +14,7 @@ def lonlat2xyz(R, lon, lat):
 	x = R * cos(lat) * cos(lon)
 	y = R * cos(lat) * sin(lon)
 	z = R *sin(lat)
-	return (x, y, z)
+	return Vector((x, y, z))
 
 
 class OBJECT_OT_earth_sphere(Operator):
@@ -27,28 +27,31 @@ class OBJECT_OT_earth_sphere(Operator):
 
 	def execute(self, context):
 		scn = bpy.context.scene
-		obj = bpy.context.view_layer.objects.active
+		objs = bpy.context.selected_objects
 
-		if not obj:
-			self.report({'INFO'}, "No active object")
+		if not objs:
+			self.report({'INFO'}, "No selected object")
 			return {'CANCELLED'}
 
-		if obj.type != 'MESH':
-			self.report({'INFO'}, "Selection isn't a mesh")
-			return {'CANCELLED'}
+		for obj in objs:
+			if obj.type != 'MESH':
+				log.warning("Object {} is not a mesh".format(obj.name))
+				continue
 
-		w, h, thick = obj.dimensions
-		if w > 360:
-			self.report({'INFO'}, "Longitude exceed 360°")
-			return {'CANCELLED'}
-		if h > 180:
-			self.report({'INFO'}, "Latitude exceed 360°")
-			return {'CANCELLED'}
+			w, h, thick = obj.dimensions
+			if w > 360:
+				log.warning("Longitude of object {} exceed 360°".format(obj.name))
+				continue
+			if h > 180:
+				log.warning("Latitude of object {} exceed 180°".format(obj.name))
+				continue
 
-		mesh = obj.data
-		for vertex in mesh.vertices:
-			lon, lat = vertex.co.x, vertex.co.y
-			vertex.co = lonlat2xyz(self.radius, lon, lat)
+			mesh = obj.data
+			m = obj.matrix_world
+			for vertex in mesh.vertices:
+				co = m @ vertex.co
+				lon, lat = co.x, co.y
+				vertex.co = m.inverted() @ lonlat2xyz(self.radius, lon, lat)
 
 		return {'FINISHED'}
 
