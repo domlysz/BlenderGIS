@@ -294,7 +294,7 @@ class Result(object):
         if not iterparse:
             #Method 1 : full parsing at once
             if isFile:
-                with open(data, 'r') as f:
+                with open(data, 'r', encoding='utf-8') as f:
                     data = f.read() #all file in memory
             root = ET.fromstring(data)
             for elem_cls in [Node, Way, Relation]:
