@@ -268,7 +268,11 @@ class Reproj():
 
 		if self.iproj == 'GDAL':
 			#Since PROJ 6, the order of coordinates for geographic crs is latitude first, longitude second.
-			if osr.GetPROJVersionMajor() >= 6 and self.crs1.IsGeographic():
+			if hasattr(osr, 'GetPROJVersionMajor'):
+				projVersion = osr.GetPROJVersionMajor()
+			else:
+				projVersion = 4
+			if projVersion >= 6 and self.crs1.IsGeographic():
 				pts = [ (pt[1], pt[0]) for pt in pts]
 			xs, ys, _zs = zip(*self.osrTransfo.TransformPoints(pts))
 			return list(zip(xs, ys))
