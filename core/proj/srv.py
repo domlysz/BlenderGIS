@@ -45,7 +45,7 @@ class EPSGIO():
 			log.error('Cannot ping {} web service, {}'.format(url, e.reason))
 			return False
 		except HTTPError as e:
-			lor.error('Cannot ping {} web service, http error {}'.format(url, e.code))
+			log.error('Cannot ping {} web service, http error {}'.format(url, e.code))
 			return False
 		except:
 			raise
