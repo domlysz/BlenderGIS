@@ -17,7 +17,9 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
+from ..core.settings import getSetting
 
+USER_AGENT = getSetting('user_agent')
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -657,7 +659,7 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 		w.cursor_set('WAIT')
 
 		#Download from overpass api
-		api = overpy.Overpass()
+		api = overpy.Overpass(user_agent=USER_AGENT)
 
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
 		log.debug('Overpass query : {}'.format(query)) # can fails with non utf8 chars
