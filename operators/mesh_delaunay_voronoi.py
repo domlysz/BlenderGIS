@@ -212,7 +212,7 @@ class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 		voronoiObj.select_set(True)
 		obj.select_set(False)
 		#Report
-		t = round(timing.perf_clock() - t0, 2)
+		t = round(perf_clock() - t0, 2)
 		if self.meshType == "Edges":
 			self.report({'INFO'}, "{} edges created in {} seconds".format(len(edgesIdx), t))
 		else:
