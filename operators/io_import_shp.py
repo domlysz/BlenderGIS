@@ -16,6 +16,7 @@ from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 from ..core import BBOX
 from ..core.proj import Reproj
+from ..core.utils import perf_clock
 
 from .utils import adjust3Dview, getBBOX, DropToGround
 
@@ -340,7 +341,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
-		t0 = time.clock()
+		t0 = perf_clock()
 
 		bpy.ops.object.select_all(action='DESELECT')
 
@@ -727,7 +728,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		#free the bmesh
 		bm.free()
 
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('Build in %f seconds' % t)
 
 		#Adjust grid size
