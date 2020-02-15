@@ -28,6 +28,7 @@ In contrast, this script works in a reasonable time, but keep in mind it's not J
 reference to distribute the values while Jenks try to minimize within-class variance, and maximizes between group variance.
 """
 
+from ..utils.timing import perf_clock
 
 
 def kmeans1d(data, k, cutoff=False, maxIter=False):
@@ -174,9 +175,9 @@ if __name__ == '__main__':
 
 	print('---------------')
 	print('%i values, %i classes' %(len(data),k))
-	t1 = time.clock()
+	t1 = perf_clock()
 	clusters = kmeans1d(data, k)
-	t2 = time.clock()
+	t2 = perf_clock()
 	print('Completed in %f seconds' %(t2-t1))
 
 	print('Breaks :')

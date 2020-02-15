@@ -3,6 +3,7 @@
 import bpy
 import time
 from .utils import computeVoronoiDiagram, computeDelaunayTriangulation
+from ..core.utils import perf_clock
 
 try:
 	from mathutils.geometry import delaunay_2d_cdt
@@ -50,7 +51,7 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 	def execute(self, context):
 		w = context.window
 		w.cursor_set('WAIT')
-		t0 = time.clock()
+		t0 = perf_clock()
 		#Get selected obj
 		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
@@ -125,7 +126,7 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 		tinObj.select_set(True)
 		obj.select_set(False)
 		#Report
-		t = round(time.clock() - t0, 2)
+		t = round(perf_clock() - t0, 2)
 		msg = "{} triangles created in {} seconds".format(len(faces), t)
 		self.report({'INFO'}, msg)
 		#log.info(msg) #duplicate log
@@ -150,7 +151,7 @@ class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 	def execute(self, context):
 		w = context.window
 		w.cursor_set('WAIT')
-		t0 = time.clock()
+		t0 = perf_clock()
 		#Get selected obj
 		objs = context.selected_objects
 		if len(objs) == 0 or len(objs) > 1:
@@ -211,7 +212,7 @@ class OBJECT_OT_tesselation_voronoi(bpy.types.Operator):
 		voronoiObj.select_set(True)
 		obj.select_set(False)
 		#Report
-		t = round(time.clock() - t0, 2)
+		t = round(perf_clock() - t0, 2)
 		if self.meshType == "Edges":
 			self.report({'INFO'}, "{} edges created in {} seconds".format(len(edgesIdx), t))
 		else:

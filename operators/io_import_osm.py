@@ -18,6 +18,7 @@ from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
 from ..core.settings import getSetting
+from ..core.utils import perf_clock
 
 USER_AGENT = getSetting('user_agent')
 
@@ -558,12 +559,12 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 			return {'CANCELLED'}
 
 		#Parse file
-		t0 = time.clock()
+		t0 = perf_clock()
 		api = overpy.Overpass()
 		#with open(self.filepath, "r", encoding"utf-8") as f:
 		#	result = api.parse_xml(f.read()) #WARNING read() load all the file into memory
 		result = api.parse_xml(self.filepath)
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('File parsed in {} seconds'.format(round(t, 2)))
 
 		#Get bbox
@@ -584,9 +585,9 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 			geoscn.setOriginPrj(x, y)
 
 		#Build meshes
-		t0 = time.clock()
+		t0 = perf_clock()
 		self.build(context, result, geoscn.crs)
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('Mesh build in {} seconds'.format(round(t, 2)))
 
 		bbox = getBBOX.fromScn(scn)
