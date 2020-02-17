@@ -628,6 +628,7 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 
 	def execute(self, context):
 
+		prefs = bpy.context.preferences.addons[PKG].preferences
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		objs = context.selected_objects
@@ -660,8 +661,8 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 		w.cursor_set('WAIT')
 
 		#Download from overpass api
-		api = overpy.Overpass(user_agent=USER_AGENT)
-
+		log.debug('Requests overpass server : {}'.format(prefs.overpassServer))
+		api = overpy.Overpass(overpass_server=prefs.overpassServer, user_agent=USER_AGENT)
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
 		log.debug('Overpass query : {}'.format(query)) # can fails with non utf8 chars
 

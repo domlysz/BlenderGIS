@@ -141,6 +141,18 @@ class BGIS_PREFS(AddonPreferences):
 		items = listOsmTags
 		)
 
+	overpassServer: EnumProperty(
+		name = "Overpass server url endpoint",
+		description = "Select an overpass server",
+		default = "https://lz4.overpass-api.de/api/interpreter",
+		items = [
+			("https://lz4.overpass-api.de/api/interpreter", 'overpass-api.de', 'Main Overpass API instance'),
+			("http://overpass.openstreetmap.fr/api/interpreter", 'overpass.openstreetmap.fr', 'French Overpass API instance'),
+			("https://overpass.kumi.systems/api/interpreter", 'overpass.kumi.systems', 'Kumi Systems Overpass Instance')
+			#("https://overpass.nchc.org.tw", 'overpass.nchc.org.tw', 'Taiwan Overpass API')
+			]
+		)
+
 	################
 	#Basemaps
 
@@ -243,6 +255,8 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_osm_tag", icon='PREFERENCES')
 		row.operator("bgis.rmv_osm_tag", icon='REMOVE')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
+		row = box.row()
+		row.prop(self, "overpassServer")
 		row = box.row()
 		row.prop(self, "mergeDoubles")
 		row.prop(self, "adjust3Dview")

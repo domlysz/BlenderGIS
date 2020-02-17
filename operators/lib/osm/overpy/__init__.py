@@ -45,14 +45,14 @@ class Overpass(object):
     """
     default_read_chunk_size = 4096
 
-    def __init__(self, read_chunk_size=None, referer=None, user_agent=None):
+    def __init__(self, overpass_server="http://overpass-api.de/api/interpreter", read_chunk_size=None, referer=None, user_agent=None):
         """
         :param read_chunk_size: Max size of each chunk read from the server response
         :type read_chunk_size: Integer
         """
         self.referer = referer
         self.user_agent = user_agent
-        self.url = "http://overpass-api.de/api/interpreter"
+        self.url = overpass_server
         self._regex_extract_error_msg = re.compile(b"\<p\>(?P<msg>\<strong\s.*?)\</p\>")
         self._regex_remove_tag = re.compile(b"<[^>]*?>")
         if read_chunk_size is None:
