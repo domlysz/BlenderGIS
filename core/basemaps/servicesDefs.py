@@ -183,6 +183,30 @@ SOURCES = {
 	},
 
 
+	"ESRI" : {
+		"name" : 'Esri',
+		"description" : 'Esri ArcGIS',
+		"service": 'TMS',
+		"grid": 'WM',
+		"quadTree": False,
+		"layers" : {
+			"AERIAL" : {"urlKey" : 'World_Imagery', "name" : 'Aerial', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23},
+			"NATGEO" : {"urlKey" : 'NatGeo_World_Map', "name" : 'National Geographic', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 16},
+			"USATOPO" : {"urlKey" : 'USA_Topo_Maps', "name" : 'USA Topo', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 15},
+			"PHYSICAL" : {"urlKey" : 'World_Physical_Map', "name" : 'Physical', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 8},
+			"RELIEF" : {"urlKey" : 'World_Shaded_Relief', "name" : 'Shaded Relief', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 13},
+			"STREET" : {"urlKey" : 'World_Street_Map', "name" : 'Street Map', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23},
+			"TOPO" : {"urlKey" : 'World_Topo_Map', "name" : 'Topo with relief', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23},
+			"TERRAINB" : {"urlKey" : 'World_Terrain_Base', "name" : 'Terrain Base', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 13},
+			"CANVASLIGHTB" : {"urlKey" : 'Canvas/World_Light_Gray_Base', "name" : 'Canvas Light Gray Base', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23},
+			"CANVASDARKB" : {"urlKey" : 'Canvas/World_Dark_Gray_Base', "name" : 'Canvas Dark Gray Base', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23},
+			"OCEANB" : {"urlKey" : 'Ocean/World_Ocean_Base', "name" : 'Ocean Base', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 23}
+		},
+		"urlTemplate": "https://server.arcgisonline.com/ArcGIS/rest/services/{LAY}/MapServer/tile/{Z}/{Y}/{X}",
+		"referer": "https://server.arcgisonline.com/arcgis/rest/services"
+	},
+
+
 	###############
 	# WMS examples
 	###############
