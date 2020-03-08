@@ -120,7 +120,8 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			reprojection = True,
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
-			subdivision = 'subsurf')
+			subdivision = 'subsurf',
+			demInterpolation = True)
 		else:
 			bpy.ops.importgis.georaster(
 			'EXEC_DEFAULT',
@@ -129,6 +130,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
 			subdivision = 'subsurf',
+			demInterpolation = True,
 			demOnMesh = True,
 			objectsLst = [str(i) for i, obj in enumerate(scn.collection.all_objects) if obj.name == bpy.context.active_object.name][0],
 			clip = False,

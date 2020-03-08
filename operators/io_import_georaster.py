@@ -127,6 +127,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			default=False
 			)
 	#
+	demInterpolation: BoolProperty(
+			name="Smooth relief",
+			description="Use texture interpolation to smooth the resulting terrain",
+			default=True
+			)
+	#
 	fillNodata: BoolProperty(
 			name="Fill nodata values",
 			description="Interpolate existing nodata values to get an usuable displacement texture",
@@ -165,6 +171,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 				else:
 					layout.label(text="There isn't georef mesh to apply on")
 			layout.prop(self, 'subdivision')
+			layout.prop(self, 'demInterpolation')
 			if self.subdivision == 'mesh':
 				layout.prop(self, 'step')
 			layout.prop(self, 'fillNodata')
@@ -412,7 +419,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 					subsurf.levels = 6
 					subsurf.render_levels = 6
 			#Set displacer
-			dsp = setDisplacer(obj, grid, uvTxtLayer)
+			dsp = setDisplacer(obj, grid, uvTxtLayer, interpolation=self.demInterpolation)
 
 		######################################
 		if self.importMode == 'DEM_RAW':
