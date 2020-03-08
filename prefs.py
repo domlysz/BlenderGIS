@@ -1,6 +1,7 @@
 import json
 import logging
 log = logging.getLogger(__name__)
+import sys
 
 import bpy
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
@@ -11,7 +12,7 @@ from . import bl_info
 from .core.proj.reproj import EPSGIO
 from .core.proj.srs import SRS
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
-from .core.settings import getSettings, setSettings
+from .core.settings import getSetting, getSettings, setSettings
 
 PKG = __package__
 
@@ -142,7 +143,7 @@ class BGIS_PREFS(AddonPreferences):
 		)
 
 	overpassServer: EnumProperty(
-		name = "Overpass server url endpoint",
+		name = "Overpass server",
 		description = "Select an overpass server",
 		default = "https://lz4.overpass-api.de/api/interpreter",
 		items = [
@@ -188,6 +189,17 @@ class BGIS_PREFS(AddonPreferences):
 		)
 
 	################
+	#DEM options
+	srtmServer: EnumProperty(
+		name = "SRTM server",
+		description = "Select an overpass server",
+		items = [
+			("http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography', 'OpenTopography.org web service'),
+			("http://www.marine-geo.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org', 'Marine-geo.org web service')
+			]
+		)
+
+	################
 	#IO options
 	mergeDoubles: BoolProperty(
 		name = "Merge duplicate vertices",
@@ -213,7 +225,7 @@ class BGIS_PREFS(AddonPreferences):
 		description = "Select the logging level",
 		items = [('DEBUG', 'Debug', ''), ('INFO', 'Info', ''), ('WARNING', 'Warning', ''), ('ERROR', 'Error', ''), ('CRITICAL', 'Critical', '')],
 		update = updateLogLevel,
-		default = 'INFO'
+		default = 'DEBUG'
 		)
 
 	################
@@ -257,6 +269,7 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
 		row = box.row()
 		row.prop(self, "overpassServer")
+		row.prop(self, "srtmServer")
 		row = box.row()
 		row.prop(self, "mergeDoubles")
 		row.prop(self, "adjust3Dview")
