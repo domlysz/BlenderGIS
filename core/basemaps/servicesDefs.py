@@ -224,7 +224,7 @@ SOURCES = {
 			"WRLD" : {"urlKey" : 'osm_auto:all', "name" : 'WMS', "description" : '', "format" : 'png', "style" : '', "zmin" : 0, "zmax" : 20}
 		},
 		"urlTemplate": {
-			"BASE_URL" : 'http://129.206.228.72/cached/osm?',
+			"BASE_URL" : ' http://maps.heigit.org/osm-wms/service?',
 			"SERVICE" : 'WMS',
 			"VERSION" : '1.1.1',
 			"REQUEST" : 'GetMap',
