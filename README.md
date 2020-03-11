@@ -2,7 +2,7 @@ Blender GIS
 ==========
 Blender minimal version : 2.8
 
-**Mac users warning :** currently the addon does not work anymore on Mac because of an issue relative to Blender Mac build itself. Please do not report the issue here. It should be fixed by the Blender team soon. Check [the bug report](https://developer.blender.org/T68243) to follow the progress on it.
+**Mac users warning :** currently the addon does not work on Mac with Blender 2.80 to 2.82. Please do not report the issue here, it's already solved with Blender 2.83. Check [the bug report](https://developer.blender.org/T68243).
 
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Home) - [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start)
