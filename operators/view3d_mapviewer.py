@@ -468,8 +468,7 @@ class VIEW3D_OT_map_start(Operator):
 	def invoke(self, context, event):
 
 		if not HAS_PIL and not HAS_GDAL and not HAS_IMGIO:
-			self.report({'ERROR'}, "No imaging library available. ImageIO module was not correctly installed.\
-			Please reinstall it or try to install Python GDAL or Pillow module")
+			self.report({'ERROR'}, "No imaging library available. ImageIO module was not correctly installed.")
 			return {'CANCELLED'}
 
 		if not context.area.type == 'VIEW_3D':
