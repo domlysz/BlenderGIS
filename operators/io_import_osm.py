@@ -226,7 +226,15 @@ class OSM_IMPORT():
 			dx, dy = geoscn.crsx, geoscn.crsy
 
 			if self.useElevObj:
-				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
+				#pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
+				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy) for v in pts]
+				if not all([pt.hit for pt in pts]):
+					zs = [p.loc.z for p in pts if p.hit]
+					meanZ = sum(zs) / len(zs)
+					for v in pts:
+						if not v.hit:
+							v.loc.z = meanZ
+				pts = [pt.loc for pt in pts]
 			else:
 				pts = [ (v[0]-dx, v[1]-dy, 0) for v in pts]
 
