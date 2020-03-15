@@ -8,66 +8,14 @@ Blender minimal version : 2.8
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Home) - [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start)
 --------------------
 
+## Functionalities overview
 
-[Basemaps](https://github.com/domlysz/BlenderGIS/wiki/Basemaps)
---------------------
-Display web map service like OpenStreetMap directly in Blender
+**GIS datafile import :** Import in Blender most commons GIS data format : Shapefile vector, raster image, geotiff DEM, OpenStreetMap xml.
 
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/basemaps_demo.gif)
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender28x/gif/bgis_demo_delaunay.gif)
 
-[SRTM download](https://github.com/domlysz/BlenderGIS/wiki/SRTM)
---------------------
-Get SRTM topographic data and apply it as height texture
+**Grab geodata directly from the web :** display dynamics web maps inside Blender 3d view, requests for OpenStreetMap data (buildings, roads ...), get true elevation data from the NASA SRTM mission.
 
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/srtm_demo.gif)
+![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender28x/gif/bgis_demo_webdata.gif)
 
-
-[ESRI Shapefile import / export](https://github.com/domlysz/BlenderGIS/wiki/Shapefile-import)
---------------------
-
-A [Shapefile](http://en.wikipedia.org/wiki/Shapefile) is a popular geospatial vector data format for geographic information system software.
-
-This tool can import into Blender most of shapefile feature type. It can also uses attributes data to define Z elevation values or Z extrusion values.
-
-Exporter script can export a mesh to pointZ, polylineZ or polygonZ shapefile. Note that currently this tool does not re-export attribute data include in the dbase file linked to the shapefile. So if you want to import a shapefile for edit it into Blender and then re-export it, you will lose attribute data.
-
-
-[Georeferenced raster importer](https://github.com/domlysz/BlenderGIS/wiki/Import-georef-raster)
---------------------
-
-Import geotiff or common image format georeferenced with a [world file](http://en.wikipedia.org/wiki/World_file).
-
-You can import the raster as a plane mesh, as backgound image for orthographic view, as UV texture mapping on a mesh or [as DEM](https://github.com/domlysz/BlenderGIS/wiki/Import-DEM-grid) for warp a mesh with the displace modifier.
-
-ESRI ASCII GRID format is also supported through a dedicated import tool.
-
-[OpenStreetMap import](https://github.com/domlysz/BlenderGIS/wiki/OSM-import)
---------------------
-
-![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender27x/images/osm_demo.gif)
-
-
-[Georeferenced render output](https://github.com/domlysz/BlenderGIS/wiki/Make-a-georef-render)
---------------------
-
-This is a tool to create a new camera correctly setup for produce a map render. Georeferencing data (worldfile) are writing in text file accessible from the Blender text editor.
-
-
-[Delaunay triangulation & Voronoi diagram](https://github.com/domlysz/BlenderGIS/wiki/Make-terrain-mesh-with-Delaunay-triangulation)
---------------------
-
-This script computes [Delaunay triangulation](http://en.wikipedia.org/wiki/Delaunay_triangulation) in 2.5D. This triangulation is suitable for create a 3D terrain mesh from [points cloud](http://en.wikipedia.org/wiki/Point_cloud) or [contour lines](http://en.wikipedia.org/wiki/Contour_line)
-
-The script can also compute [Voronoi tessellation](http://en.wikipedia.org/wiki/Voronoi) in 2D which is the dual of delaunay triangulation. Voronoi diagram is suitable to make neighborhood analysis map.
-
-
-[Terrain analysis](https://github.com/domlysz/BlenderGIS/wiki/Terrain-analysis)
---------------------
-
-This part of Blender GIS is designed to assist in the analysis of the topography : height, slope and azimuth (aspect).
-
-There are 2 tools, one to build materials nodes setup for Cycles engine, and a second to configure the color ramp as usual in common GIS software (reclassify values and apply color ramp presets).
-
-[Georeferencing management](https://github.com/domlysz/BlenderGIS/wiki/Gereferencing-management)
---------------------
-Handle various projection systems with reprojection capabilities and compatibility with some others addons
+**And more :** Manage georeferencing informations of a scene, compute a terrain mesh by Delaunay triangulation, make terrain analysis using shader nodes, setup new cameras from geotagged photos, setup a camera to render with Blender a new georeferenced raster.
