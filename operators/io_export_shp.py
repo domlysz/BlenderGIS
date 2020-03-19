@@ -157,18 +157,24 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		for obj in objects:
 			for k, v in obj.items():
 				k = k[0:maxFieldNameLen]
+				#evaluate the field type with the first value
 				if k not in [f[0] for f in outShp.fields]:
-					#evaluate the field type with the first value
-					if v.lstrip("-+").isdigit():
-						v = int(v)
+					if isinstance(v, float) or isinstance(v, int):
 						fieldType = 'N'
-					else:
-						try:
-							v = float(v)
-						except ValueError:
-							fieldType = 'C'
-						else:
+					elif isinstance(v, str):
+						if v.lstrip("-+").isdigit():
+							v = int(v)
 							fieldType = 'N'
+						else:
+							try:
+								v = float(v)
+							except ValueError:
+								fieldType = 'C'
+							else:
+								fieldType = 'N'
+					else:
+						continue
+
 					if fieldType == 'C':
 						outShp.field(k, fieldType, cLen)
 					elif fieldType == 'N':
