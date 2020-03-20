@@ -270,6 +270,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 				#attributes.update({k[0:maxFieldNameLen]:v for k, v in dict(obj).items()})
 				for k, v in dict(obj).items():
 					k = k[0:maxFieldNameLen]
+					if not any([f[0] == k for f in outShp.fields]):
+						continue
 					fType = next( (f[1] for f in outShp.fields if f[0] == k) )
 					if fType in ('N', 'F'):
 						try:
@@ -278,6 +280,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 							log.info('Cannot cast value {} to float for appending field {}, NULL value will be inserted instead'.format(v, k))
 							v = None
 					attributes[k] = v
+				#assign None to orphans shp fields (if the key does not exists in the custom props of this object)
 				attributes.update({f[0]:None for f in outShp.fields if f[0] not in attributes.keys()})
 				outShp.record(**attributes)
 
