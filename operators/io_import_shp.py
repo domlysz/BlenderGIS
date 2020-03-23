@@ -639,6 +639,9 @@ class IMPORTGIS_OT_shapefile(Operator):
 
 			if self.separateObjects:
 
+				if prefs.mergeDoubles:
+					bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+
 				if self.fieldObjName:
 					try:
 						name = record[nameFieldIdx]

@@ -65,7 +65,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			name = "Mode",
 			description = "Select the export strategy",
 			items = [
-				('OBJ2FEAT', 'Objects to feature', "Create one multipart feature per object"),
+				('OBJ2FEAT', 'Objects to features', "Create one multipart feature per object"),
 				('MESH2FEAT', 'Mesh to features', "Decompose mesh primitives to separate features")
 			],
 			default = 'OBJ2FEAT'

@@ -312,11 +312,10 @@ class OSM_IMPORT():
 					verts = [bm.verts.new(pt) for pt in line]
 					edge = bm.edges.new(verts)
 
-
-
 			if self.separate:
 
-				##bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+				if prefs.mergeDoubles:
+					bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 
 				name = tags.get('name', str(id))
 
