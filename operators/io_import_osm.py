@@ -228,7 +228,8 @@ class OSM_IMPORT():
 			if self.useElevObj:
 				#pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
 				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy) for v in pts]
-				if not all([pt.hit for pt in pts]):
+				hits = [pt.hit for pt in pts]
+				if not all(hits) and any(hits):
 					zs = [p.loc.z for p in pts if p.hit]
 					meanZ = sum(zs) / len(zs)
 					for v in pts:
