@@ -334,6 +334,9 @@ class IMPORTGIS_OT_shapefile(Operator):
 	def poll(cls, context):
 		return context.mode == 'OBJECT'
 
+	def __del__(self):
+		bpy.context.window.cursor_set('DEFAULT')
+
 	def execute(self, context):
 
 		prefs = bpy.context.preferences.addons[PKG].preferences
