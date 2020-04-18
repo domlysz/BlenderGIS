@@ -648,7 +648,7 @@ class MapService():
 			return None
 
 		#list, download and merge the tiles required to build this one (recursive call)
-		mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, nbThread=4, cpt=False, allowEmptyTile=False)
+		mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, nbThread=4, cpt=False)
 
 		if mosaic is None:
 			return None
