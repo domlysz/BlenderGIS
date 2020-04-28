@@ -163,8 +163,8 @@ SOURCES = {
 		"layers" : {
 			"MAPNIK" : {"urlKey" : '', "name" : 'Mapnik', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 19}
 		},
-		"urlTemplate": "http://tile.openstreetmap.org/{Z}/{X}/{Y}.png",
-		"referer": "https://www.openstreetmap.org"
+		"urlTemplate": "https://tile.openstreetmap.org/{Z}/{X}/{Y}.png",
+		"referer": "" #https://www.openstreetmap.org will return 418 error
 	},
 
 

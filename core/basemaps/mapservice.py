@@ -396,8 +396,8 @@ class MapService():
 			'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7' ,
 			'Accept-Encoding' : 'gzip,deflate' ,
 			'Accept-Language' : 'fr,en-us,en;q=0.5' ,
-			'Keep-Alive': 115 ,
-			'Proxy-Connection' : 'keep-alive' ,
+			#'Keep-Alive': 115 ,
+			'Proxy-Connection' : 'keep-alive',
 			'User-Agent' : USER_AGENT,
 			'Referer' : self.referer}
 
