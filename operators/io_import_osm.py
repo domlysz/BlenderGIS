@@ -306,17 +306,12 @@ class OSM_IMPORT():
 
 
 			elif len(pts) > 1: #edge
-				#Split polyline to lines
-				n = len(pts)
-				lines = [ (pts[i], pts[i+1]) for i in range(n) if i < n-1 ]
-				for line in lines:
-					verts = [bm.verts.new(pt) for pt in line]
-					edge = bm.edges.new(verts)
+				verts = [bm.verts.new(pt) for pt in pts]
+				for i in range(len(pts)-1):
+					edge = bm.edges.new( [verts[i], verts[i+1] ])
+
 
 			if self.separate:
-
-				if prefs.mergeDoubles:
-					bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 
 				name = tags.get('name', str(id))
 
