@@ -30,24 +30,27 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 	# ExportHelper class properties
 	filename_ext = ".shp"
 	filter_glob: StringProperty(
-			default="*.shp",
-			options={'HIDDEN'},
+			default = "*.shp",
+			options = {'HIDDEN'},
 			)
 
 	exportType: EnumProperty(
-			name="Feature type",
-			description="Select feature type",
-			items=[ ('POINTZ', 'Point', ""),
-			('POLYLINEZ', 'Line', ""),
-			('POLYGONZ', 'Polygon', "")]
-			)
+			name = "Feature type",
+			description = "Select feature type",
+			items = [
+				('POINTZ', 'Point', ""),
+				('POLYLINEZ', 'Line', ""),
+				('POLYGONZ', 'Polygon', "")
+			])
 
-	mode: EnumProperty(
-			name="Mode",
-			description="Select the export strategy",
-			items=[ ('COLLEC', 'Collection', "Export a collection of object"),
-			('OBJ', 'Single object', "Export a single mesh")],
-			default='OBJ'
+	objectsSource: EnumProperty(
+			name = "Objects",
+			description = "Objects to export",
+			items = [
+				('COLLEC', 'Collection', "Export a collection of objects"),
+				('SELECTED', 'Selected objects', "Export the current selection")
+			],
+			default = 'SELECTED'
 			)
 
 	def listCollections(self, context):
@@ -58,18 +61,15 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		description = "Select the collection to export",
 		items = listCollections)
 
-	def listObjects(self, context):
-		objs = []
-		for index, object in enumerate(bpy.context.scene.objects):
-			if object.type == 'MESH':
-				#put each object in a tuple (key, label, tooltip) and add this to the objects list
-				objs.append((str(index), object.name, "Object named " + object.name))
-		return objs
-
-	selectedObj: EnumProperty(
-		name = "Object",
-		description = "Select the object to export",
-		items = listObjects )
+	mode: EnumProperty(
+			name = "Mode",
+			description = "Select the export strategy",
+			items = [
+				('OBJ2FEAT', 'Objects to features', "Create one multipart feature per object"),
+				('MESH2FEAT', 'Mesh to features', "Decompose mesh primitives to separate features")
+			],
+			default = 'OBJ2FEAT'
+			)
 
 
 	@classmethod
@@ -79,11 +79,10 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 	def draw(self, context):
 		#Function used by blender to draw the panel.
 		layout = self.layout
-		layout.prop(self, 'mode')
-		if self.mode == 'OBJ':
-			layout.prop(self, 'selectedObj')
-		elif self.mode == 'COLLEC':
+		layout.prop(self, 'objectsSource')
+		if self.objectsSource == 'COLLEC':
 			layout.prop(self, 'selectedColl')
+		layout.prop(self, 'mode')
 		layout.prop(self, 'exportType')
 
 	def execute(self, context):
@@ -91,22 +90,6 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		folder = os.path.dirname(filePath)
 		scn = context.scene
 		geoscn = GeoScene(scn)
-
-		'''
-		#Get selected obj
-		objs = bpy.context.selected_objects
-		if len(objs) == 0 or len(objs)>1:
-			self.report({'INFO'}, "Selection is empty or too much object selected")
-			return {'CANCELLED'}
-		obj = objs[0]
-		if obj.type != 'MESH':
-			self.report({'INFO'}, "Selection isn't a mesh")
-			return {'CANCELLED'}
-		'''
-
-		if not self.selectedObj or not self.selectedColl:
-			self.report({'ERROR'}, "Nothing to export")
-			return {'CANCELLED'}
 
 		if geoscn.isGeoref:
 			dx, dy = geoscn.getOriginPrj()
@@ -123,28 +106,25 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			dx, dy = (0, 0)
 			wkt = None
 
-
-		if self.mode == 'OBJ':
-			objects = [scn.objects[int(self.selectedObj)]]
-		elif self.mode == 'COLLEC':
+		if self.objectsSource == 'SELECTED':
+			objects = [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']
+		elif self.objectsSource == 'COLLEC':
 			objects = bpy.data.collections[self.selectedColl].all_objects
 			objects = [obj for obj in objects if obj.type == 'MESH']
-			if not objects:
-				self.report({'ERROR'}, "Nothing to export")
-				return {'CANCELLED'}
 
-		if len(objects) == 0:
-			self.report({'ERROR'}, "No object to export")
+		if not objects:
+			self.report({'ERROR'}, "Selection is empty or does not contain any mesh")
 			return {'CANCELLED'}
+
 
 		outShp = shpWriter(filePath)
 		if self.exportType == 'POLYGONZ':
 			outShp.shapeType = POLYGONZ #15
 		if self.exportType == 'POLYLINEZ':
 			outShp.shapeType = POLYLINEZ #13
-		if self.exportType == 'POINTZ' and self.mode == 'OBJ':
+		if self.exportType == 'POINTZ' and self.mode == 'MESH2FEAT':
 			outShp.shapeType = POINTZ
-		if self.exportType == 'POINTZ' and self.mode == 'COLLEC':
+		if self.exportType == 'POINTZ' and self.mode == 'OBJ2FEAT':
 			outShp.shapeType = MULTIPOINTZ
 
 		#create fields (all needed fields sould be created before adding any new record)
@@ -153,22 +133,28 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 		nLen = 20 #numeric fields default length
 		dLen = 5 #numeric fields default decimal precision
 		maxFieldNameLen = 8 #shp capabilities limit field name length to 8 characters
-		outShp.field('bid','N', nLen) #export id
+		outShp.field('objId','N', nLen) #export id
 		for obj in objects:
 			for k, v in obj.items():
 				k = k[0:maxFieldNameLen]
+				#evaluate the field type with the first value
 				if k not in [f[0] for f in outShp.fields]:
-					#evaluate the field type with the first value
-					if v.lstrip("-+").isdigit():
-						v = int(v)
+					if isinstance(v, float) or isinstance(v, int):
 						fieldType = 'N'
-					else:
-						try:
-							v = float(v)
-						except ValueError:
-							fieldType = 'C'
-						else:
+					elif isinstance(v, str):
+						if v.lstrip("-+").isdigit():
+							v = int(v)
 							fieldType = 'N'
+						else:
+							try:
+								v = float(v)
+							except ValueError:
+								fieldType = 'C'
+							else:
+								fieldType = 'N'
+					else:
+						continue
+
 					if fieldType == 'C':
 						outShp.field(k, fieldType, cLen)
 					elif fieldType == 'N':
@@ -177,6 +163,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 						else:
 							outShp.field(k, fieldType, nLen, dLen)
 
+
 		for i, obj in enumerate(objects):
 
 			loc = obj.location
@@ -184,35 +171,28 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			bm.from_object(obj, context.evaluated_depsgraph_get(), deform=True) #'deform' allows to consider modifier deformation
 			bm.transform(obj.matrix_world)
 
+			nFeat = 1
+
 			if self.exportType == 'POINTZ':
 				if len(bm.verts) == 0:
 					continue
-					'''
-					self.report({'ERROR'}, "No vertice to export")
-					return {'CANCELLED'}
-					'''
 
 				#Extract coords & adjust values against georef deltas
 				pts = [[v.co.x+dx, v.co.y+dy, v.co.z] for v in bm.verts]
 
-				if self.mode == 'OBJ':
+
+				if self.mode == 'MESH2FEAT':
 					for j, pt in enumerate(pts):
 						outShp.pointz(*pt)
-						outShp.record(bid=j)
-
-				if self.mode == 'COLLEC':
+					nFeat = len(pts)
+				elif self.mode == 'OBJ2FEAT':
 					outShp.multipointz(pts)
-					attributes = {'bid':i}
 
 
 			if self.exportType == 'POLYLINEZ':
 
 				if len(bm.edges) == 0:
 					continue
-					'''
-					self.report({'ERROR'}, "No edge to export")
-					return {'CANCELLED'}
-					'''
 
 				lines = []
 				for edge in bm.edges:
@@ -220,24 +200,18 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					line = [(vert.co.x+dx, vert.co.y+dy, vert.co.z) for vert in edge.verts]
 					lines.append(line)
 
-				if self.mode == 'OBJ':
+				if self.mode == 'MESH2FEAT':
 					for j, line in enumerate(lines):
 						outShp.linez([line])
-						outShp.record(bid=j)
-
-				if self.mode == 'COLLEC':
+					nFeat = len(lines)
+				elif self.mode == 'OBJ2FEAT':
 					outShp.linez(lines)
-					attributes = {'bid':i}
 
 
 			if self.exportType == 'POLYGONZ':
 
 				if len(bm.faces) == 0:
 					continue
-					'''
-					self.report({'ERROR'}, "No face to export")
-					return {'CANCELLED'}
-					'''
 
 				#build geom
 				polygons = []
@@ -250,29 +224,32 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 					poly.reverse()
 					polygons.append(poly)
 
-				if self.mode == 'OBJ':
+				if self.mode == 'MESH2FEAT':
 					for j, polygon in enumerate(polygons):
 						outShp.polyz([polygon])
-						outShp.record(bid=j)
-				if self.mode == 'COLLEC':
+					nFeat = len(polygons)
+				elif self.mode == 'OBJ2FEAT':
 					outShp.polyz(polygons)
 
 
 			#Writing attributes Data
-			if self.mode == 'COLLEC':
-				attributes = {'bid':i}
-				#attributes.update({k[0:maxFieldNameLen]:v for k, v in dict(obj).items()})
-				for k, v in dict(obj).items():
-					k = k[0:maxFieldNameLen]
-					fType = next( (f[1] for f in outShp.fields if f[0] == k) )
-					if fType in ('N', 'F'):
-						try:
-							v = float(v)
-						except ValueError:
-							log.info('Cannot cast value {} to float for appending field {}, NULL value will be inserted instead'.format(v, k))
-							v = None
-					attributes[k] = v
-				attributes.update({f[0]:None for f in outShp.fields if f[0] not in attributes.keys()})
+			attributes = {'objId':i}
+			for k, v in obj.items():
+				k = k[0:maxFieldNameLen]
+				if not any([f[0] == k for f in outShp.fields]):
+					continue
+				fType = next( (f[1] for f in outShp.fields if f[0] == k) )
+				if fType in ('N', 'F'):
+					try:
+						v = float(v)
+					except ValueError:
+						log.info('Cannot cast value {} to float for appending field {}, NULL value will be inserted instead'.format(v, k))
+						v = None
+				attributes[k] = v
+			#assign None to orphans shp fields (if the key does not exists in the custom props of this object)
+			attributes.update({f[0]:None for f in outShp.fields if f[0] not in attributes.keys()})
+			#Write
+			for n in range(nFeat):
 				outShp.record(**attributes)
 
 

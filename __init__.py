@@ -53,21 +53,27 @@ DROP = True
 EARTH_SPHERE = True
 
 import os, sys, tempfile
+from datetime import datetime
 
 import logging
+from logging.handlers import RotatingFileHandler
 #temporary set log level, will be overriden reading addon prefs
 #logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
 logsFormat = '{levelname}:{name}:{lineno}:{message}'
 logsFileName = 'bgis.log'
 try:
 	logsFilePath = os.path.join(os.path.dirname(__file__), logsFileName)
-	logging.basicConfig(level=logging.getLevelName('DEBUG'), format=logsFormat, style='{', filename=logsFilePath, filemode='w')
+	#logging.basicConfig(level=logging.getLevelName('DEBUG'), format=logsFormat, style='{', filename=logsFilePath, filemode='w')
+	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=100000, backupCount=1)
 except PermissionError:
 	#logsFilePath = os.path.join(bpy.app.tempdir, logsFileName)
 	logsFilePath = os.path.join(tempfile.gettempdir(), logsFileName)
-	logging.basicConfig(level=logging.getLevelName('DEBUG'), format=logsFormat, style='{', filename=logsFilePath, filemode='w')
+	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=512000, backupCount=1)
+logHandler.setFormatter(logging.Formatter(logsFormat, style='{'))
 logger = logging.getLogger(__name__)
-
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
+logger.info('###### Starting new Blender session : {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
 def _excepthook(exc_type, exc_value, exc_traceback):
 	if 'BlenderGIS' in exc_traceback.tb_frame.f_code.co_filename:

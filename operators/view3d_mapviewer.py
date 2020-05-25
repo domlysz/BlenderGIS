@@ -181,7 +181,6 @@ class BaseMap(GeoScene):
 		dx, dy, dz = self.reg3d.view_location
 		ox = self.crsx + (dx * self.scale)
 		oy = self.crsy + (dy * self.scale)
-		log.debug('Computing bounding box w:{}, h:{}, vloc:({},{},{}), z:{}, r:{}'.format(w, h, dx, dy, dz, z, res))
 		xmin = ox - w/2 * res * self.scale
 		ymax = oy + h/2 * res * self.scale
 		xmax = ox + w/2 * res * self.scale
@@ -468,8 +467,7 @@ class VIEW3D_OT_map_start(Operator):
 	def invoke(self, context, event):
 
 		if not HAS_PIL and not HAS_GDAL and not HAS_IMGIO:
-			self.report({'ERROR'}, "No imaging library available. ImageIO module was not correctly installed.\
-			Please reinstall it or try to install Python GDAL or Pillow module")
+			self.report({'ERROR'}, "No imaging library available. ImageIO module was not correctly installed.")
 			return {'CANCELLED'}
 
 		if not context.area.type == 'VIEW_3D':

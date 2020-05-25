@@ -227,7 +227,6 @@ class TileMatrix():
 			dy = self.originy - y
 		else:
 			dy = y - self.originy
-		log.debug('Computing tile number x {} y {} z {} r {} dx {} dy {}'.format(x, y, zoom, res, dx, dy))
 		col = dx / geoTileSize
 		row = dy / geoTileSize
 		col = int(math.floor(col))
@@ -397,8 +396,8 @@ class MapService():
 			'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7' ,
 			'Accept-Encoding' : 'gzip,deflate' ,
 			'Accept-Language' : 'fr,en-us,en;q=0.5' ,
-			'Keep-Alive': 115 ,
-			'Proxy-Connection' : 'keep-alive' ,
+			#'Keep-Alive': 115 ,
+			'Proxy-Connection' : 'keep-alive',
 			'User-Agent' : USER_AGENT,
 			'Referer' : self.referer}
 
@@ -649,7 +648,7 @@ class MapService():
 			return None
 
 		#list, download and merge the tiles required to build this one (recursive call)
-		mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, nbThread=4, cpt=False, allowEmptyTile=False)
+		mosaic = self.getImage(laykey, _bbox, _zoom, toDstGrid=False, nbThread=4, cpt=False)
 
 		if mosaic is None:
 			return None
