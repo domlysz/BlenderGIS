@@ -17,6 +17,8 @@
 #  All rights reserved.
 #  ***** GPL LICENSE BLOCK *****
 
+import bpy
+
 bl_info = {
 	'name': 'BlenderGIS',
 	'description': 'Various tools for handle geodata',
@@ -50,13 +52,36 @@ BASEMAPS = True
 DROP = True
 EARTH_SPHERE = True
 
-import bpy, os
+import os, sys, tempfile
+from datetime import datetime
 
 import logging
+from logging.handlers import RotatingFileHandler
 #temporary set log level, will be overriden reading addon prefs
-logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
-logging.basicConfig(level=logging.getLevelName('INFO'), format=logsFormat) #stdout stream
+#logsFormat = "%(levelname)s:%(name)s:%(lineno)d:%(message)s"
+logsFormat = '{levelname}:{name}:{lineno}:{message}'
+logsFileName = 'bgis.log'
+try:
+	logsFilePath = os.path.join(os.path.dirname(__file__), logsFileName)
+	#logging.basicConfig(level=logging.getLevelName('DEBUG'), format=logsFormat, style='{', filename=logsFilePath, filemode='w')
+	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=100000, backupCount=1)
+except PermissionError:
+	#logsFilePath = os.path.join(bpy.app.tempdir, logsFileName)
+	logsFilePath = os.path.join(tempfile.gettempdir(), logsFileName)
+	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=512000, backupCount=1)
+logHandler.setFormatter(logging.Formatter(logsFormat, style='{'))
 logger = logging.getLogger(__name__)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
+logger.info('###### Starting new Blender session : {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+def _excepthook(exc_type, exc_value, exc_traceback):
+	if 'BlenderGIS' in exc_traceback.tb_frame.f_code.co_filename:
+		logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+	sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+sys.excepthook = _excepthook #warn, this is a global variable, can be overrided by another addon
+
 
 import ssl
 if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
@@ -102,6 +127,24 @@ if EARTH_SPHERE:
 
 import bpy.utils.previews as iconsLib
 icons_dict = {}
+
+
+class BGIS_OT_logs(bpy.types.Operator):
+	bl_idname = "bgis.logs"
+	bl_description = 'Display BlenderGIS logs'
+	bl_label = "Logs"
+
+	def execute(self, context):
+		if logsFileName in bpy.data.texts:
+			logs = bpy.data.texts[logsFileName]
+		else:
+			logs = bpy.data.texts.load(logsFilePath)
+		bpy.ops.screen.area_split(direction='VERTICAL', factor=0.5)
+		area = bpy.context.area
+		area.type = 'TEXT_EDITOR'
+		area.spaces[0].text = logs
+		bpy.ops.text.reload()
+		return {'FINISHED'}
 
 
 class VIEW3D_MT_menu_gis_import(bpy.types.Menu):
@@ -178,7 +221,8 @@ class VIEW3D_MT_menu_gis(bpy.types.Menu):
 		layout.menu('VIEW3D_MT_menu_gis_mesh', icon='MESH_DATA')
 		layout.menu('VIEW3D_MT_menu_gis_object', icon='CUBE')
 		layout.menu('VIEW3D_MT_menu_gis_nodes', icon='NODETREE')
-
+		layout.separator()
+		layout.operator("bgis.logs", icon='TEXT')
 
 menus = [
 VIEW3D_MT_menu_gis,
@@ -198,7 +242,6 @@ def add_gis_menu(self, context):
 
 
 def register():
-
 	#icons
 	global icons_dict
 	icons_dict = iconsLib.new()
@@ -218,6 +261,8 @@ def register():
 			logger.warning('{} is already registered, now unregister and retry... '.format(menu))
 			bpy.utils.unregister_class(menu)
 			bpy.utils.register_class(menu)
+
+	bpy.utils.register_class(BGIS_OT_logs)
 
 	if BASEMAPS:
 		view3d_mapviewer.register()
@@ -288,6 +333,8 @@ def unregister():
 
 	for menu in menus:
 		bpy.utils.unregister_class(menu)
+
+	bpy.utils.unregister_class(BGIS_OT_logs)
 
 	prefs.unregister()
 	geoscene.unregister()

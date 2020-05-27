@@ -20,6 +20,7 @@ from ..core.settings import getSetting
 
 USER_AGENT = getSetting('user_agent')
 
+PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
 class IMPORTGIS_OT_srtm_query(Operator):
 	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
@@ -48,6 +49,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 	def execute(self, context):
 
+		prefs = bpy.context.preferences.addons[PKG].preferences
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		crs = SRS(geoscn.crs)
@@ -71,12 +73,13 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
-		if bbox.ymin > 60:
-			self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
-			return {'CANCELLED'}
-		if bbox.ymax < -56:
-			self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
-			return {'CANCELLED'}
+		if 'opentopo.sdsc.edu' in prefs.srtmServer:
+			if bbox.ymin > 60:
+				self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
+				return {'CANCELLED'}
+			if bbox.ymax < -56:
+				self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
+				return {'CANCELLED'}
 
 		#Set cursor representation to 'loading' icon
 		w = context.window
@@ -87,11 +90,8 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		e = 0.002 #opentopo service does not always respect the entire bbox, so request for a little more
 		xmin, xmax = bbox.xmin - e, bbox.xmax + e
 		ymin, ymax = bbox.ymin - e, bbox.ymax + e
-		w = 'west={}'.format(xmin)
-		e = 'east={}'.format(xmax)
-		s = 'south={}'.format(ymin)
-		n = 'north={}'.format(ymax)
-		url = 'http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&' + '&'.join([w,e,s,n]) + '&outputFormat=GTiff'
+
+		url = prefs.srtmServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
 		log.debug(url)
 
 		# Download the file from url and save it locally
@@ -109,8 +109,14 @@ class IMPORTGIS_OT_srtm_query(Operator):
 				data = response.read() # a `bytes` object
 				outFile.write(data) #
 		except (URLError, HTTPError) as err:
-			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
+			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, getattr(err, 'code', None), err.reason))
 			self.report({'ERROR'}, "Cannot reach OpenTopography web service, check logs for more infos")
+			return {'CANCELLED'}
+		except TimeoutError:
+			log.error('Http request does not respond. url:{}, code:{}, error:{}'.format(url, getattr(err, 'code', None), err.reason))
+			info = "Cannot reach SRTM web service provider, server can be down or overloaded. Please retry later"
+			log.info(info)
+			self.report({'ERROR'}, info)
 			return {'CANCELLED'}
 
 		if not onMesh:
@@ -120,7 +126,8 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			reprojection = True,
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
-			subdivision = 'subsurf')
+			subdivision = 'subsurf',
+			demInterpolation = True)
 		else:
 			bpy.ops.importgis.georaster(
 			'EXEC_DEFAULT',
@@ -129,6 +136,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 			rastCRS = 'EPSG:4326',
 			importMode = 'DEM',
 			subdivision = 'subsurf',
+			demInterpolation = True,
 			demOnMesh = True,
 			objectsLst = [str(i) for i, obj in enumerate(scn.collection.all_objects) if obj.name == bpy.context.active_object.name][0],
 			clip = False,

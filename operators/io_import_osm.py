@@ -17,7 +17,10 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
+from ..core.settings import getSetting
+from ..core.utils import perf_clock
 
+USER_AGENT = getSetting('user_agent')
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -223,7 +226,16 @@ class OSM_IMPORT():
 			dx, dy = geoscn.crsx, geoscn.crsy
 
 			if self.useElevObj:
-				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
+				#pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy).loc for v in pts]
+				pts = [rayCaster.rayCast(v[0]-dx, v[1]-dy) for v in pts]
+				hits = [pt.hit for pt in pts]
+				if not all(hits) and any(hits):
+					zs = [p.loc.z for p in pts if p.hit]
+					meanZ = sum(zs) / len(zs)
+					for v in pts:
+						if not v.hit:
+							v.loc.z = meanZ
+				pts = [pt.loc for pt in pts]
 			else:
 				pts = [ (v[0]-dx, v[1]-dy, 0) for v in pts]
 
@@ -294,18 +306,12 @@ class OSM_IMPORT():
 
 
 			elif len(pts) > 1: #edge
-				#Split polyline to lines
-				n = len(pts)
-				lines = [ (pts[i], pts[i+1]) for i in range(n) if i < n-1 ]
-				for line in lines:
-					verts = [bm.verts.new(pt) for pt in line]
-					edge = bm.edges.new(verts)
-
+				verts = [bm.verts.new(pt) for pt in pts]
+				for i in range(len(pts)-1):
+					edge = bm.edges.new( [verts[i], verts[i+1] ])
 
 
 			if self.separate:
-
-				##bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 
 				name = tags.get('name', str(id))
 
@@ -556,12 +562,12 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 			return {'CANCELLED'}
 
 		#Parse file
-		t0 = time.clock()
+		t0 = perf_clock()
 		api = overpy.Overpass()
 		#with open(self.filepath, "r", encoding"utf-8") as f:
 		#	result = api.parse_xml(f.read()) #WARNING read() load all the file into memory
 		result = api.parse_xml(self.filepath)
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('File parsed in {} seconds'.format(round(t, 2)))
 
 		#Get bbox
@@ -582,9 +588,9 @@ class IMPORTGIS_OT_osm_file(Operator, OSM_IMPORT):
 			geoscn.setOriginPrj(x, y)
 
 		#Build meshes
-		t0 = time.clock()
+		t0 = perf_clock()
 		self.build(context, result, geoscn.crs)
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('Mesh build in {} seconds'.format(round(t, 2)))
 
 		bbox = getBBOX.fromScn(scn)
@@ -625,6 +631,7 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 
 	def execute(self, context):
 
+		prefs = bpy.context.preferences.addons[PKG].preferences
 		scn = context.scene
 		geoscn = GeoScene(scn)
 		objs = context.selected_objects
@@ -657,8 +664,8 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 		w.cursor_set('WAIT')
 
 		#Download from overpass api
-		api = overpy.Overpass()
-
+		log.debug('Requests overpass server : {}'.format(prefs.overpassServer))
+		api = overpy.Overpass(overpass_server=prefs.overpassServer, user_agent=USER_AGENT)
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
 		log.debug('Overpass query : {}'.format(query)) # can fails with non utf8 chars
 

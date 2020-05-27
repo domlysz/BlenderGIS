@@ -180,12 +180,12 @@ def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 			#uvLoop.uv = [u,v]
 			uvLayer.data[i].uv = [u,v]
 
-def setDisplacer(obj, rast, uvTxtLayer, mid=0):
+def setDisplacer(obj, rast, uvTxtLayer, mid=0, interpolation=False):
 	#Config displacer
 	displacer = obj.modifiers.new('DEM', type='DISPLACE')
 	demTex = bpy.data.textures.new('demText', type = 'IMAGE')
 	demTex.image = rast.bpyImg
-	demTex.use_interpolation = False
+	demTex.use_interpolation = interpolation
 	demTex.extension = 'CLIP'
 	demTex.use_clamp = False #Needed to get negative displacement with float32 texture
 	displacer.texture = demTex

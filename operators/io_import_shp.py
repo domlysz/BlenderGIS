@@ -16,6 +16,7 @@ from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 from ..core import BBOX
 from ..core.proj import Reproj
+from ..core.utils import perf_clock
 
 from .utils import adjust3Dview, getBBOX, DropToGround
 
@@ -333,6 +334,9 @@ class IMPORTGIS_OT_shapefile(Operator):
 	def poll(cls, context):
 		return context.mode == 'OBJECT'
 
+	def __del__(self):
+		bpy.context.window.cursor_set('DEFAULT')
+
 	def execute(self, context):
 
 		prefs = bpy.context.preferences.addons[PKG].preferences
@@ -340,7 +344,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
-		t0 = time.clock()
+		t0 = perf_clock()
 
 		bpy.ops.object.select_all(action='DESELECT')
 
@@ -586,14 +590,10 @@ class IMPORTGIS_OT_shapefile(Operator):
 
 				# LINES
 				if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
-					#Split polyline to lines
-					n = len(geom)
-					lines = [ (geom[i], geom[i+1]) for i in range(n) if i < n-1 ]
-					#Build edges
+					verts = [bm.verts.new(pt) for pt in geom]
 					edges = []
-					for line in lines:
-						verts = [bm.verts.new(pt) for pt in line]
-						edge = bm.edges.new(verts)
+					for i in range(len(geom)-1):
+						edge = bm.edges.new( [verts[i], verts[i+1] ])
 						edges.append(edge)
 					#Extrusion
 					if self.fieldExtrudeName and offset > 0:
@@ -727,7 +727,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		#free the bmesh
 		bm.free()
 
-		t = time.clock() - t0
+		t = perf_clock() - t0
 		log.info('Build in %f seconds' % t)
 
 		#Adjust grid size

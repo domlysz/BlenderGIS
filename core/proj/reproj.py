@@ -274,7 +274,10 @@ class Reproj():
 				projVersion = 4
 			if projVersion >= 6 and self.crs1.IsGeographic():
 				pts = [ (pt[1], pt[0]) for pt in pts]
-			xs, ys, _zs = zip(*self.osrTransfo.TransformPoints(pts))
+			if self.crs2.IsGeographic():
+				ys, xs, _zs = zip(*self.osrTransfo.TransformPoints(pts))
+			else:
+				xs, ys, _zs = zip(*self.osrTransfo.TransformPoints(pts))
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'PYPROJ':

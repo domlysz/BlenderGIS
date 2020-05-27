@@ -22,7 +22,7 @@ if PY2:
     from urllib2 import HTTPError
 elif PY3:
     from io import StringIO
-    from urllib.request import urlopen
+    from urllib.request import urlopen, Request
     from urllib.error import HTTPError
 
 
@@ -45,12 +45,14 @@ class Overpass(object):
     """
     default_read_chunk_size = 4096
 
-    def __init__(self, read_chunk_size=None):
+    def __init__(self, overpass_server="http://overpass-api.de/api/interpreter", read_chunk_size=None, referer=None, user_agent=None):
         """
         :param read_chunk_size: Max size of each chunk read from the server response
         :type read_chunk_size: Integer
         """
-        self.url = "http://overpass-api.de/api/interpreter"
+        self.referer = referer
+        self.user_agent = user_agent
+        self.url = overpass_server
         self._regex_extract_error_msg = re.compile(b"\<p\>(?P<msg>\<strong\s.*?)\</p\>")
         self._regex_remove_tag = re.compile(b"<[^>]*?>")
         if read_chunk_size is None:
@@ -68,8 +70,14 @@ class Overpass(object):
         if not isinstance(query, bytes):
             query = query.encode("utf-8")
 
+        req = Request(self.url)
+        if self.referer:
+            req.add_header('Referer', self.referer)
+        if self.user_agent:
+            req.add_header('User-Agent', self.user_agent)
+
         try:
-            f = urlopen(self.url, query)
+            f = urlopen(req, query)
         except HTTPError as e:
             f = e
 
