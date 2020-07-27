@@ -272,7 +272,11 @@ class bpyGeoRaster(GeoRaster):
 		if self.raw:
 			# Set image color space, it's very important because only
 			# Linear, Non Color and Raw color spaces will return raw values...
-			self.bpyImg.colorspace_settings.name = 'Non-Color'
+			try:
+				self.bpyImg.colorspace_settings.name = 'Raw'
+			except TypeError:
+				log.warning('Cannot set the DEM texture to a raw color space, the altitude values ​​may not be exact')
+				pass
 
 	def unload(self):
 		self.bpyImg.user_clear()
