@@ -194,7 +194,7 @@ class BGIS_PREFS(AddonPreferences):
 		name = "SRTM server",
 		description = "Select an overpass server",
 		items = [
-			("http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography', 'OpenTopography.org web service'),
+			("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography', 'OpenTopography.org web service'),
 			("http://www.marine-geo.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org', 'Marine-geo.org web service')
 			]
 		)
