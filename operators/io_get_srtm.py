@@ -73,7 +73,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
-		if 'opentopo.sdsc.edu' in prefs.srtmServer:
+		if 'SRTM' in prefs.srtmServer:
 			if bbox.ymin > 60:
 				self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
 				return {'CANCELLED'}
