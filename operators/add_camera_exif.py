@@ -161,7 +161,7 @@ class CAMERA_OT_geophotos_add(Operator):
             try:
                 x, y = reprojPt(4326, geoscn.crs, lon, lat)
             except Exception as e:
-                log.erro("Reprojection fails", exc_info=True)
+                log.error("Reprojection fails", exc_info=True)
                 self.report({'ERROR'},"Reprojection error. Check logs for more infos.")
                 return {'CANCELLED'}
 
