@@ -394,7 +394,7 @@ class MapService():
 		self.headers = {
 			'Accept' : 'image/png,image/*;q=0.8,*/*;q=0.5' ,
 			'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7' ,
-			'Accept-Encoding' : 'gzip,deflate' ,
+			#'Accept-Encoding' : 'gzip,deflate', #urllib2 doesn't automatically uncompress the data
 			'Accept-Language' : 'fr,en-us,en;q=0.5' ,
 			#'Keep-Alive': 115 ,
 			'Proxy-Connection' : 'keep-alive',
