@@ -88,6 +88,32 @@ def _excepthook(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = _excepthook #warn, this is a global variable, can be overrided by another addon
 
+####
+'''
+Workaround for `sys.excepthook` thread
+https://stackoverflow.com/questions/1643327/sys-excepthook-and-threading
+'''
+import threading
+
+init_original = threading.Thread.__init__
+
+def init(self, *args, **kwargs):
+
+	init_original(self, *args, **kwargs)
+	run_original = self.run
+
+	def run_with_except_hook(*args2, **kwargs2):
+		try:
+			run_original(*args2, **kwargs2)
+		except Exception:
+			sys.excepthook(*sys.exc_info())
+
+	self.run = run_with_except_hook
+
+threading.Thread.__init__ = init
+
+####
+
 
 import ssl
 if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
