@@ -492,6 +492,9 @@ class VIEW3D_OT_map_start(Operator):
 		if folder == "" or not os.path.exists(folder):
 			self.report({'ERROR'}, "Please define a valid cache folder path in addon's preferences")
 			return {'CANCELLED'}
+		if not os.access(folder, os.X_OK | os.W_OK):
+			self.report({'ERROR'}, "The selected cache folder has no write access")
+			return {'CANCELLED'}
 
 		if self.dialog == 'MAP':
 			grdCRS = GRIDS[self.grd]['CRS']
