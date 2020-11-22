@@ -16,14 +16,37 @@ from .core.settings import getSetting, getSettings, setSettings
 
 PKG = __package__
 
-#default predefinate crs
-PREDEF_CRS = {
-	'EPSG:4326' : 'WGS84 latlon',
-	'EPSG:3857' : 'Web Mercator'
-}
+#
+'''
+Default Enum properties contents (list of tuple (value, label, tootip))
+Theses properties are automatically filled from a serialized json string stored in a StringProperty
+This is workaround to have an editable EnumProperty (ie the user can add, remove or edit an entry)
+because the Blender Python API does not provides built in functions for these tasks.
+To edit the content of these enum, we just need to write new operators which will simply update the json string
+As the json backend is stored in addon preferences, the property will be saved and restored for the next blender session
+'''
+
+
+DEFAULT_CRS = [
+	('EPSG:4326', 'WGS84 latlon', 'Longitude and latitude in degrees, DO NOT USE AS SCENE CRS (this system is defined only for reprojection tasks'),
+	('EPSG:3857', 'Web Mercator', 'Worldwide projection, high distortions, not suitable for precision modelling')
+]
+
+
+DEFAULT_DEM_SERVER = [
+	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 30m', 'OpenTopography.org web service for SRTM 30m global DEM'),
+	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 90m', 'OpenTopography.org web service for SRTM 90m global DEM'),
+	("http://www.gmrt.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org', 'Marine-geo.org web service for GMRT global DEM (terrestrial (ASTER) and bathymetry)')
+]
+
+DEFAULT_OVERPASS_SERVER =  [
+	("https://lz4.overpass-api.de/api/interpreter", 'overpass-api.de', 'Main Overpass API instance'),
+	("http://overpass.openstreetmap.fr/api/interpreter", 'overpass.openstreetmap.fr', 'French Overpass API instance'),
+	("https://overpass.kumi.systems/api/interpreter", 'overpass.kumi.systems', 'Kumi Systems Overpass Instance')
+]
 
 #default filter tags for OSM import
-OSM_TAGS = [
+DEFAULT_OSM_TAGS = [
 	'building',
 	'highway',
 	'landuse',
@@ -32,6 +55,7 @@ OSM_TAGS = [
 	'railway',
 	'waterway'
 ]
+
 
 
 class BGIS_OT_pref_show(Operator):
@@ -57,19 +81,19 @@ class BGIS_PREFS(AddonPreferences):
 
 	bl_idname = PKG
 
-
 	################
-	#Predefinate Spatial Ref. Systems
+	#Predefined Spatial Ref. Systems
 
 	def listPredefCRS(self, context):
-		return PredefCRS.getEnumItems()
+		return [tuple(elem) for elem in json.loads(self.predefCrsJson)]
 
 	#store crs preset as json string into addon preferences
-	predefCrsJson: StringProperty(default=json.dumps(PREDEF_CRS))
+	predefCrsJson: StringProperty(default=json.dumps(DEFAULT_CRS))
 
 	predefCrs: EnumProperty(
 		name = "Predefinate CRS",
 		description = "Choose predefinite Coordinate Reference System",
+		default = 1,
 		items = listPredefCRS
 		)
 
@@ -128,7 +152,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#OSM
 
-	osmTagsJson: StringProperty(default=json.dumps(OSM_TAGS)) #just a serialized list of tags
+	osmTagsJson: StringProperty(default=json.dumps(DEFAULT_OSM_TAGS)) #just a serialized list of tags
 
 	def listOsmTags(self, context):
 		prefs = context.preferences.addons[PKG].preferences
@@ -142,16 +166,17 @@ class BGIS_PREFS(AddonPreferences):
 		items = listOsmTags
 		)
 
+	def listOverpassServer(self, context):
+		return [tuple(entry) for entry in json.loads(self.overpassServerJson)]
+
+	#store crs preset as json string into addon preferences
+	overpassServerJson: StringProperty(default=json.dumps(DEFAULT_OVERPASS_SERVER))
+
 	overpassServer: EnumProperty(
 		name = "Overpass server",
 		description = "Select an overpass server",
-		default = "https://lz4.overpass-api.de/api/interpreter",
-		items = [
-			("https://lz4.overpass-api.de/api/interpreter", 'overpass-api.de', 'Main Overpass API instance'),
-			("http://overpass.openstreetmap.fr/api/interpreter", 'overpass.openstreetmap.fr', 'French Overpass API instance'),
-			("https://overpass.kumi.systems/api/interpreter", 'overpass.kumi.systems', 'Kumi Systems Overpass Instance')
-			#("https://overpass.nchc.org.tw", 'overpass.nchc.org.tw', 'Taiwan Overpass API')
-			]
+		default = 0,
+		items = listOverpassServer
 		)
 
 	################
@@ -190,14 +215,18 @@ class BGIS_PREFS(AddonPreferences):
 
 	################
 	#DEM options
-	srtmServer: EnumProperty(
-		name = "SRTM server",
-		description = "Select an overpass server",
-		items = [
-			("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 30m', 'OpenTopography.org web service for SRTM 30m global DEM'),
-			("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 90m', 'OpenTopography.org web service for SRTM 90m global DEM'),
-			("http://www.gmrt.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org', 'Marine-geo.org web service for GMRT global DEM (terrestrial (ASTER) and bathymetry)')
-			]
+
+	def listDemServer(self, context):
+		return [tuple(entry) for entry in json.loads(self.demServerJson)]
+
+	#store crs preset as json string into addon preferences
+	demServerJson: StringProperty(default=json.dumps(DEFAULT_DEM_SERVER))
+
+	demServer: EnumProperty(
+		name = "Relief server",
+		description = "Select a server that provides Digital Elevation Model datasource",
+		default = 0,
+		items = listDemServer
 		)
 
 	################
@@ -268,9 +297,18 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_osm_tag", icon='PREFERENCES')
 		row.operator("bgis.rmv_osm_tag", icon='REMOVE')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
-		row = box.row()
+		row = box.row().split(factor=0.5)
 		row.prop(self, "overpassServer")
-		row.prop(self, "srtmServer")
+		row.operator("bgis.add_overpass_server", icon='ADD')
+		row.operator("bgis.edit_overpass_server", icon='PREFERENCES')
+		row.operator("bgis.rmv_overpass_server", icon='REMOVE')
+		row.operator("bgis.reset_overpass_server", icon='PLAY_REVERSE')
+		row = box.row().split(factor=0.5)
+		row.prop(self, "demServer")
+		row.operator("bgis.add_dem_server", icon='ADD')
+		row.operator("bgis.edit_dem_server", icon='PREFERENCES')
+		row.operator("bgis.rmv_dem_server", icon='REMOVE')
+		row.operator("bgis.reset_dem_server", icon='PLAY_REVERSE')
 		row = box.row()
 		row.prop(self, "mergeDoubles")
 		row.prop(self, "adjust3Dview")
@@ -285,7 +323,10 @@ class BGIS_PREFS(AddonPreferences):
 
 class PredefCRS():
 
-	'''Collection of methods (callable at class level) to deal with predefined CRS dictionary'''
+	'''
+	Collection of utility methods (callable at class level) to deal with predefined CRS dictionary
+	Can be used by others operators that need to fill their own crs enum
+	'''
 
 	@staticmethod
 	def getData():
@@ -293,31 +334,23 @@ class PredefCRS():
 		prefs = bpy.context.preferences.addons[PKG].preferences
 		return json.loads(prefs.predefCrsJson)
 
-	@staticmethod
-	def getSelected():
-		'''Return the current crs selected in the enum stored in addon preferences'''
-		prefs = bpy.context.preferences.addons[PKG].preferences
-		return prefs.predefCrs
-
 	@classmethod
 	def getName(cls, key):
-		'''Return the name of a given srid or None if this crs does not exist in predef list'''
+		'''Return the convenient name of a given srid or None if this crs does not exist in the list'''
 		data = cls.getData()
-		return data.get(key, None)
+		try:
+			return [entry[1] for entry in data if entry[0] == key][0]
+		except IndexError:
+			return None
 
 	@classmethod
 	def getEnumItems(cls):
 		'''Return a list of predefined crs usable to fill a bpy EnumProperty'''
-		crsItems = []
-		data = cls.getData()
-		for srid, name in data.items():
-			#put each item in a tuple (key, label, tooltip)
-			crsItems.append( (srid, name, srid) )
-		return crsItems
+		return [tuple(entry) for entry in cls.getData()]
 
 
 #################
-# Collection of operators to manage predefinates CRS
+# Collection of operators to manage predefined CRS
 
 class BGIS_OT_add_predef_crs(Operator):
 	bl_idname = "bgis.add_predef_crs"
@@ -326,7 +359,8 @@ class BGIS_OT_add_predef_crs(Operator):
 	bl_options = {'INTERNAL'}
 
 	crs: StringProperty(name = "Definition",  description = "Specify EPSG code or Proj4 string definition for this CRS")
-	desc: StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	desc: StringProperty(name = "Description", description = "Add a description or comment about this CRS")
 
 	def check(self, context):
 		return True
@@ -339,7 +373,7 @@ class BGIS_OT_add_predef_crs(Operator):
 			self.results = json.dumps(results)
 			if results:
 				self.crs = 'EPSG:' + results[0]['code']
-				self.desc = results[0]['name']
+				self.name = results[0]['name']
 
 	def updEnum(self, context):
 		crsItems = []
@@ -376,18 +410,19 @@ class BGIS_OT_add_predef_crs(Operator):
 			layout.prop(self, 'crsEnum')
 			layout.separator()
 		layout.prop(self, 'crs')
+		layout.prop(self, 'name')
 		layout.prop(self, 'desc')
-		layout.prop(self, 'save')
+		#layout.prop(self, 'save') #sincce Blender2.8 prefs are autosaved
 
 	def execute(self, context):
-		prefs = context.preferences.addons[PKG].preferences
-		#append the new crs def to json string
-		data = json.loads(prefs.predefCrsJson)
 		if not SRS.validate(self.crs):
 			self.report({'ERROR'}, 'Invalid CRS')
 		if self.crs.isdigit():
 			self.crs = 'EPSG:' + self.crs
-		data[self.crs] = self.desc
+		#append the new crs def to json string
+		prefs = context.preferences.addons[PKG].preferences
+		data = json.loads(prefs.predefCrsJson)
+		data.append((self.crs, self.name, self.desc))
 		prefs.predefCrsJson = json.dumps(data)
 		#change enum index to new added crs and redraw
 		#prefs.predefCrs = self.crs
@@ -409,7 +444,7 @@ class BGIS_OT_rmv_predef_crs(Operator):
 		key = prefs.predefCrs
 		if key != '':
 			data = json.loads(prefs.predefCrsJson)
-			del data[key]
+			data = [e for e in data if e[0] != key]
 			prefs.predefCrsJson = json.dumps(data)
 		context.area.tag_redraw()
 		return {'FINISHED'}
@@ -423,7 +458,7 @@ class BGIS_OT_reset_predef_crs(Operator):
 
 	def execute(self, context):
 		prefs = context.preferences.addons[PKG].preferences
-		prefs.predefCrsJson = json.dumps(PREDEF_CRS)
+		prefs.predefCrsJson = json.dumps(DEFAULT_CRS)
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
@@ -434,8 +469,9 @@ class BGIS_OT_edit_predef_crs(Operator):
 	bl_label = "Edit"
 	bl_options = {'INTERNAL'}
 
-	desc: StringProperty(name = "Name", description = "Choose a convenient name for this CRS")
 	crs: StringProperty(name = "EPSG code or Proj4 string",  description = "Specify EPSG code or Proj4 string definition for this CRS")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this CRS")
+	desc: StringProperty(name = "Name", description = "Add a description or comment about this CRS")
 
 	def invoke(self, context, event):
 		prefs = context.preferences.addons[PKG].preferences
@@ -443,8 +479,8 @@ class BGIS_OT_edit_predef_crs(Operator):
 		if key == '':
 			return {'CANCELLED'}
 		data = json.loads(prefs.predefCrsJson)
-		self.crs = key
-		self.desc = data[key]
+		entry = [entry for entry in data if entry[0] == key][0]
+		self.crs, self.name, self.desc = entry
 		return context.window_manager.invoke_props_dialog(self)
 
 	def execute(self, context):
@@ -453,8 +489,8 @@ class BGIS_OT_edit_predef_crs(Operator):
 		data = json.loads(prefs.predefCrsJson)
 
 		if SRS.validate(self.crs):
-			del data[key]
-			data[self.crs] = self.desc
+			data = [entry for entry in data if entry[0] != key] #deleting
+			data.append((self.crs, self.name, self.desc))
 			prefs.predefCrsJson = json.dumps(data)
 			context.area.tag_redraw()
 		else:
@@ -512,7 +548,7 @@ class BGIS_OT_reset_osm_tags(Operator):
 
 	def execute(self, context):
 		prefs = context.preferences.addons[PKG].preferences
-		prefs.osmTagsJson = json.dumps(OSM_TAGS)
+		prefs.osmTagsJson = json.dumps(DEFAULT_OSM_TAGS)
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
@@ -543,6 +579,225 @@ class BGIS_OT_edit_osm_tag(Operator):
 		context.area.tag_redraw()
 		return {'FINISHED'}
 
+#################
+# Collection of operators to manage DEM server urls
+
+class BGIS_OT_add_dem_server(Operator):
+	bl_idname = "bgis.add_dem_server"
+	bl_description = 'Add new topography web service'
+	bl_label = "Add"
+	bl_options = {'INTERNAL'}
+
+	url: StringProperty(name = "Url template",  description = "Define url template string. Bounding box varaibles are {W}, {E}, {S} and {N}")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this server")
+	desc: StringProperty(name = "Description", description = "Add a description or comment about this remote datasource")
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)#, width=300)
+
+	def execute(self, context):
+		templates = ['{W}', '{E}', '{S}', '{N}']
+		if all([t in self.url for t in templates]):
+			prefs = context.preferences.addons[PKG].preferences
+			data = json.loads(prefs.demServerJson)
+			data.append( (self.url, self.name, self.desc) )
+			prefs.demServerJson = json.dumps(data)
+			context.area.tag_redraw()
+		else:
+			self.report({'ERROR'}, 'Invalid URL')
+		return {'FINISHED'}
+
+class BGIS_OT_rmv_dem_server(Operator):
+
+	bl_idname = "bgis.rmv_dem_server"
+	bl_description = 'Remove a given topography web service'
+	bl_label = "Remove"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.demServer
+		if key != '':
+			data = json.loads(prefs.demServerJson)
+			data = [e for e in data if e[0] != key]
+			prefs.demServerJson = json.dumps(data)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class BGIS_OT_reset_dem_server(Operator):
+
+	bl_idname = "bgis.reset_dem_server"
+	bl_description = 'Reset default topographic web server'
+	bl_label = "Reset"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		prefs.demServerJson = json.dumps(DEFAULT_DEM_SERVER)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class BGIS_OT_edit_dem_server(Operator):
+
+	bl_idname = "bgis.edit_dem_server"
+	bl_description = 'Edit a topographic web server'
+	bl_label = "Edit"
+	bl_options = {'INTERNAL'}
+
+	url: StringProperty(name = "Url template",  description = "Define url template string. Bounding box varaibles are {W}, {E}, {S} and {N}")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this server")
+	desc: StringProperty(name = "Description", description = "Add a description or comment about this remote datasource")
+
+	def invoke(self, context, event):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.demServer
+		if key == '':
+			return {'CANCELLED'}
+		data = json.loads(prefs.demServerJson)
+		entry = [entry for entry in data if entry[0] == key][0]
+		self.url, self.name, self.desc = entry
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.demServer
+		data = json.loads(prefs.demServerJson)
+		templates = ['{W}', '{E}', '{S}', '{N}']
+		if all([t in self.url for t in templates]):
+			data = [entry for entry in data if entry[0] != key] #deleting
+			data.append((self.url, self.name, self.desc))
+			prefs.demServerJson = json.dumps(data)
+			context.area.tag_redraw()
+		else:
+			self.report({'ERROR'}, 'Invalid URL')
+		return {'FINISHED'}
+
+#################
+
+class EditEnum():
+	'''
+	Helper to deal with an enum property that use a serialized json backend
+	Can be used by others operators to edit and EnumProperty
+	WORK IN PROGRESS
+	'''
+
+	def __init__(self, enumName):
+		self.prefs = bpy.context.preferences.addons[PKG].preferences
+		self.enumName = enumName
+		self.jsonName = enumName + 'Json'
+
+	def getData(self):
+		'''Load the json string'''
+		data = json.loads(getattr(self.prefs, self.jsonName))
+		return [tuple(entry) for entry in data]
+
+	def append(self, value, label, tooltip, check=lambda x: True):
+		if not check(value):
+			return
+		data = self.getData()
+		data.append((value, label, tooltip))
+		setattr(self.prefs, self.jsonName, json.dumps(data))
+
+	def remove(self, key):
+		if key != '':
+			data = self.getData()
+			data = [e for e in data if e[0] != key]
+			setattr(self.prefs, self.jsonName, json.dumps(data))
+
+	def edit(self, key, value, label, tooltip):
+		self.remove(key)
+		self.append(value, label, tooltip)
+
+	def reset(self):
+		setattr(self.prefs, self.jsonName, json.dumps(DEFAULT_OVERPASS_SERVER))
+
+#################
+# Collection of operators to manage Overpass server urls
+
+class BGIS_OT_add_overpass_server(Operator):
+	bl_idname = "bgis.add_overpass_server"
+	bl_description = 'Add new OSM overpass server url'
+	bl_label = "Add"
+	bl_options = {'INTERNAL'}
+
+	url: StringProperty(name = "Url template",  description = "Define the url end point of the overpass server")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this server")
+	desc: StringProperty(name = "Description", description = "Add a description or comment about this remote server")
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)#, width=300)
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		data = json.loads(prefs.overpassServerJson)
+		data.append( (self.url, self.name, self.desc) )
+		prefs.overpassServerJson = json.dumps(data)
+		#EditEnum('overpassServer').append(self.url, self.name, self.desc, check=lambda url: url.startswith('http'))
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class BGIS_OT_rmv_overpass_server(Operator):
+
+	bl_idname = "bgis.rmv_overpass_server"
+	bl_description = 'Remove a given overpass server'
+	bl_label = "Remove"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.overpassServer
+		if key != '':
+			data = json.loads(prefs.overpassServerJson)
+			data = [e for e in data if e[0] != key]
+			prefs.overpassServerJson = json.dumps(data)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class BGIS_OT_reset_overpass_server(Operator):
+
+	bl_idname = "bgis.reset_overpass_server"
+	bl_description = 'Reset default overpass server'
+	bl_label = "Rest"
+	bl_options = {'INTERNAL'}
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		prefs.overpassServerJson = json.dumps(DEFAULT_OVERPASS_SERVER)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+class BGIS_OT_edit_overpass_server(Operator):
+
+	bl_idname = "bgis.edit_overpass_server"
+	bl_description = 'Edit an overpass server url'
+	bl_label = "Edit"
+	bl_options = {'INTERNAL'}
+
+	url: StringProperty(name = "Url template",  description = "Define the url end point of the overpass server")
+	name: StringProperty(name = "Description", description = "Choose a convenient name for this server")
+	desc: StringProperty(name = "Description", description = "Add a description or comment about this remote server")
+
+	def invoke(self, context, event):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.overpassServer
+		if key == '':
+			return {'CANCELLED'}
+		data = json.loads(prefs.overpassServerJson)
+		entry = [entry for entry in data if entry[0] == key][0]
+		self.url, self.name, self.desc = entry
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		prefs = context.preferences.addons[PKG].preferences
+		key = prefs.overpassServer
+		data = json.loads(prefs.overpassServerJson)
+		data = [entry for entry in data if entry[0] != key] #deleting
+		data.append((self.url, self.name, self.desc))
+		prefs.overpassServerJson = json.dumps(data)
+		context.area.tag_redraw()
+		return {'FINISHED'}
+
+
 classes = [
 BGIS_OT_pref_show,
 BGIS_PREFS,
@@ -553,7 +808,15 @@ BGIS_OT_edit_predef_crs,
 BGIS_OT_add_osm_tag,
 BGIS_OT_rmv_osm_tag,
 BGIS_OT_reset_osm_tags,
-BGIS_OT_edit_osm_tag
+BGIS_OT_edit_osm_tag,
+BGIS_OT_add_dem_server,
+BGIS_OT_rmv_dem_server,
+BGIS_OT_reset_dem_server,
+BGIS_OT_edit_dem_server,
+BGIS_OT_add_overpass_server,
+BGIS_OT_rmv_overpass_server,
+BGIS_OT_reset_overpass_server,
+BGIS_OT_edit_overpass_server
 ]
 
 def register():
