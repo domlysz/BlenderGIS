@@ -1,7 +1,7 @@
 import json
 import logging
 log = logging.getLogger(__name__)
-import sys
+import sys, os
 
 import bpy
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
@@ -16,7 +16,7 @@ from .core.settings import getSetting, getSettings, setSettings
 
 PKG = __package__
 
-#
+
 '''
 Default Enum properties contents (list of tuple (value, label, tootip))
 Theses properties are automatically filled from a serialized json string stored in a StringProperty
@@ -28,8 +28,8 @@ As the json backend is stored in addon preferences, the property will be saved a
 
 
 DEFAULT_CRS = [
-	('EPSG:4326', 'WGS84 latlon', 'Longitude and latitude in degrees, DO NOT USE AS SCENE CRS (this system is defined only for reprojection tasks'),
-	('EPSG:3857', 'Web Mercator', 'Worldwide projection, high distortions, not suitable for precision modelling')
+	('EPSG:3857', 'Web Mercator', 'Worldwide projection, high distortions, not suitable for precision modelling'),
+	('EPSG:4326', 'WGS84 latlon', 'Longitude and latitude in degrees, DO NOT USE AS SCENE CRS (this system is defined only for reprojection tasks')
 ]
 
 
@@ -93,7 +93,7 @@ class BGIS_PREFS(AddonPreferences):
 	predefCrs: EnumProperty(
 		name = "Predefinate CRS",
 		description = "Choose predefinite Coordinate Reference System",
-		default = 1,
+		#default = 1, #possible only since Blender 2.90
 		items = listPredefCRS
 		)
 
@@ -175,7 +175,7 @@ class BGIS_PREFS(AddonPreferences):
 	overpassServer: EnumProperty(
 		name = "Overpass server",
 		description = "Select an overpass server",
-		default = 0,
+		#default = 0,
 		items = listOverpassServer
 		)
 
@@ -186,7 +186,11 @@ class BGIS_PREFS(AddonPreferences):
 		return bpy.path.abspath(self.get("cacheFolder", ''))
 
 	def setCacheFolder(self, value):
-		self["cacheFolder"] = value
+		if os.access(value, os.X_OK | os.W_OK):
+			self["cacheFolder"] = value
+		else:
+			log.error("This selected cache folder has no write access")
+			self["cacheFolder"] = "The selected folder has no write access"
 
 	cacheFolder: StringProperty(
 		name = "Cache folder",
@@ -225,7 +229,7 @@ class BGIS_PREFS(AddonPreferences):
 	demServer: EnumProperty(
 		name = "Relief server",
 		description = "Select a server that provides Digital Elevation Model datasource",
-		default = 0,
+		#default = 0,
 		items = listDemServer
 		)
 
