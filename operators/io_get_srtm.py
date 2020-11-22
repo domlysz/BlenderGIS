@@ -73,7 +73,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
-		if 'SRTM' in prefs.srtmServer:
+		if 'SRTM' in prefs.demServer:
 			if bbox.ymin > 60:
 				self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
 				return {'CANCELLED'}
@@ -91,7 +91,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		xmin, xmax = bbox.xmin - e, bbox.xmax + e
 		ymin, ymax = bbox.ymin - e, bbox.ymax + e
 
-		url = prefs.srtmServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
+		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
 		log.debug(url)
 
 		# Download the file from url and save it locally
