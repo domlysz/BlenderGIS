@@ -22,6 +22,8 @@ USER_AGENT = getSetting('user_agent')
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
+TIMEOUT = 120
+
 class IMPORTGIS_OT_srtm_query(Operator):
 	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
 
@@ -105,7 +107,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		try:
-			with urlopen(rq) as response, open(filePath, 'wb') as outFile:
+			with urlopen(rq, timeout=TIMEOUT) as response, open(filePath, 'wb') as outFile:
 				data = response.read() # a `bytes` object
 				outFile.write(data) #
 		except (URLError, HTTPError) as err:
