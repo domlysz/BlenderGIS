@@ -16,6 +16,14 @@ from .core.settings import getSetting, getSettings, setSettings
 
 PKG = __package__
 
+def getAppData():
+	home = os.path.expanduser('~')
+	loc = os.path.join(home, '.bgis')
+	if not os.path.exists(loc):
+		os.mkdir(loc)
+	return loc
+
+APP_DATA = getAppData()
 
 '''
 Default Enum properties contents (list of tuple (value, label, tootip))
@@ -176,12 +184,12 @@ class BGIS_PREFS(AddonPreferences):
 		if os.access(value, os.X_OK | os.W_OK):
 			self["cacheFolder"] = value
 		else:
-			log.error("This selected cache folder has no write access")
+			log.error("The selected cache folder has no write access")
 			self["cacheFolder"] = "The selected folder has no write access"
 
 	cacheFolder: StringProperty(
 		name = "Cache folder",
-		default = "",
+		default = APP_DATA, #Does not works !?
 		description = "Define a folder where to store Geopackage SQlite db",
 		subtype = 'DIR_PATH',
 		get = getCacheFolder,
@@ -836,6 +844,11 @@ def register():
 			log.warning('{} is already registered, now unregister and retry... '.format(cls))
 			bpy.utils.unregister_class(cls)
 			bpy.utils.register_class(cls)
+
+	# set default cache folder
+	prefs = bpy.context.preferences.addons[PKG].preferences
+	if prefs.cacheFolder == '':
+		prefs.cacheFolder = APP_DATA
 
 
 def unregister():

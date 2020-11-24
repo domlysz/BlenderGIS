@@ -37,7 +37,7 @@ bl_info = {
 	}
 
 class BlenderVersionError(Exception):
-    pass
+	pass
 
 if bl_info['blender'] > bpy.app.version:
 	raise BlenderVersionError(f"This addon requires Blender >= {bl_info['blender']}")
@@ -61,6 +61,15 @@ EARTH_SPHERE = True
 import os, sys, tempfile
 from datetime import datetime
 
+def getAppData():
+	home = os.path.expanduser('~')
+	loc = os.path.join(home, '.bgis')
+	if not os.path.exists(loc):
+		os.mkdir(loc)
+	return loc
+
+APP_DATA = getAppData()
+
 import logging
 from logging.handlers import RotatingFileHandler
 #temporary set log level, will be overriden reading addon prefs
@@ -68,9 +77,10 @@ from logging.handlers import RotatingFileHandler
 logsFormat = '{levelname}:{name}:{lineno}:{message}'
 logsFileName = 'bgis.log'
 try:
-	logsFilePath = os.path.join(os.path.dirname(__file__), logsFileName)
+	#logsFilePath = os.path.join(os.path.dirname(__file__), logsFileName)
+	logsFilePath = os.path.join(APP_DATA, logsFileName)
 	#logging.basicConfig(level=logging.getLevelName('DEBUG'), format=logsFormat, style='{', filename=logsFilePath, filemode='w')
-	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=100000, backupCount=1)
+	logHandler = RotatingFileHandler(logsFilePath, mode='a', maxBytes=512000, backupCount=1)
 except PermissionError:
 	#logsFilePath = os.path.join(bpy.app.tempdir, logsFileName)
 	logsFilePath = os.path.join(tempfile.gettempdir(), logsFileName)
