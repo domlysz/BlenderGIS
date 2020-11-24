@@ -166,19 +166,6 @@ class BGIS_PREFS(AddonPreferences):
 		items = listOsmTags
 		)
 
-	def listOverpassServer(self, context):
-		return [tuple(entry) for entry in json.loads(self.overpassServerJson)]
-
-	#store crs preset as json string into addon preferences
-	overpassServerJson: StringProperty(default=json.dumps(DEFAULT_OVERPASS_SERVER))
-
-	overpassServer: EnumProperty(
-		name = "Overpass server",
-		description = "Select an overpass server",
-		#default = 0,
-		items = listOverpassServer
-		)
-
 	################
 	#Basemaps
 
@@ -218,7 +205,20 @@ class BGIS_PREFS(AddonPreferences):
 		)
 
 	################
-	#DEM options
+	#Network
+
+	def listOverpassServer(self, context):
+		return [tuple(entry) for entry in json.loads(self.overpassServerJson)]
+
+	#store crs preset as json string into addon preferences
+	overpassServerJson: StringProperty(default=json.dumps(DEFAULT_OVERPASS_SERVER))
+
+	overpassServer: EnumProperty(
+		name = "Overpass server",
+		description = "Select an overpass server",
+		#default = 0,
+		items = listOverpassServer
+		)
 
 	def listDemServer(self, context):
 		return [tuple(entry) for entry in json.loads(self.demServerJson)]
@@ -227,7 +227,7 @@ class BGIS_PREFS(AddonPreferences):
 	demServerJson: StringProperty(default=json.dumps(DEFAULT_DEM_SERVER))
 
 	demServer: EnumProperty(
-		name = "Relief server",
+		name = "Elevation server",
 		description = "Select a server that provides Digital Elevation Model datasource",
 		#default = 0,
 		items = listDemServer
@@ -301,6 +301,14 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_osm_tag", icon='PREFERENCES')
 		row.operator("bgis.rmv_osm_tag", icon='REMOVE')
 		row.operator("bgis.reset_osm_tags", icon='PLAY_REVERSE')
+		row = box.row()
+		row.prop(self, "mergeDoubles")
+		row.prop(self, "adjust3Dview")
+		row.prop(self, "forceTexturedSolid")
+
+		#Network
+		box = layout.box()
+		box.label(text='Network')
 		row = box.row().split(factor=0.5)
 		row.prop(self, "overpassServer")
 		row.operator("bgis.add_overpass_server", icon='ADD')
@@ -313,10 +321,6 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_dem_server", icon='PREFERENCES')
 		row.operator("bgis.rmv_dem_server", icon='REMOVE')
 		row.operator("bgis.reset_dem_server", icon='PLAY_REVERSE')
-		row = box.row()
-		row.prop(self, "mergeDoubles")
-		row.prop(self, "adjust3Dview")
-		row.prop(self, "forceTexturedSolid")
 
 		#System
 		box = layout.box()
