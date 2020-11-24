@@ -16,9 +16,8 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, isTopView
 from ..core.proj import SRS, reprojBbox
 
-from ..core.settings import getSetting
-
-USER_AGENT = getSetting('user_agent')
+from ..core import settings
+USER_AGENT = settings.user_agent
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 

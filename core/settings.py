@@ -1,26 +1,8 @@
 # -*- coding:utf-8 -*-
-
 import os
 import json
 
 from .checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_IMGIO, HAS_PIL
-#from .proj import EPSGIO #WARN this one causes circular import because proj.reproj is imported in proj.__init__ and it also import settings.py
-
-cfgFile = os.path.dirname(os.path.abspath(__file__)) + '/settings.json'
-#cfgFile = os.path.join(os.path.dirname(__file__), "settings.json")
-
-def getSettings():
-	with open(cfgFile, 'r') as cfg:
-		prefs = json.load(cfg)
-	return prefs
-
-def setSettings(prefs):
-	with open(cfgFile, 'w') as cfg:
-		json.dump(prefs, cfg, indent='\t')
-
-def getSetting(k):
-	prefs = getSettings()
-	return prefs.get(k, None)
 
 def getAvailableProjEngines():
 	engines = ['AUTO', 'BUILTIN']
@@ -42,18 +24,40 @@ def getAvailableImgEngines():
 		engines.append('PIL')
 	return engines
 
-def setImgEngine(engine):
-	if engine not in getAvailableImgEngines():
-		raise IOError
-	else:
-		cfg = getSettings()
-		cfg['img_engine'] = engine
-		setSettings(cfg)
 
-def setProjEngine(engine):
-	if engine not in getAvailableProjEngines():
-		raise IOError
-	else:
-		cfg = getSettings()
-		cfg['proj_engine'] = engine
-		setSettings(cfg)
+class Settings():
+
+	def __init__(self, **kwargs):
+		self._proj_engine = kwargs['proj_engine']
+		self._img_engine = kwargs['img_engine']
+		self.user_agent = kwargs['user_agent']
+
+	@property
+	def proj_engine(self):
+		return self._proj_engine
+
+	@proj_engine.setter
+	def proj_engine(self, engine):
+		if engine not in getAvailableProjEngines():
+			raise IOError
+		else:
+			self._proj_engine = engine
+
+	@property
+	def img_engine(self):
+		return self._img_engine
+
+	@img_engine.setter
+	def img_engine(self, engine):
+		if engine not in getAvailableImgEngines():
+			raise IOError
+		else:
+			self._img_engine = engine
+
+
+cfgFile = os.path.join(os.path.dirname(__file__), "settings.json")
+
+with open(cfgFile, 'r') as cfg:
+		prefs = json.load(cfg)
+
+settings = Settings(**prefs)

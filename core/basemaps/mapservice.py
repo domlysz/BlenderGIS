@@ -38,8 +38,8 @@ from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
 
-from ..settings import getSetting
-USER_AGENT = getSetting('user_agent')
+from .. import settings
+USER_AGENT = settings.user_agent
 
 # Set mosaic backgroung image color, it will be the base color for area not covered
 # by the map service (ie when requests return non valid data)

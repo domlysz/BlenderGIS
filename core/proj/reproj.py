@@ -28,7 +28,7 @@ from .srv import EPSGIO
 from ..errors import ReprojError
 from ..utils import BBOX
 from ..checkdeps import HAS_GDAL, HAS_PYPROJ
-from ..settings import getSettings
+from .. import settings
 
 if HAS_GDAL:
 	from osgeo import osr, gdal
@@ -199,8 +199,7 @@ class Reproj():
 			return
 
 		#Get proj engine from module settings
-		prefs = getSettings()
-		self.iproj = prefs['proj_engine']
+		self.iproj = settings.proj_engine
 		if self.iproj not in ['AUTO', 'GDAL', 'PYPROJ', 'BUILTIN', 'EPSGIO']:
 			raise ReprojError('Wrong engine name')
 

@@ -131,7 +131,7 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
 	ssl._create_default_https_context = ssl._create_unverified_context
 
 #from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
-from .core.settings import getSettings, setSettings
+from .core.settings import settings
 
 #Import all modules which contains classes that must be registed (classes derived from bpy.types.*)
 from . import prefs
@@ -349,14 +349,12 @@ def register():
 
 	#Setup prefs
 	preferences = bpy.context.preferences.addons[__package__].preferences
-	#>>logger
-	#logger = logging.getLogger(__name__)
 	logger.setLevel(logging.getLevelName(preferences.logLevel)) #will affect all child logger
-	#>>core settings
-	cfg = getSettings()
-	cfg['proj_engine'] = preferences.projEngine
-	cfg['img_engine'] = preferences.imgEngine
-	setSettings(cfg)
+
+	#update core settings according to addon prefs
+	settings.proj_engine = preferences.projEngine
+	settings.img_engine = preferences.imgEngine
+
 
 def unregister():
 

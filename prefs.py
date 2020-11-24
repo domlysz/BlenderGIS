@@ -12,7 +12,8 @@ from . import bl_info
 from .core.proj.reproj import EPSGIO
 from .core.proj.srs import SRS
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
-from .core.settings import getSetting, getSettings, setSettings
+#from .core.settings import getSetting, getSettings, setSettings
+from .core import settings
 
 PKG = __package__
 
@@ -121,9 +122,10 @@ class BGIS_PREFS(AddonPreferences):
 		return items
 
 	def updateProjEngine(self, context):
-		prefs = getSettings()
+		'''prefs = getSettings()
 		prefs['proj_engine'] = self.projEngine
-		setSettings(prefs)
+		setSettings(prefs)'''
+		settings.proj_engine = self.projEngine
 
 	projEngine: EnumProperty(
 		name = "Projection engine",
@@ -146,9 +148,10 @@ class BGIS_PREFS(AddonPreferences):
 		return items
 
 	def updateImgEngine(self, context):
-		prefs = getSettings()
+		'''prefs = getSettings()
 		prefs['img_engine'] = self.imgEngine
-		setSettings(prefs)
+		setSettings(prefs)'''
+		settings.img_engine = self.imgEngine
 
 	imgEngine: EnumProperty(
 		name = "Image processing engine",

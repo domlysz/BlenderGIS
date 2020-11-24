@@ -23,9 +23,9 @@ log = logging.getLogger(__name__)
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 import json
-from ..settings import getSetting
 
-USER_AGENT = getSetting('user_agent')
+from .. import settings
+USER_AGENT = settings.user_agent
 
 ######################################
 # EPSG.io

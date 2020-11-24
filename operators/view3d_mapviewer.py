@@ -37,9 +37,9 @@ from gpu_extras.batch import batch_for_shader
 from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..core.proj import reprojPt, reprojBbox, dd2meters, meters2dd
 from ..core.basemaps import GRIDS, SOURCES, MapService
-from ..core.settings import getSetting
 
-USER_AGENT = getSetting('user_agent')
+from ..core import settings
+USER_AGENT = settings.user_agent
 
 #bgis imports
 from ..geoscene import GeoScene, SK, georefManagerLayout
