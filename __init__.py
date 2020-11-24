@@ -28,7 +28,7 @@ bl_info = {
 	'version': (2, 2, 5),
 	'blender': (2, 83, 0),
 	'location': 'View3D > Tools > GIS',
-	'warning': 'development version',
+	'warning': '',
 	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
 	'tracker_url': 'https://github.com/domlysz/BlenderGIS/issues',
 	'link': '',
