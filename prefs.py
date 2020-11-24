@@ -286,8 +286,6 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.edit_predef_crs", icon='PREFERENCES')
 		row.operator("bgis.rmv_predef_crs", icon='REMOVE')
 		row.operator("bgis.reset_predef_crs", icon='PLAY_REVERSE')
-		box.prop(self, "projEngine")
-		box.prop(self, "imgEngine")
 
 		#Basemaps
 		box = layout.box()
@@ -319,7 +317,7 @@ class BGIS_PREFS(AddonPreferences):
 
 		#Network
 		box = layout.box()
-		box.label(text='Network')
+		box.label(text='Remote datasource')
 		row = box.row().split(factor=0.5)
 		row.prop(self, "overpassServer")
 		row.operator("bgis.add_overpass_server", icon='ADD')
@@ -336,6 +334,8 @@ class BGIS_PREFS(AddonPreferences):
 		#System
 		box = layout.box()
 		box.label(text='System')
+		box.prop(self, "projEngine")
+		box.prop(self, "imgEngine")
 		box.prop(self, "logLevel")
 
 #######################
