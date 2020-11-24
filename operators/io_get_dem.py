@@ -43,7 +43,14 @@ class IMPORTGIS_OT_dem_query(Operator):
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'CANCELLED'}
 
-		return self.execute(context)#context.window_manager.invoke_props_dialog(self)
+		#return self.execute(context)
+		return context.window_manager.invoke_props_dialog(self)
+
+	def draw(self,context):
+		prefs = context.preferences.addons[PKG].preferences
+		layout = self.layout
+		row = layout.row(align=True)
+		row.prop(prefs, "demServer", text='Server')
 
 	@classmethod
 	def poll(cls, context):
