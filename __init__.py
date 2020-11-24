@@ -46,7 +46,7 @@ if bl_info['blender'] > bpy.app.version:
 CAM_GEOPHOTO = True
 CAM_GEOREF = True
 EXPORT_SHP = True
-GET_SRTM = True
+GET_DEM = True
 IMPORT_GEORASTER = True
 IMPORT_OSM = True
 IMPORT_SHP = True
@@ -133,8 +133,8 @@ if CAM_GEOREF:
 	from .operators import add_camera_georef
 if EXPORT_SHP:
 	from .operators import io_export_shp
-if GET_SRTM:
-	from .operators import io_get_srtm
+if GET_DEM:
+	from .operators import io_get_dem
 if IMPORT_GEORASTER:
 	from .operators import io_import_georaster
 if IMPORT_OSM:
@@ -204,8 +204,8 @@ class VIEW3D_MT_menu_gis_webgeodata(bpy.types.Menu):
 			self.layout.operator("view3d.map_start", icon_value=icons_dict["layers"].icon_id)
 		if IMPORT_OSM:
 			self.layout.operator("importgis.osm_query", icon_value=icons_dict["osm"].icon_id)
-		if GET_SRTM:
-			self.layout.operator("importgis.srtm_query", icon_value=icons_dict["raster"].icon_id)
+		if GET_DEM:
+			self.layout.operator("importgis.dem_query", icon_value=icons_dict["raster"].icon_id)
 
 class VIEW3D_MT_menu_gis_camera(bpy.types.Menu):
 	bl_label = "Camera"
@@ -312,8 +312,8 @@ def register():
 		mesh_delaunay_voronoi.register()
 	if DROP:
 		object_drop.register()
-	if GET_SRTM:
-		io_get_srtm.register()
+	if GET_DEM:
+		io_get_dem.register()
 	if CAM_GEOPHOTO:
 		add_camera_exif.register()
 	if CAM_GEOREF:
@@ -386,8 +386,8 @@ def unregister():
 		mesh_delaunay_voronoi.unregister()
 	if DROP:
 		object_drop.unregister()
-	if GET_SRTM:
-		io_get_srtm.unregister()
+	if GET_DEM:
+		io_get_dem.unregister()
 	if CAM_GEOPHOTO:
 		add_camera_exif.unregister()
 	if CAM_GEOREF:

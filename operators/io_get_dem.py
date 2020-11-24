@@ -24,12 +24,12 @@ PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
 TIMEOUT = 120
 
-class IMPORTGIS_OT_srtm_query(Operator):
-	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
+class IMPORTGIS_OT_dem_query(Operator):
+	"""Import elevation data from a web service"""
 
-	bl_idname = "importgis.srtm_query"
-	bl_description = 'Query for NASA SRTM elevation data covering the current view3d area'
-	bl_label = "Get SRTM"
+	bl_idname = "importgis.dem_query"
+	bl_description = 'Query for elevation data from a web service'
+	bl_label = "Get elevation (SRTM)"
 	bl_options = {"UNDO"}
 
 	def invoke(self, context, event):
@@ -152,11 +152,11 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 def register():
 	try:
-		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+		bpy.utils.register_class(IMPORTGIS_OT_dem_query)
 	except ValueError as e:
 		log.warning('{} is already registered, now unregister and retry... '.format(IMPORTGIS_OT_srtm_query))
 		unregister()
-		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+		bpy.utils.register_class(IMPORTGIS_OT_dem_query)
 
 def unregister():
-	bpy.utils.unregister_class(IMPORTGIS_OT_srtm_query)
+	bpy.utils.unregister_class(IMPORTGIS_OT_dem_query)
