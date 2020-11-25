@@ -41,6 +41,8 @@ from ..proj.srs import SRS
 from .. import settings
 USER_AGENT = settings.user_agent
 
+TIMEOUT = 4
+
 # Set mosaic backgroung image color, it will be the base color for area not covered
 # by the map service (ie when requests return non valid data)
 MOSAIC_BKG_COLOR = (128,128,128,255)
@@ -580,7 +582,7 @@ class MapService():
 		try:
 			#make request
 			req = urllib.request.Request(url, None, self.headers)
-			handle = urllib.request.urlopen(req, timeout=3)
+			handle = urllib.request.urlopen(req, timeout=TIMEOUT)
 			#open image stream
 			data = handle.read()
 			handle.close()

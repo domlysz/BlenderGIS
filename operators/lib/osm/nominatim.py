@@ -9,6 +9,7 @@ from urllib.request import urlopen
 from urllib.request import Request
 from urllib.parse import quote_plus
 
+TIMEOUT = 2
 
 def nominatimQuery(
     query,
@@ -31,7 +32,7 @@ def nominatimQuery(
     if user_agent:
         req.add_header('User-Agent', user_agent)
 
-    response = urlopen(req)
+    response = urlopen(req, timeout=TIMEOUT)
 
     r = json.loads(response.read().decode('utf-8'))
 

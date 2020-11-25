@@ -25,7 +25,11 @@ from urllib.error import URLError, HTTPError
 import json
 
 from .. import settings
+
 USER_AGENT = settings.user_agent
+
+DEFAULT_TIMEOUT = 2
+REPROJ_TIMEOUT = 60
 
 ######################################
 # EPSG.io
@@ -39,7 +43,7 @@ class EPSGIO():
 		url = "http://epsg.io"
 		try:
 			rq = Request(url, headers={'User-Agent': USER_AGENT})
-			urlopen(rq, timeout=1)
+			urlopen(rq, timeout=DEFAULT_TIMEOUT)
 			return True
 		except URLError as e:
 			log.error('Cannot ping {} web service, {}'.format(url, e.reason))
@@ -66,7 +70,7 @@ class EPSGIO():
 
 		try:
 			rq = Request(url, headers={'User-Agent': USER_AGENT})
-			response = urlopen(rq).read().decode('utf8')
+			response = urlopen(rq, timeout=REPROJ_TIMEOUT).read().decode('utf8')
 		except (URLError, HTTPError) as err:
 			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 			raise
@@ -110,7 +114,7 @@ class EPSGIO():
 
 			try:
 				rq = Request(url, headers={'User-Agent': USER_AGENT})
-				response = urlopen(rq).read().decode('utf8')
+				response = urlopen(rq, timeout=REPROJ_TIMEOUT).read().decode('utf8')
 			except (URLError, HTTPError) as err:
 				log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 				raise
@@ -127,7 +131,7 @@ class EPSGIO():
 		url = url.replace("{QUERY}", query)
 		log.debug('Search crs : {}'.format(url))
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
-		response = urlopen(rq).read().decode('utf8')
+		response = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
 		obj = json.loads(response)
 		log.debug('Search results : {}'.format([ (r['code'], r['name']) for r in obj['results'] ]))
 		return obj['results']
@@ -138,7 +142,7 @@ class EPSGIO():
 		url = url.replace("{CODE}", str(epsg))
 		log.debug(url)
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
-		wkt = urlopen(rq).read().decode('utf8')
+		wkt = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
 		return wkt
 
 
@@ -162,7 +166,7 @@ class TWCC():
 		url = url.replace("{CRS2}", str(epsg2))
 
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
-		response = urlopen(rq).read().decode('utf8')
+		response = urlopen(rq, timeout=REPROJ_TIMEOUT).read().decode('utf8')
 		obj = json.loads(response)
 
 		return (float(obj['point']['x']), float(obj['point']['y']))

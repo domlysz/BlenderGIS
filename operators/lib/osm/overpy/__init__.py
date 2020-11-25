@@ -25,6 +25,7 @@ elif PY3:
     from urllib.request import urlopen, Request
     from urllib.error import HTTPError
 
+TIMEOUT = 120
 
 def is_valid_type(element, cls):
     """
@@ -77,7 +78,7 @@ class Overpass(object):
             req.add_header('User-Agent', self.user_agent)
 
         try:
-            f = urlopen(req, query)
+            f = urlopen(req, query, timeout=TIMEOUT)
         except HTTPError as e:
             f = e
 
