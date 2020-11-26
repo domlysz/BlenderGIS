@@ -533,7 +533,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 				try:
 					offset = float(record[extrudeFieldIdx])
 				except Exception as e:
-					log.waring('Cannot extract extrusion value for feature {} : {}'.format(i, e))
+					log.warning('Cannot extract extrusion value for feature {} : {}'.format(i, e))
 					offset = 0 #null values will be set to zero
 
 			#Iter over parts
