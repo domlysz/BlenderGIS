@@ -194,13 +194,10 @@ class SRS():
 		elif HAS_GDAL:
 			prj = self.getOgrSpatialRef()
 			isGeo = prj.IsGeographic()
-			if isGeo == 1:
-				return True
-			else:
-				return False
+			return isGeo == 1
 		elif HAS_PYPROJ:
 			prj = self.getPyProj()
-			return prj.is_latlong()
+			return prj.is_geographic
 		else:
 			return None
 
