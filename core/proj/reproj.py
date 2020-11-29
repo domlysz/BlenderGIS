@@ -280,8 +280,15 @@ class Reproj():
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'PYPROJ':
-			xs, ys = zip(*pts)
-			xs, ys = pyproj.transform(self.crs1, self.crs2, xs, ys)
+			if self.crs1.crs.is_geographic:
+				ys, xs = zip(*pts)
+			else:
+				xs, ys = zip(*pts)
+			transformer = pyproj.Transformer.from_proj(self.crs1, self.crs2)
+			if self.crs2.crs.is_geographic:
+				ys, xs = transformer.transform(xs, ys)
+			else:
+				xs, ys = transformer.transform(xs, ys)
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'EPSGIO':
