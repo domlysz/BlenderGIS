@@ -270,9 +270,7 @@ class bpyGeoRaster(GeoRaster):
 			#WARN : packed image can only be stored as png and this format does not support float32 datatype
 			self.bpyImg.pack()
 		if self.raw:
-			# Set image color space, it's very important because only
-			# Linear, Non Color and Raw color spaces will return raw values...
-			self.bpyImg.colorspace_settings.name = 'Non-Color'
+			self.bpyImg.colorspace_settings.is_data = True
 
 	def unload(self):
 		self.bpyImg.user_clear()

@@ -38,8 +38,10 @@ from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
 
-from ..settings import getSetting
-USER_AGENT = getSetting('user_agent')
+from .. import settings
+USER_AGENT = settings.user_agent
+
+TIMEOUT = 4
 
 # Set mosaic backgroung image color, it will be the base color for area not covered
 # by the map service (ie when requests return non valid data)
@@ -394,7 +396,7 @@ class MapService():
 		self.headers = {
 			'Accept' : 'image/png,image/*;q=0.8,*/*;q=0.5' ,
 			'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7' ,
-			'Accept-Encoding' : 'gzip,deflate' ,
+			#'Accept-Encoding' : 'gzip,deflate', #urllib2 doesn't automatically uncompress the data
 			'Accept-Language' : 'fr,en-us,en;q=0.5' ,
 			#'Keep-Alive': 115 ,
 			'Proxy-Connection' : 'keep-alive',
@@ -580,7 +582,7 @@ class MapService():
 		try:
 			#make request
 			req = urllib.request.Request(url, None, self.headers)
-			handle = urllib.request.urlopen(req, timeout=3)
+			handle = urllib.request.urlopen(req, timeout=TIMEOUT)
 			#open image stream
 			data = handle.read()
 			handle.close()

@@ -28,7 +28,7 @@ from .srv import EPSGIO
 from ..errors import ReprojError
 from ..utils import BBOX
 from ..checkdeps import HAS_GDAL, HAS_PYPROJ
-from ..settings import getSettings
+from .. import settings
 
 if HAS_GDAL:
 	from osgeo import osr, gdal
@@ -199,8 +199,7 @@ class Reproj():
 			return
 
 		#Get proj engine from module settings
-		prefs = getSettings()
-		self.iproj = prefs['proj_engine']
+		self.iproj = settings.proj_engine
 		if self.iproj not in ['AUTO', 'GDAL', 'PYPROJ', 'BUILTIN', 'EPSGIO']:
 			raise ReprojError('Wrong engine name')
 
@@ -281,8 +280,15 @@ class Reproj():
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'PYPROJ':
-			xs, ys = zip(*pts)
-			xs, ys = pyproj.transform(self.crs1, self.crs2, xs, ys)
+			if self.crs1.crs.is_geographic:
+				ys, xs = zip(*pts)
+			else:
+				xs, ys = zip(*pts)
+			transformer = pyproj.Transformer.from_proj(self.crs1, self.crs2)
+			if self.crs2.crs.is_geographic:
+				ys, xs = transformer.transform(xs, ys)
+			else:
+				xs, ys = transformer.transform(xs, ys)
 			return list(zip(xs, ys))
 
 		elif self.iproj == 'EPSGIO':

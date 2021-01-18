@@ -37,9 +37,9 @@ from gpu_extras.batch import batch_for_shader
 from ..core import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from ..core.proj import reprojPt, reprojBbox, dd2meters, meters2dd
 from ..core.basemaps import GRIDS, SOURCES, MapService
-from ..core.settings import getSetting
 
-USER_AGENT = getSetting('user_agent')
+from ..core import settings
+USER_AGENT = settings.user_agent
 
 #bgis imports
 from ..geoscene import GeoScene, SK, georefManagerLayout
@@ -491,6 +491,9 @@ class VIEW3D_OT_map_start(Operator):
 		folder = prefs.cacheFolder
 		if folder == "" or not os.path.exists(folder):
 			self.report({'ERROR'}, "Please define a valid cache folder path in addon's preferences")
+			return {'CANCELLED'}
+		if not os.access(folder, os.X_OK | os.W_OK):
+			self.report({'ERROR'}, "The selected cache folder has no write access")
 			return {'CANCELLED'}
 
 		if self.dialog == 'MAP':

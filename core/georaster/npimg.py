@@ -30,7 +30,7 @@ from ..proj.reproj import reprojImg
 from ..maths.fillnodata import replace_nans #inpainting function (ie fill nodata)
 from ..utils import XY as xy
 from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
-from ..settings import getSettings
+from .. import settings
 
 if HAS_PIL:
 	from PIL import Image
@@ -47,8 +47,7 @@ class NpImage():
 
 	def _getIFACE(self):
 
-		prefs = getSettings()
-		engine = prefs['img_engine']
+		engine = settings.img_engine
 
 		if engine == 'AUTO':
 			if HAS_GDAL:

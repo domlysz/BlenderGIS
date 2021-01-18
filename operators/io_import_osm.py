@@ -17,10 +17,10 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
-from ..core.settings import getSetting
 from ..core.utils import perf_clock
 
-USER_AGENT = getSetting('user_agent')
+from ..core import settings
+USER_AGENT = settings.user_agent
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 

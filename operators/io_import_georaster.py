@@ -256,6 +256,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				rast = bpyGeoRaster(filePath)
 			except IOError as e:
+				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 				return {'CANCELLED'}
 			#Get or set georef dx, dy
@@ -288,6 +289,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				rast = bpyGeoRaster(filePath)
 			except IOError as e:
+				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 				return {'CANCELLED'}
 			#Check pixel size and rotation
@@ -342,6 +344,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				rast = bpyGeoRaster(filePath, subBoxGeo=subBox)
 			except IOError as e:
+				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 				return {'CANCELLED'}
 			except OverlapError:
@@ -383,6 +386,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
 			except IOError as e:
+				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 				return {'CANCELLED'}
 			except OverlapError:
@@ -440,6 +444,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			try:
 				grid = GeoRaster(filePath, subBoxGeo=subBox, useGDAL=HAS_GDAL)
 			except IOError as e:
+				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 				return {'CANCELLED'}
 			except OverlapError:

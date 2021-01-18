@@ -16,18 +16,19 @@ from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, isTopView
 from ..core.proj import SRS, reprojBbox
 
-from ..core.settings import getSetting
-
-USER_AGENT = getSetting('user_agent')
+from ..core import settings
+USER_AGENT = settings.user_agent
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
-class IMPORTGIS_OT_srtm_query(Operator):
-	"""Import NASA SRTM elevation data from OpenTopography RESTful Web service"""
+TIMEOUT = 120
 
-	bl_idname = "importgis.srtm_query"
-	bl_description = 'Query for NASA SRTM elevation data covering the current view3d area'
-	bl_label = "Get SRTM"
+class IMPORTGIS_OT_dem_query(Operator):
+	"""Import elevation data from a web service"""
+
+	bl_idname = "importgis.dem_query"
+	bl_description = 'Query for elevation data from a web service'
+	bl_label = "Get elevation (SRTM)"
 	bl_options = {"UNDO"}
 
 	def invoke(self, context, event):
@@ -41,7 +42,14 @@ class IMPORTGIS_OT_srtm_query(Operator):
 				self.report({'ERROR'}, "Scene georef is broken, please fix it beforehand")
 				return {'CANCELLED'}
 
-		return self.execute(context)#context.window_manager.invoke_props_dialog(self)
+		#return self.execute(context)
+		return context.window_manager.invoke_props_dialog(self)
+
+	def draw(self,context):
+		prefs = context.preferences.addons[PKG].preferences
+		layout = self.layout
+		row = layout.row(align=True)
+		row.prop(prefs, "demServer", text='Server')
 
 	@classmethod
 	def poll(cls, context):
@@ -73,7 +81,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 		bbox = reprojBbox(geoscn.crs, 4326, bbox)
 
-		if 'opentopo.sdsc.edu' in prefs.srtmServer:
+		if 'SRTM' in prefs.demServer:
 			if bbox.ymin > 60:
 				self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
 				return {'CANCELLED'}
@@ -91,7 +99,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		xmin, xmax = bbox.xmin - e, bbox.xmax + e
 		ymin, ymax = bbox.ymin - e, bbox.ymax + e
 
-		url = prefs.srtmServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
+		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
 		log.debug(url)
 
 		# Download the file from url and save it locally
@@ -105,7 +113,7 @@ class IMPORTGIS_OT_srtm_query(Operator):
 		#Alternatively, we can save on disk, open with GeoRaster class (will use tyf if gdal not available)
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		try:
-			with urlopen(rq) as response, open(filePath, 'wb') as outFile:
+			with urlopen(rq, timeout=TIMEOUT) as response, open(filePath, 'wb') as outFile:
 				data = response.read() # a `bytes` object
 				outFile.write(data) #
 		except (URLError, HTTPError) as err:
@@ -150,11 +158,11 @@ class IMPORTGIS_OT_srtm_query(Operator):
 
 def register():
 	try:
-		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+		bpy.utils.register_class(IMPORTGIS_OT_dem_query)
 	except ValueError as e:
 		log.warning('{} is already registered, now unregister and retry... '.format(IMPORTGIS_OT_srtm_query))
 		unregister()
-		bpy.utils.register_class(IMPORTGIS_OT_srtm_query)
+		bpy.utils.register_class(IMPORTGIS_OT_dem_query)
 
 def unregister():
-	bpy.utils.unregister_class(IMPORTGIS_OT_srtm_query)
+	bpy.utils.unregister_class(IMPORTGIS_OT_dem_query)

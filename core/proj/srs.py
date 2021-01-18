@@ -164,10 +164,13 @@ class SRS():
 		'''Build pyproj object'''
 		if not HAS_PYPROJ:
 			raise ImportError('PYPROJ not available')
-		try:
-			return pyproj.Proj(self.proj4)
-		except Exception as e:
-			raise ValueError('Cannot initialize pyproj object for projection {}. Error : {}'.format(self.proj4, e))
+		if self.isSRID:
+			return pyproj.Proj(self.SRID)
+		else:
+			try:
+				return pyproj.Proj(self.proj4)
+			except Exception as e:
+				raise ValueError('Cannot initialize pyproj object for projection {}. Error : {}'.format(self.proj4, e))
 
 
 	def loadProj4(self):
@@ -194,13 +197,10 @@ class SRS():
 		elif HAS_GDAL:
 			prj = self.getOgrSpatialRef()
 			isGeo = prj.IsGeographic()
-			if isGeo == 1:
-				return True
-			else:
-				return False
+			return isGeo == 1
 		elif HAS_PYPROJ:
 			prj = self.getPyProj()
-			return prj.is_latlong()
+			return prj.crs.is_geographic
 		else:
 			return None
 
