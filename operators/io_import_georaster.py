@@ -97,8 +97,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			('DEM', 'DEM as displacement texture', "Use DEM raster as height texture to wrap a base mesh"),
 			('DEM_RAW', 'DEM raw data build [slow]', "Import a DEM as pixels points cloud with building faces. Do not use with huge dataset.")]
 			)
-	#
-	objectsLst: EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
+
 	#
 	#Subdivise (as DEM option)
 	def listSubdivisionModes(self, context):
@@ -157,19 +156,16 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			pass
 		#
 		if self.importMode == 'MESH':
-			if geoscn.isGeoref and len(self.objectsLst) > 0:
-				layout.prop(self, 'objectsLst')
-			else:
-				layout.label(text="There isn't georef mesh to UVmap on")
+			if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+				layout.label(text="The active object is not a georef mesh")
 		#
 		if self.importMode == 'DEM':
 			layout.prop(self, 'demOnMesh')
 			if self.demOnMesh:
-				if geoscn.isGeoref and len(self.objectsLst) > 0:
-					layout.prop(self, 'objectsLst')
+				if geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH':
 					layout.prop(self, 'clip')
 				else:
-					layout.label(text="There isn't georef mesh to apply on")
+					layout.label(text="The active object is not a georef mesh")
 			layout.prop(self, 'subdivision')
 			layout.prop(self, 'demInterpolation')
 			if self.subdivision == 'mesh':
@@ -181,10 +177,8 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			layout.prop(self, 'step')
 			layout.prop(self, 'clip')
 			if self.clip:
-				if geoscn.isGeoref and len(self.objectsLst) > 0:
-					layout.prop(self, 'objectsLst')
-				else:
-					layout.label(text="There isn't georef mesh to refer")
+				if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+					layout.label(text="The active object is not a georef mesh")
 		#
 		if geoscn.isPartiallyGeoref:
 			layout.prop(self, 'reprojection')
@@ -328,14 +322,11 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 
 		######################################
 		if self.importMode == 'MESH':
-			if not geoscn.isGeoref or len(self.objectsLst) == 0:
-				self.report({'ERROR'}, "There isn't georef mesh to apply on")
+			if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+				self.report({'ERROR'}, "The active object is not a georef mesh")
 				return {'CANCELLED'}
 			# Get choosen object
-			obj = scn.objects[int(self.objectsLst)]
-			# Select and active this obj
-			obj.select_set(True)
-			context.view_layer.objects.active = obj
+			obj = context.view_layer.objects.active
 			# Compute projeted bbox (in geographic coordinates system)
 			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 			if rprj:
@@ -366,15 +357,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 
 			# Get reference plane
 			if self.demOnMesh:
-				if not geoscn.isGeoref or len(self.objectsLst) == 0:
-					self.report({'ERROR'}, "There isn't georef mesh to apply on")
+				if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+					self.report({'ERROR'}, "The active object is not a georef mesh")
 					return {'CANCELLED'}
 				# Get choosen object
-				obj = scn.objects[int(self.objectsLst)]
+				obj = context.view_layer.objects.active 
 				mesh = obj.data
-				# Select and active this obj
-				obj.select_set(True)
-				context.view_layer.objects.active = obj
 				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:
@@ -431,11 +419,11 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			# Get reference plane
 			subBox = None
 			if self.clip:
-				if not geoscn.isGeoref or len(self.objectsLst) == 0:
-					self.report({'ERROR'}, "No working extent")
+				if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+					self.report({'ERROR'}, "The active object is not a georef mesh")
 					return {'CANCELLED'}
 				# Get choosen object
-				obj = scn.objects[int(self.objectsLst)]
+				obj = context.view_layer.objects.active
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:
 					subBox = rprjToRaster.bbox(subBox)
