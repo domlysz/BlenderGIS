@@ -314,7 +314,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					obj["area"] = area
 					log.info("{} has {} vertices and an area of {}".format(obj.name, vertex_count, area))
 					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
-					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="TRIANGULATE")
+					bpy.ops.object.modifier_apply(modifier="TRIANGULATE")
 
 					# Subsurf to smooth edges
 					n_cuts_required = int(round(math.log(500.0 / vertex_count, 2)))
@@ -322,7 +322,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 						print(n_cuts_required)
 						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
 						subsurf.levels = n_cuts_required
-						bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SUBSURF")
+						bpy.ops.object.modifier_apply(modifier="SUBSURF")
 					objects.append(obj)
 					log.info("After triangulation / subsurf {} has {} vertices".format(obj.name, len(obj.data.vertices)))
 
@@ -345,7 +345,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					shrinkwrap = duplicated_base.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
 					shrinkwrap.target = obj
 					#shrinkwrap.wrap_method = "NEAREST_VERTEX"
-					bpy.ops.object.modifier_apply(apply_as='DATA', modifier="SHRINKWRAP")
+					bpy.ops.object.modifier_apply(modifier="SHRINKWRAP")
 					# Copy vertex data from shrinkwrapped duplicate as a shape key
 					base_obj.shape_key_add(name=str(obj["frame"]))
 					for j, vertex in enumerate(duplicated_base.data.vertices):
