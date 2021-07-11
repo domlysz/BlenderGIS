@@ -104,7 +104,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 	def check(self, context):
 		return True
 
-	def listFields(self, context):
+	def listFields(self, context=None):
 		fieldsItems = []
 		try:
 			shp = shpReader(self.filepath)
@@ -169,6 +169,12 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		description = "Choose field",
 		items = listFields )
 
+	#Animate across multiple elevation values in different fields
+	animateElevationFields: BoolProperty(
+			name="Animate elevation fields",
+			description="Animate elevation from multiple fields",
+			default=False )
+
 	#Extrusion field
 	useFieldExtrude: BoolProperty(
 			name="Extrusion from field",
@@ -195,7 +201,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 
 	#Animate across shapefiles
 	animate: BoolProperty(
-			name="Animate",
+			name="Animate multiple shapefiles",
 			description="Animate across other shapefiles in the same folder",
 			default=False )
 
@@ -221,6 +227,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		#layout.prop(self, 'useFieldElev')
 		if self.vertsElevSource == 'FIELD':
 			layout.prop(self, 'fieldElevName')
+			layout.prop(self, 'animateElevationFields')
 		elif self.vertsElevSource == 'OBJ':
 			layout.prop(self, 'objElevLst')
 		#
@@ -370,6 +377,40 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 					if obj != base_obj:
 						bpy.data.objects.remove(obj, do_unlink = True)
 
+			elif self.animateElevationFields:
+				base = elevField.rstrip('0123456789')
+				fields = [field[0] for field in self.listFields() if field[0].startswith(base)]
+				frames = [int(field.replace(base, "")) for field in fields]
+				print(fields)
+				# Load first elevation field
+				bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=fields[0], objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+				base_obj = bpy.context.selected_objects[0]
+				base_obj.shape_key_add(name=fields[0])
+
+				for field in fields[1:]:
+					print(field)
+					bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=field, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+					obj = bpy.context.selected_objects[0]
+					base_obj.shape_key_add(name=field)
+					for j, vertex in enumerate(obj.data.vertices):
+						base_obj.data.shape_keys.key_blocks[field].data[j].co = vertex.co
+					bpy.data.objects.remove(obj, do_unlink = True)
+
+				# Create keyframes
+				for k, field in enumerate(fields):
+					frame = int(field.replace(base, ""))
+					if k > 0:
+						base_obj.data.shape_keys.key_blocks[field].value = 0.0
+						base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k - 1])
+					base_obj.data.shape_keys.key_blocks[field].value = 1.0
+					base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k])
+					if k < len(frames) - 1:
+						base_obj.data.shape_keys.key_blocks[field].value = 0.0
+						base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k + 1])
 
 			else:
 				bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
