@@ -194,7 +194,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			default=False )
 
 	#Animate across shapefiles
-	animate = BoolProperty(
+	animate: BoolProperty(
 			name="Animate",
 			description="Animate across other shapefiles in the same folder",
 			default=False )
