@@ -25,6 +25,8 @@ import os
 import math
 from mathutils import Vector
 import numpy as np#Ship with Blender since 2.70
+import glob
+import re
 
 import logging
 log = logging.getLogger(__name__)
@@ -139,6 +141,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			default=False
 			)
 	#
+	animate: BoolProperty(
+			name="Animate multiple DEMs",
+			description="Animate across other DEM rasters in the same folder",
+			default=False
+			)
+	#
 	step: IntProperty(name = "Step", default=1, description="Pixel step", min=1)
 
 	buildFaces: BoolProperty(name="Build faces", default=True, description='Build quad faces connecting pixel point cloud')
@@ -180,6 +188,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			layout.prop(self, 'buildFaces')
 			layout.prop(self, 'step')
 			layout.prop(self, 'clip')
+			layout.prop(self, 'animate')
 			if self.clip:
 				if geoscn.isGeoref and len(self.objectsLst) > 0:
 					layout.prop(self, 'objectsLst')
@@ -459,6 +468,59 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, subset=self.clip, flat=False, buildFaces=self.buildFaces)
 			obj = placeObj(mesh, name)
 			#grid.unload()
+
+			if self.animate:
+				log.info("Animate mode")
+				# Find all files in the same directory with the same extension
+				basedir = os.path.dirname(filePath)
+				file_extension = os.path.splitext(filePath)[1]
+				files = glob.glob(f"{basedir}{os.sep}*{file_extension}")
+				files.sort()
+				frames = []
+				# Try set the name of the shapekey based on the detected frame (number in filename)
+				try:
+					frame = int(re.search(r'\d+', name).group())
+				except:
+					frame = 1
+				frames.append(frame)
+				obj.shape_key_add(name=str(frame))
+				for f in files:
+					if f == filePath or f.endswith("_bgis.tif"):
+						continue
+					log.info(f"Loading {f}")
+					name = os.path.splitext(os.path.basename(f))[0]
+					try:
+						frame = int(re.search(r'\d+', name).group())
+					except:
+						frame += 1
+					frames.append(frame)
+					# Load file for frame, and copy the mesh data in as a shape key
+					try:
+						grid = GeoRaster(f, subBoxGeo=subBox, useGDAL=HAS_GDAL)
+					except IOError as e:
+						log.error("Unable to open raster", exc_info=True)
+						self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+						return {'CANCELLED'}
+					except OverlapError:
+						self.report({'ERROR'}, "Non overlap data")
+						return {'CANCELLED'}
+					new_mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, subset=self.clip, flat=False, buildFaces=self.buildFaces)
+					obj.shape_key_add(name=str(frame))
+					for j, vertex in enumerate(new_mesh.vertices):
+						obj.data.shape_keys.key_blocks[str(frame)].data[j].co = vertex.co
+
+				frames.sort()
+				for k, frame in enumerate(frames):
+					# Create keyframes
+					sframe = str(frame)
+					if k > 0:
+						obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k - 1])
+					obj.data.shape_keys.key_blocks[sframe].value = 1.0
+					obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k])
+					if k < len(frames) - 1:
+						obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k + 1])
 
 		######################################
 
