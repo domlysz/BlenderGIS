@@ -506,6 +506,11 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 						return {'CANCELLED'}
 					new_mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, subset=self.clip, flat=False, buildFaces=self.buildFaces)
 					obj.shape_key_add(name=str(frame))
+					if len(new_mesh.vertices) != len(mesh.vertices):
+						error = f"Different number of vertices - {len(new_mesh.vertices)} != {len(mesh.vertices)}"
+						print(error)
+						self.report({'ERROR'}, error)
+						return {'CANCELLED'}
 					for j, vertex in enumerate(new_mesh.vertices):
 						obj.data.shape_keys.key_blocks[str(frame)].data[j].co = vertex.co
 
