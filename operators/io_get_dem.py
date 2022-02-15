@@ -99,7 +99,7 @@ class IMPORTGIS_OT_dem_query(Operator):
 		xmin, xmax = bbox.xmin - e, bbox.xmax + e
 		ymin, ymax = bbox.ymin - e, bbox.ymax + e
 
-		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
+		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax, API_KEY=prefs.opentopography_api_key)
 		log.debug(url)
 
 		# Download the file from url and save it locally
