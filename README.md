@@ -1,4 +1,5 @@
-Blender GIS
+Blender GIS - Pull request for Opentopography API KEY new requirement
+--> Added API KEY in addon settings
 ==========
 Blender minimal version : 2.8
 
