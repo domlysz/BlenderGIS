@@ -1,10 +1,5 @@
-Blender GIS - Pull request for Opentopography API KEY new requirement
---> Added API KEY in addon settings
+Blender GIS
 ==========
-Blender minimal version : 2.8
-
-**Mac users warning :** currently the addon does not work on Mac with Blender 2.80 to 2.82. Please do not report the issue here, it's already solved with Blender 2.83. Check [the bug report](https://developer.blender.org/T68243).
-
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Home) - [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start) - [Flowchart](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/flowchart.jpg)
 --------------------
