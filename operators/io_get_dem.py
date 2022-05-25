@@ -43,13 +43,16 @@ class IMPORTGIS_OT_dem_query(Operator):
 				return {'CANCELLED'}
 
 		#return self.execute(context)
-		return context.window_manager.invoke_props_dialog(self)
+		return context.window_manager.invoke_props_dialog(self)#, width=350)
 
 	def draw(self,context):
 		prefs = context.preferences.addons[PKG].preferences
 		layout = self.layout
 		row = layout.row(align=True)
 		row.prop(prefs, "demServer", text='Server')
+		if 'opentopography' in prefs.demServer:
+			row = layout.row(align=True)
+			row.prop(prefs, "opentopography_api_key", text='Api Key')
 
 	@classmethod
 	def poll(cls, context):
@@ -87,6 +90,11 @@ class IMPORTGIS_OT_dem_query(Operator):
 				return {'CANCELLED'}
 			if bbox.ymax < -56:
 				self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
+				return {'CANCELLED'}
+
+		if 'opentopography' in prefs.demServer:
+			if not prefs.opentopography_api_key:
+				self.report({'ERROR'}, "Please register to opentopography.org and request for an API key")
 				return {'CANCELLED'}
 
 		#Set cursor representation to 'loading' icon
