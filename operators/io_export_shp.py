@@ -168,7 +168,8 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 
 			loc = obj.location
 			bm = bmesh.new()
-			bm.from_object(obj, context.evaluated_depsgraph_get(), deform=True) #'deform' allows to consider modifier deformation
+			bm.from_object(obj, context.evaluated_depsgraph_get())
+			#bmesh.from_object 'deform=True' arg allows to consider modifier deformation ->> deprecated since Blender 3.0
 			bm.transform(obj.matrix_world)
 
 			nFeat = 1
