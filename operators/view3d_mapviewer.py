@@ -513,7 +513,7 @@ class VIEW3D_OT_map_start(Operator):
 		if self.dialog == 'SEARCH':
 			r = bpy.ops.view3d.map_search('EXEC_DEFAULT', query=self.query)
 			if r == {'CANCELLED'}:
-				self.report({'INFO'}, "No location founded")
+				self.report({'INFO'}, "No location found")
 			else:
 				geoscn.zoom = self.zoom
 
