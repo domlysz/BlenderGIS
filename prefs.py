@@ -42,8 +42,8 @@ DEFAULT_CRS = [
 
 
 DEFAULT_DEM_SERVER = [
-	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 30m', 'OpenTopography.org web service for SRTM 30m global DEM'),
-	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff", 'OpenTopography SRTM 90m', 'OpenTopography.org web service for SRTM 90m global DEM'),
+	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff&API_Key={API_KEY}", 'OpenTopography SRTM 30m', 'OpenTopography.org web service for SRTM 30m global DEM'),
+	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff&API_Key={API_KEY}", 'OpenTopography SRTM 90m', 'OpenTopography.org web service for SRTM 90m global DEM'),
 	("http://www.gmrt.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org GMRT', 'Marine-geo.org web service for GMRT global DEM (terrestrial (ASTER) and bathymetry)')
 ]
 
@@ -237,6 +237,12 @@ class BGIS_PREFS(AddonPreferences):
 		items = listDemServer
 		)
 
+	opentopography_api_key: StringProperty(
+		name = "",
+		description="you need to register and request a key from opentopography website"
+	)
+
+
 	################
 	#IO options
 	mergeDoubles: BoolProperty(
@@ -324,6 +330,9 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.rmv_dem_server", icon='REMOVE')
 		row.operator("bgis.reset_dem_server", icon='PLAY_REVERSE')
 
+		row = box.row()
+		row.label(text="Opentopography Api Key")
+		box.row().prop(self, "opentopography_api_key")
 		#System
 		box = layout.box()
 		box.label(text='System')

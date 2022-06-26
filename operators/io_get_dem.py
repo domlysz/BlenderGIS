@@ -43,13 +43,16 @@ class IMPORTGIS_OT_dem_query(Operator):
 				return {'CANCELLED'}
 
 		#return self.execute(context)
-		return context.window_manager.invoke_props_dialog(self)
+		return context.window_manager.invoke_props_dialog(self)#, width=350)
 
 	def draw(self,context):
 		prefs = context.preferences.addons[PKG].preferences
 		layout = self.layout
 		row = layout.row(align=True)
 		row.prop(prefs, "demServer", text='Server')
+		if 'opentopography' in prefs.demServer:
+			row = layout.row(align=True)
+			row.prop(prefs, "opentopography_api_key", text='Api Key')
 
 	@classmethod
 	def poll(cls, context):
@@ -89,6 +92,11 @@ class IMPORTGIS_OT_dem_query(Operator):
 				self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
 				return {'CANCELLED'}
 
+		if 'opentopography' in prefs.demServer:
+			if not prefs.opentopography_api_key:
+				self.report({'ERROR'}, "Please register to opentopography.org and request for an API key")
+				return {'CANCELLED'}
+
 		#Set cursor representation to 'loading' icon
 		w = context.window
 		w.cursor_set('WAIT')
@@ -99,7 +107,7 @@ class IMPORTGIS_OT_dem_query(Operator):
 		xmin, xmax = bbox.xmin - e, bbox.xmax + e
 		ymin, ymax = bbox.ymin - e, bbox.ymax + e
 
-		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax)
+		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax, API_KEY=prefs.opentopography_api_key)
 		log.debug(url)
 
 		# Download the file from url and save it locally

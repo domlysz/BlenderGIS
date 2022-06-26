@@ -110,6 +110,8 @@ class CAMERA_OT_add_georender_cam(bpy.types.Operator):
 
 		locx, locy, locz = bbox.center
 		dimx, dimy, dimz = bbox.dimensions
+		if dimz == 0:
+			dimz = 1
 		#dimx, dimy, dimz = georefObj.dimensions #dimensions property apply object transformations (scale and rot.)
 
 		#Set active cam
@@ -164,8 +166,8 @@ class CAMERA_OT_add_georender_cam(bpy.types.Operator):
 
 		#setup scene
 		scn.camera = camObj
-		scn.render.resolution_x = dimx / self.target_res
-		scn.render.resolution_y = dimy / self.target_res
+		scn.render.resolution_x = int(dimx / self.target_res)
+		scn.render.resolution_y = int(dimy / self.target_res)
 		scn.render.resolution_percentage = 100
 
 		#Write wf
