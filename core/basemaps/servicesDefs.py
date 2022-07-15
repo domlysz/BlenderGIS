@@ -147,7 +147,9 @@ SOURCES = {
 		"quadTree": False,
 		"layers" : {
 			"SAT" : {"urlKey" : 's', "name" : 'Satellite', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
-			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22}
+			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22},
+			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 		},
 		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}",
 		"referer": "https://www.google.com/maps"
