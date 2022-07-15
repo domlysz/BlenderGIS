@@ -45,7 +45,7 @@ GRIDS = {
 
 	"WM2X" : {
 		"name" : 'Web Mercator 2X Scale',
-		"description" : 'Global grid in web mercator projection',
+		"description" : 'Global grid in web mercator projection for use with 2x scaled map tiles',
 		"CRS": 'EPSG:3857',
 		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
 		"bboxCRS": 'EPSG:4326',
@@ -57,8 +57,8 @@ GRIDS = {
 	},
 
 	"WM4X" : {
-		"name" : 'Web Mercator 2X Scale',
-		"description" : 'Global grid in web mercator projection',
+		"name" : 'Web Mercator 4X Scale',
+		"description" : 'Global grid in web mercator projection for use with 4x scaled map tiles',
 		"CRS": 'EPSG:3857',
 		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
 		"bboxCRS": 'EPSG:4326',
