@@ -177,7 +177,7 @@ SOURCES = {
 			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 		},
-		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&hl=en",
+		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}",
 		"referer": "https://www.google.com/maps"
 	},
 
@@ -193,7 +193,7 @@ SOURCES = {
 			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 		},
-		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&hl=en&scale=2",
+		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&scale=2",
 		"referer": "https://www.google.com/maps"
 	},
 
@@ -209,7 +209,7 @@ SOURCES = {
 			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 		},
-		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&hl=en&scale=4",
+		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&scale=4",
 		"referer": "https://www.google.com/maps"
 	},
 
