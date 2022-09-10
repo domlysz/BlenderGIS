@@ -14,7 +14,7 @@ Note : Since 2022, the OpenTopography web service requires an API key. Please re
 
 There are a lot of possibilities to create a 3D terrain from geographic data with BlenderGIS, check the [Flowchart](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/flowchart.jpg) to have an overview.
 
-Exemple : import vector contour lines, create faces by triangulation and put a topographic raster texture.
+Example : import vector contour lines, create faces by triangulation and put a topographic raster texture.
 
 ![](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/Blender28x/gif/bgis_demo_delaunay.gif)
 
