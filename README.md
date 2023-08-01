@@ -1,8 +1,8 @@
 Blender GIS
 ==========
-Blender minimal version : 2.8
+Blender minimum version required : v2.83
 
-**Mac users warning :** currently the addon does not work on Mac with Blender 2.80 to 2.82. Please do not report the issue here, it's already solved with Blender 2.83. Check [the bug report](https://developer.blender.org/T68243).
+Note : Since 2022, the OpenTopography web service requires an API key. Please register to opentopography.org and request a key. This service is still free.
 
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Home) - [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start) - [Flowchart](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/flowchart.jpg)

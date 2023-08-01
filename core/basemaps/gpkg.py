@@ -257,13 +257,23 @@ class GeoPackage():
 
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
 
-		tiles = ['_'.join(map(str, tile)) for tile in tiles]
+		# split out the axises
+		x, y, z = zip(*tiles)
 
 		query = "SELECT tile_column, tile_row, zoom_level FROM gpkg_tiles " \
-				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
-				"AND tile_column || '_' || tile_row || '_' || zoom_level IN ('" + "','".join(tiles) + "')"
+				"WHERE julianday() - julianday(last_modified) < ?" \
+				"AND zoom_level BETWEEN ? AND ? AND tile_column BETWEEN ? AND ? AND tile_row BETWEEN ? AND ?"
 
-		result = db.execute(query).fetchall()
+		result = db.execute(
+			query,
+			(
+				GeoPackage.MAX_DAYS,
+				min(z), max(z),
+				min(x), max(x),
+				min(y), max(y)
+			)
+		).fetchall()
+
 		db.close()
 
 		return set(result)
@@ -279,13 +289,22 @@ class GeoPackage():
 
 		db = sqlite3.connect(self.dbPath, detect_types=sqlite3.PARSE_DECLTYPES)
 
-		tiles = ['_'.join(map(str, tile)) for tile in tiles]
+		# split out the axises
+		x, y, z = zip(*tiles)
 
 		query = "SELECT tile_column, tile_row, zoom_level, tile_data FROM gpkg_tiles " \
-				"WHERE julianday() - julianday(last_modified) < " + str(self.MAX_DAYS) + " " \
-				"AND tile_column || '_' || tile_row || '_' || zoom_level IN ('" + "','".join(tiles) + "')"
+				"WHERE julianday() - julianday(last_modified) < ?" \
+				"AND zoom_level BETWEEN ? AND ? AND tile_column BETWEEN ? AND ? AND tile_row BETWEEN ? AND ?"
 
-		result = db.execute(query).fetchall()
+		result = db.execute(
+			query,
+			(
+				GeoPackage.MAX_DAYS,
+				min(z), max(z),
+				min(x), max(x),
+				min(y), max(y)
+			)
+		).fetchall()
 
 		db.close()
 
