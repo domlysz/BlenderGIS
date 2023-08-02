@@ -46,8 +46,8 @@ from ..core.errors import OverlapError
 from ..core.proj import Reproj
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
-from bpy.types import Operator
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
+from bpy.types import Operator, OperatorFileListElement
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -58,6 +58,13 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	bl_description = 'Import raster georeferenced with world file'
 	bl_label = "Import georaster"
 	bl_options = {"UNDO"}
+
+	files: CollectionProperty(
+		name="Files",
+		type=OperatorFileListElement
+	)
+
+	directory: StringProperty(subtype='DIR_PATH')
 
 	def listObjects(self, context):
 		#Function used to update the objects list (obj_list) used by the dropdown box.
@@ -240,221 +247,221 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			rprjToRaster = None
 			rprjToScene = None
 
-		#Path
-		filePath = self.filepath
-		name = os.path.basename(filePath)[:-4]
+		newObjCreated = False
 
-		######################################
-		if self.importMode == 'PLANE':#on plane
-			#Load raster
-			try:
-				rast = bpyGeoRaster(filePath)
-			except IOError as e:
-				log.error("Unable to open raster", exc_info=True)
-				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
-				return {'CANCELLED'}
-			#Get or set georef dx, dy
-			if not geoscn.isGeoref:
-				dx, dy = rast.center.x, rast.center.y
-				if rprj:
-					dx, dy = rprjToScene.pt(dx, dy)
-				geoscn.setOriginPrj(dx, dy)
-			#create a new mesh from raster extent
-			mesh = rasterExtentToMesh(name, rast, dx, dy, reproj=rprjToScene)
-			#place obj
-			obj = placeObj(mesh, name)
-			#UV mapping
-			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')# Add UV map texture layer
-			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
-			# Create material
-			mat = bpy.data.materials.new('rastMat')
-			# Add material to current object
-			obj.data.materials.append(mat)
-			# Add texture to material
-			addTexture(mat, rast.bpyImg, uvTxtLayer, name='rastText')
+		for file in self.files:
+			filePath = os.path.join(self.directory, file.name)
+			name = os.path.basename(filePath)[:-4]
 
-		######################################
-		if self.importMode == 'BKG':#background
-			if rprj:
-				#TODO, do gdal true reproj
-				self.report({'ERROR'}, "Raster reprojection is not possible in background mode")
-				return {'CANCELLED'}
-			#Load raster
-			try:
-				rast = bpyGeoRaster(filePath)
-			except IOError as e:
-				log.error("Unable to open raster", exc_info=True)
-				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
-				return {'CANCELLED'}
-			#Check pixel size and rotation
-			if rast.rotation.xy != [0,0]:
-				self.report({'ERROR'}, "Cannot apply a rotation in background image mode")
-				return {'CANCELLED'}
-			if abs(round(rast.pxSize.x, 3)) != abs(round(rast.pxSize.y, 3)):
-				self.report({'ERROR'}, "Background image needs equal pixel size in map units in both x ans y axis")
-				return {'CANCELLED'}
-			#
-			trueSizeX = rast.geoSize.x
-			trueSizeY = rast.geoSize.y
-			ratio = rast.size.x / rast.size.y
-			if geoscn.isGeoref:
-				offx, offy = rast.center.x - dx, rast.center.y - dy
-			else:
-				dx, dy = rast.center.x, rast.center.y
-				geoscn.setOriginPrj(dx, dy)
-				offx, offy = 0, 0
-
-			bkg = bpy.data.objects.new(self.name, None) #None will create an empty
-			bkg.empty_display_type = 'IMAGE'
-			bkg.empty_image_depth = 'BACK'
-			bkg.data = rast.bpyImg
-			scn.collection.objects.link(bkg)
-
-			bkg.empty_display_size = 1 #a size of 1 means image width=1bu
-			bkg.scale = (trueSizeX, trueSizeY*ratio, 1)
-			bkg.location = (offx, offy, 0)
-
-			bpy.context.view_layer.objects.active = bkg
-			bkg.select_set(True)
-
-			if prefs.adjust3Dview:
-				adjust3Dview(context, rast.bbox)
-
-		######################################
-		if self.importMode == 'MESH':
-			if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
-				self.report({'ERROR'}, "The active object is not a georef mesh")
-				return {'CANCELLED'}
-			# Get choosen object
-			obj = context.view_layer.objects.active
-			# Compute projeted bbox (in geographic coordinates system)
-			subBox = getBBOX.fromObj(obj).toGeo(geoscn)
-			if rprj:
-				subBox = rprjToRaster.bbox(subBox)
-			#Load raster
-			try:
-				rast = bpyGeoRaster(filePath, subBoxGeo=subBox)
-			except IOError as e:
-				log.error("Unable to open raster", exc_info=True)
-				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
-				return {'CANCELLED'}
-			except OverlapError:
-				self.report({'ERROR'}, "Non overlap data")
-				return {'CANCELLED'}
-			# Add UV map texture layer
-			mesh = obj.data
-			uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')
-			uvTxtLayer.active = True
-			# UV mapping
-			geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
-			# Add material and texture
-			mat = bpy.data.materials.new('rastMat')
-			obj.data.materials.append(mat)
-			addTexture(mat, rast.bpyImg, uvTxtLayer, name='rastText')
-
-		######################################
-		if self.importMode == 'DEM':
-
-			# Get reference plane
-			if self.demOnMesh:
-				if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
-					self.report({'ERROR'}, "The active object is not a georef mesh")
+			######################################
+			if self.importMode == 'PLANE':#on plane
+				#Load raster
+				try:
+					rast = bpyGeoRaster(filePath)
+				except IOError as e:
+					log.error("Unable to open raster", exc_info=True)
+					self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
 					return {'CANCELLED'}
-				# Get choosen object
-				obj = context.view_layer.objects.active 
-				mesh = obj.data
-				# Compute projeted bbox (in geographic coordinates system)
-				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
-				if rprj:
-					subBox = rprjToRaster.bbox(subBox)
-			else:
-				subBox = None
-
-			# Load raster
-			try:
-				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
-			except IOError as e:
-				log.error("Unable to open raster", exc_info=True)
-				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
-				return {'CANCELLED'}
-			except OverlapError:
-				self.report({'ERROR'}, "Non overlap data")
-				return {'CANCELLED'}
-
-			# If needed, create a new plane object from raster extent
-			if not self.demOnMesh:
+				#Get or set georef dx, dy
 				if not geoscn.isGeoref:
-					dx, dy = grid.center.x, grid.center.y
+					dx, dy = rast.center.x, rast.center.y
 					if rprj:
 						dx, dy = rprjToScene.pt(dx, dy)
 					geoscn.setOriginPrj(dx, dy)
-				if self.subdivision == 'mesh':#Mesh cut
-					mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, flat=True)
-				else:
-					mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER', reproj=rprjToScene) #use pixel center to avoid displacement glitch
+				#create a new mesh from raster extent
+				mesh = rasterExtentToMesh(name, rast, dx, dy, reproj=rprjToScene)
+				#place obj
 				obj = placeObj(mesh, name)
-				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+				#UV mapping
+				uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')# Add UV map texture layer
+				geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
+				# Create material
+				mat = bpy.data.materials.new('rastMat')
+				# Add material to current object
+				obj.data.materials.append(mat)
+				# Add texture to material
+				addTexture(mat, rast.bpyImg, uvTxtLayer, name='rastText')
 
-			# Add UV map texture layer
-			previousUVmapIdx = mesh.uv_layers.active_index
-			uvTxtLayer = mesh.uv_layers.new(name='demUVmap')
-			#UV mapping
-			geoRastUVmap(obj, uvTxtLayer, grid, dx, dy, reproj=rprjToRaster)
-			#Restore previous uv map
-			if previousUVmapIdx != -1:
-				mesh.uv_layers.active_index = previousUVmapIdx
-			#Make subdivision
-			if self.subdivision == 'subsurf':#Add subsurf modifier
-				if not 'SUBSURF' in [mod.type for mod in obj.modifiers]:
-					subsurf = obj.modifiers.new('DEM', type='SUBSURF')
-					subsurf.subdivision_type = 'SIMPLE'
-					subsurf.levels = 6
-					subsurf.render_levels = 6
-			#Set displacer
-			dsp = setDisplacer(obj, grid, uvTxtLayer, interpolation=self.demInterpolation)
+			######################################
+			if self.importMode == 'BKG':#background
+				if rprj:
+					#TODO, do gdal true reproj
+					self.report({'ERROR'}, "Raster reprojection is not possible in background mode")
+					return {'CANCELLED'}
+				#Load raster
+				try:
+					rast = bpyGeoRaster(filePath)
+				except IOError as e:
+					log.error("Unable to open raster", exc_info=True)
+					self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+					return {'CANCELLED'}
+				#Check pixel size and rotation
+				if rast.rotation.xy != [0,0]:
+					self.report({'ERROR'}, "Cannot apply a rotation in background image mode")
+					return {'CANCELLED'}
+				if abs(round(rast.pxSize.x, 3)) != abs(round(rast.pxSize.y, 3)):
+					self.report({'ERROR'}, "Background image needs equal pixel size in map units in both x ans y axis")
+					return {'CANCELLED'}
+				#
+				trueSizeX = rast.geoSize.x
+				trueSizeY = rast.geoSize.y
+				ratio = rast.size.x / rast.size.y
+				if geoscn.isGeoref:
+					offx, offy = rast.center.x - dx, rast.center.y - dy
+				else:
+					dx, dy = rast.center.x, rast.center.y
+					geoscn.setOriginPrj(dx, dy)
+					offx, offy = 0, 0
 
-		######################################
-		if self.importMode == 'DEM_RAW':
+				bkg = bpy.data.objects.new(self.name, None) #None will create an empty
+				bkg.empty_display_type = 'IMAGE'
+				bkg.empty_image_depth = 'BACK'
+				bkg.data = rast.bpyImg
+				scn.collection.objects.link(bkg)
 
-			# Get reference plane
-			subBox = None
-			if self.clip:
+				bkg.empty_display_size = 1 #a size of 1 means image width=1bu
+				bkg.scale = (trueSizeX, trueSizeY*ratio, 1)
+				bkg.location = (offx, offy, 0)
+
+				bpy.context.view_layer.objects.active = bkg
+				bkg.select_set(True)
+
+				if prefs.adjust3Dview:
+					adjust3Dview(context, rast.bbox)
+
+			######################################
+			if self.importMode == 'MESH':
 				if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
 					self.report({'ERROR'}, "The active object is not a georef mesh")
 					return {'CANCELLED'}
 				# Get choosen object
 				obj = context.view_layer.objects.active
+				# Compute projeted bbox (in geographic coordinates system)
 				subBox = getBBOX.fromObj(obj).toGeo(geoscn)
 				if rprj:
 					subBox = rprjToRaster.bbox(subBox)
+				#Load raster
+				try:
+					rast = bpyGeoRaster(filePath, subBoxGeo=subBox)
+				except IOError as e:
+					log.error("Unable to open raster", exc_info=True)
+					self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+					return {'CANCELLED'}
+				except OverlapError:
+					self.report({'ERROR'}, "Non overlap data")
+					return {'CANCELLED'}
+				# Add UV map texture layer
+				mesh = obj.data
+				uvTxtLayer = mesh.uv_layers.new(name='rastUVmap')
+				uvTxtLayer.active = True
+				# UV mapping
+				geoRastUVmap(obj, uvTxtLayer, rast, dx, dy, reproj=rprjToRaster)
+				# Add material and texture
+				mat = bpy.data.materials.new('rastMat')
+				obj.data.materials.append(mat)
+				addTexture(mat, rast.bpyImg, uvTxtLayer, name='rastText')
 
-			# Load raster
-			try:
-				grid = GeoRaster(filePath, subBoxGeo=subBox, useGDAL=HAS_GDAL)
-			except IOError as e:
-				log.error("Unable to open raster", exc_info=True)
-				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
-				return {'CANCELLED'}
-			except OverlapError:
-				self.report({'ERROR'}, "Non overlap data")
-				return {'CANCELLED'}
+			######################################
+			if self.importMode == 'DEM':
 
-			if not geoscn.isGeoref:
-				dx, dy = grid.center.x, grid.center.y
-				if rprj:
-					dx, dy = rprjToScene.pt(dx, dy)
-				geoscn.setOriginPrj(dx, dy)
-			mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, subset=self.clip, flat=False, buildFaces=self.buildFaces)
-			obj = placeObj(mesh, name)
-			#grid.unload()
+				# Get reference plane
+				if self.demOnMesh:
+					if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+						self.report({'ERROR'}, "The active object is not a georef mesh")
+						return {'CANCELLED'}
+					# Get choosen object
+					obj = context.view_layer.objects.active 
+					mesh = obj.data
+					# Compute projeted bbox (in geographic coordinates system)
+					subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+					if rprj:
+						subBox = rprjToRaster.bbox(subBox)
+				else:
+					subBox = None
 
-		######################################
+				# Load raster
+				try:
+					grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
+				except IOError as e:
+					log.error("Unable to open raster", exc_info=True)
+					self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+					return {'CANCELLED'}
+				except OverlapError:
+					self.report({'ERROR'}, "Non overlap data")
+					return {'CANCELLED'}
 
-		#Flag if a new object as been created...
-		if self.importMode == 'PLANE' or (self.importMode == 'DEM' and not self.demOnMesh) or self.importMode == 'DEM_RAW':
-			newObjCreated = True
-		else:
-			newObjCreated = False
+				# If needed, create a new plane object from raster extent
+				if not self.demOnMesh:
+					if not geoscn.isGeoref:
+						dx, dy = grid.center.x, grid.center.y
+						if rprj:
+							dx, dy = rprjToScene.pt(dx, dy)
+						geoscn.setOriginPrj(dx, dy)
+					if self.subdivision == 'mesh':#Mesh cut
+						mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, flat=True)
+					else:
+						mesh = rasterExtentToMesh(name, grid, dx, dy, pxLoc='CENTER', reproj=rprjToScene) #use pixel center to avoid displacement glitch
+					obj = placeObj(mesh, name)
+					subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+
+				# Add UV map texture layer
+				previousUVmapIdx = mesh.uv_layers.active_index
+				uvTxtLayer = mesh.uv_layers.new(name='demUVmap')
+				#UV mapping
+				geoRastUVmap(obj, uvTxtLayer, grid, dx, dy, reproj=rprjToRaster)
+				#Restore previous uv map
+				if previousUVmapIdx != -1:
+					mesh.uv_layers.active_index = previousUVmapIdx
+				#Make subdivision
+				if self.subdivision == 'subsurf':#Add subsurf modifier
+					if not 'SUBSURF' in [mod.type for mod in obj.modifiers]:
+						subsurf = obj.modifiers.new('DEM', type='SUBSURF')
+						subsurf.subdivision_type = 'SIMPLE'
+						subsurf.levels = 6
+						subsurf.render_levels = 6
+				#Set displacer
+				dsp = setDisplacer(obj, grid, uvTxtLayer, interpolation=self.demInterpolation)
+
+			######################################
+			if self.importMode == 'DEM_RAW':
+
+				# Get reference plane
+				subBox = None
+				if self.clip:
+					if not (geoscn.isGeoref and context.view_layer.objects.active and context.view_layer.objects.active.type == 'MESH'):
+						self.report({'ERROR'}, "The active object is not a georef mesh")
+						return {'CANCELLED'}
+					# Get choosen object
+					obj = context.view_layer.objects.active
+					subBox = getBBOX.fromObj(obj).toGeo(geoscn)
+					if rprj:
+						subBox = rprjToRaster.bbox(subBox)
+
+				# Load raster
+				try:
+					grid = GeoRaster(filePath, subBoxGeo=subBox, useGDAL=HAS_GDAL)
+				except IOError as e:
+					log.error("Unable to open raster", exc_info=True)
+					self.report({'ERROR'}, "Unable to open raster, check logs for more infos")
+					return {'CANCELLED'}
+				except OverlapError:
+					self.report({'ERROR'}, "Non overlap data")
+					return {'CANCELLED'}
+
+				if not geoscn.isGeoref:
+					dx, dy = grid.center.x, grid.center.y
+					if rprj:
+						dx, dy = rprjToScene.pt(dx, dy)
+					geoscn.setOriginPrj(dx, dy)
+				mesh = exportAsMesh(grid, dx, dy, self.step, reproj=rprjToScene, subset=self.clip, flat=False, buildFaces=self.buildFaces)
+				obj = placeObj(mesh, name)
+				#grid.unload()
+
+			######################################
+
+			#Flag if a new object as been created...
+			if self.importMode == 'PLANE' or (self.importMode == 'DEM' and not self.demOnMesh) or self.importMode == 'DEM_RAW':
+				newObjCreated = True
 
 		#...if so, maybee we need to adjust 3d view settings to it
 		if newObjCreated and prefs.adjust3Dview:
