@@ -817,6 +817,8 @@ class IMPORTGIS_OT_shapefile(Operator):
 							if v is not None:
 								#cast to float to avoid overflow error when affecting custom property
 								obj[fieldName] = float(record[i-1])
+						elif fieldType == 'D':
+							obj[fieldName] = str(record[i-1])
 						else:
 							obj[fieldName] = record[i-1]
 
