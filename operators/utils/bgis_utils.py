@@ -104,7 +104,8 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 				overrideContext = context.copy()
 				overrideContext['area'] = area
 				overrideContext['region'] = area.regions[-1]
-				bpy.ops.view3d.view_selected(overrideContext)
+				with context.temp_override(**overrideContext):
+					bpy.ops.view3d.view_selected()
 
 
 def showTextures(context):
