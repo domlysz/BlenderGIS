@@ -31,6 +31,7 @@ TEST_NUMPY_NO_STRIDES = False  # To test pypy fallback
 FNAME_PER_PLATFORM = {
     'osx32': 'libfreeimage-3.16.0-osx10.6.dylib',  # universal library
     'osx64': 'libfreeimage-3.16.0-osx10.6.dylib',
+    'osx-arm64': 'libfreeimage.3.18.0.dylib',
     'win32': 'FreeImage-3.15.4-win32.dll',
     'win64': 'FreeImage-3.15.1-win64.dll',
     'linux32': 'libfreeimage-3.16.0-linux32.so',
