@@ -14,6 +14,7 @@ import sys
 import time
 import struct
 from warnings import warn
+import platform
 
 import numpy as np
 
@@ -516,7 +517,7 @@ def get_platform():
     
     Get a string that specifies the platform more specific than
     sys.platform does. The result can be: linux32, linux64, win32,
-    win64, osx32, osx64. Other platforms may be added in the future.
+    win64, osx32, osx64, osx-arm64. Other platforms may be added in the future.
     """
     # Get platform
     if sys.platform.startswith('linux'):
@@ -524,11 +525,19 @@ def get_platform():
     elif sys.platform.startswith('win'):
         plat = 'win%i'
     elif sys.platform.startswith('darwin'):
-        plat = 'osx%i'
+        if platform.machine() == 'arm64':
+            plat = 'osx-arm64'
+        else:
+            plat = 'osx%i'
     else:  # pragma: no cover
         return None
     
-    return plat % (struct.calcsize('P') * 8)  # 32 or 64 bits
+    # Only perform string formatting when plat contains '%i'
+    if '%i' in plat:
+        return plat % (struct.calcsize('P') * 8)  # 32 or 64 bits
+    else:
+        return plat
+
 
 
 def has_module(module_name):
