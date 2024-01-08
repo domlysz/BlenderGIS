@@ -55,18 +55,20 @@ class OBJECT_OT_earth_sphere(Operator):
 
 		return {'FINISHED'}
 
-EARTH_RADIUS = 6378137 #meters
-def getZDelta(d):
+#EARTH_RADIUS = 6378137 #meters
+def getZDelta(d, radius=6378137):
 	'''delta value for adjusting z across earth curvature
 	http://webhelp.infovista.com/Planet/62/Subsystems/Raster/Content/help/analysis/viewshedanalysis.html'''
-	return sqrt(EARTH_RADIUS**2 + d**2) - EARTH_RADIUS
+	return sqrt(radius**2 + d**2) - radius
 
 
-class OBJECT_OT_earth_curvature(Operator):
-	bl_idname = "earth.curvature"
-	bl_label = "Earth curvature correction"
+class OBJECT_OT_surface_curvature(Operator):
+	bl_idname = "surface.curvature"
+	bl_label = "Surface curvature correction"
 	bl_description = "Apply earth curvature correction for viewsheed analysis"
 	bl_options = {"REGISTER", "UNDO"}
+
+	radius: IntProperty(name = "Radius", default=6378137, description="Sphere radius", min=1)
 
 	def execute(self, context):
 		scn = bpy.context.scene
@@ -85,14 +87,14 @@ class OBJECT_OT_earth_curvature(Operator):
 
 		for vertex in mesh.vertices:
 			d = (viewpt.xy - vertex.co.xy).length
-			vertex.co.z = vertex.co.z - getZDelta(d)
+			vertex.co.z = vertex.co.z - getZDelta(d, self.radius)
 
 		return {'FINISHED'}
 
 
 classes = [
 	OBJECT_OT_earth_sphere,
-	OBJECT_OT_earth_curvature
+	OBJECT_OT_surface_curvature
 ]
 
 def register():
