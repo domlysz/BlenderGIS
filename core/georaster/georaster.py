@@ -111,6 +111,7 @@ class GeoRaster():
 		extTest.append(extTest[0]+'x')# tfwx
 		extTest.append(ext+'w')# tifw
 		extTest.append('wld')#*.wld
+		extTest.append('gw')# jgw for jpeg file extensions
 		extTest.extend( [ext.upper() for ext in extTest] )
 		for wfExt in extTest:
 			pathTest = self.path[0:len(self.path)-3] + wfExt
