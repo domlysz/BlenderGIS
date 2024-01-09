@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import os, sys, time
+import os, sys, time, glob, re
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator
@@ -104,7 +104,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 	def check(self, context):
 		return True
 
-	def listFields(self, context):
+	def listFields(self, context=None):
 		fieldsItems = []
 		try:
 			shp = shpReader(self.filepath)
@@ -169,6 +169,12 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		description = "Choose field",
 		items = listFields )
 
+	#Animate across multiple elevation values in different fields
+	animateElevationFields: BoolProperty(
+			name="Animate elevation fields",
+			description="Animate elevation from multiple fields",
+			default=False )
+
 	#Extrusion field
 	useFieldExtrude: BoolProperty(
 			name="Extrusion from field",
@@ -193,6 +199,12 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			description="Warning : can be very slow with lot of features",
 			default=False )
 
+	#Animate across shapefiles
+	animate: BoolProperty(
+			name="Animate multiple shapefiles",
+			description="Animate across other shapefiles in the same folder",
+			default=False )
+
 	#Name objects from field
 	useFieldName: BoolProperty(
 			name="Object name from field",
@@ -215,6 +227,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		#layout.prop(self, 'useFieldElev')
 		if self.vertsElevSource == 'FIELD':
 			layout.prop(self, 'fieldElevName')
+			layout.prop(self, 'animateElevationFields')
 		elif self.vertsElevSource == 'OBJ':
 			layout.prop(self, 'objElevLst')
 		#
@@ -227,6 +240,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		if self.separateObjects:
 			layout.prop(self, 'useFieldName')
 		else:
+			layout.prop(self, 'animate')
 			self.useFieldName = False
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
@@ -285,9 +299,123 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			shpCRS = self.shpCRS
 
 		try:
-			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
-				fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
-				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+			if self.animate:
+				basedir = os.path.dirname(self.filepath)
+				files = glob.glob(os.path.join(basedir, "*.shp"))
+				files.sort()
+				objects = []
+				frame = 0
+				for f in files:
+					bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=f, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+					obj = bpy.context.selected_objects[0]
+					try:
+						frame = int(re.search(r'\d+', obj.name).group())
+					except:
+						frame += 1
+					obj["frame"] = frame
+
+					vertex_count = len(obj.data.vertices)
+					area = sum(p.area for p in obj.data.polygons)
+					obj["area"] = area
+					log.info("{} has {} vertices and an area of {}".format(obj.name, vertex_count, area))
+					triangulate = obj.modifiers.new("TRIANGULATE", "TRIANGULATE")
+					bpy.ops.object.modifier_apply(modifier="TRIANGULATE")
+
+					# Subsurf to smooth edges
+					n_cuts_required = int(round(math.log(500.0 / vertex_count, 2)))
+					if n_cuts_required >= 1:
+						print(n_cuts_required)
+						subsurf = obj.modifiers.new("SUBSURF", "SUBSURF")
+						subsurf.levels = n_cuts_required
+						bpy.ops.object.modifier_apply(modifier="SUBSURF")
+					objects.append(obj)
+					log.info("After triangulation / subsurf {} has {} vertices".format(obj.name, len(obj.data.vertices)))
+
+				# Strategy here is to take the largest object, then progressively shrinkwrap it onto each smaller object in turn
+				# To do this, first sort objects by area descending
+				objects.sort(key=lambda x: x["area"], reverse=True)
+				base_obj = objects[0] # This is the largest object / the object that will hold the shape keys
+				print("base_obj is " + base_obj.name)
+				base_obj.name = base_obj.name.replace(str(base_obj["frame"]), "")
+
+				bpy.ops.object.duplicate()
+				duplicated_base = bpy.context.view_layer.objects.active
+				# Use a duplicated object as a reference for iterative shrinkwrapping
+
+				base_obj.shape_key_add(name=str(base_obj["frame"]))
+
+				for obj in objects:
+					if obj == base_obj:
+						continue
+					shrinkwrap = duplicated_base.modifiers.new("SHRINKWRAP", "SHRINKWRAP")
+					shrinkwrap.target = obj
+					#shrinkwrap.wrap_method = "NEAREST_VERTEX"
+					bpy.ops.object.modifier_apply(modifier="SHRINKWRAP")
+					# Copy vertex data from shrinkwrapped duplicate as a shape key
+					base_obj.shape_key_add(name=str(obj["frame"]))
+					for j, vertex in enumerate(duplicated_base.data.vertices):
+						base_obj.data.shape_keys.key_blocks[str(obj["frame"])].data[j].co = vertex.co
+
+				bpy.data.objects.remove(duplicated_base, do_unlink = True)
+				frames = sorted(o["frame"] for o in objects)
+
+				for k, frame in enumerate(frames):
+					# Create keyframes
+					sframe = str(frame)
+					if k > 0:
+						base_obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k - 1])
+					base_obj.data.shape_keys.key_blocks[sframe].value = 1.0
+					base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k])
+					if k < len(frames) - 1:
+						base_obj.data.shape_keys.key_blocks[sframe].value = 0.0
+						base_obj.data.shape_keys.key_blocks[sframe].keyframe_insert(data_path='value', frame=frames[k + 1])
+
+				for obj in objects:
+					if obj != base_obj:
+						bpy.data.objects.remove(obj, do_unlink = True)
+
+			elif self.animateElevationFields:
+				base = elevField.rstrip('0123456789')
+				fields = [field[0] for field in self.listFields() if field[0].startswith(base)]
+				frames = [int(field.replace(base, "")) for field in fields]
+				print(fields)
+				# Load first elevation field
+				bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=fields[0], objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+				base_obj = bpy.context.selected_objects[0]
+				base_obj.shape_key_add(name=fields[0])
+
+				for field in fields[1:]:
+					print(field)
+					bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+						fieldElevName=field, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+						extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+					obj = bpy.context.selected_objects[0]
+					base_obj.shape_key_add(name=field)
+					for j, vertex in enumerate(obj.data.vertices):
+						base_obj.data.shape_keys.key_blocks[field].data[j].co = vertex.co
+					bpy.data.objects.remove(obj, do_unlink = True)
+
+				# Create keyframes
+				for k, field in enumerate(fields):
+					frame = int(field.replace(base, ""))
+					if k > 0:
+						base_obj.data.shape_keys.key_blocks[field].value = 0.0
+						base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k - 1])
+					base_obj.data.shape_keys.key_blocks[field].value = 1.0
+					base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k])
+					if k < len(frames) - 1:
+						base_obj.data.shape_keys.key_blocks[field].value = 0.0
+						base_obj.data.shape_keys.key_blocks[field].keyframe_insert(data_path='value', frame=frames[k + 1])
+
+			else:
+				bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
+					fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
+					extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
 		except Exception as e:
 			log.error('Shapefile import fails', exc_info=True)
 			self.report({'ERROR'}, 'Shapefile import fails, check logs.')
