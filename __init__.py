@@ -25,7 +25,7 @@ bl_info = {
 	'author': 'domlysz',
 	'license': 'GPL',
 	'deps': '',
-	'version': (2, 2, 8),
+	'version': (2, 2, 9),
 	'blender': (2, 83, 0),
 	'location': 'View3D > Tools > GIS',
 	'warning': '',
