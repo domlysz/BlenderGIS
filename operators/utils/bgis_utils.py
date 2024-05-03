@@ -105,7 +105,7 @@ def adjust3Dview(context, bbox, zoomToSelect=True):
 				overrideContext['area'] = area
 				overrideContext['region'] = area.regions[-1]
 				if bpy.app.version[0] > 3:
-					with context.temp_override(overrideContext):
+					with context.temp_override(**overrideContext):
 						bpy.ops.view3d.view_selected()
 				else:
 					bpy.ops.view3d.view_selected(overrideContext)

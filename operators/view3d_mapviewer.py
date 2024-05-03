@@ -329,7 +329,7 @@ def drawZoomBox(self, context):
 		p3 = (px, 0, 0)
 		p4 = (px, context.area.height, 0)
 		coords = [p1, p2, p3, p4]
-		shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+		shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 		batch = batch_for_shader(shader, 'LINES', {"pos": coords})
 		shader.bind()
 		shader.uniform_float("color", (0, 0, 0, 1))
@@ -341,7 +341,7 @@ def drawZoomBox(self, context):
 		p3 = (self.zb_xmax, self.zb_ymax, 0)
 		p4 = (self.zb_xmax, self.zb_ymin, 0)
 		coords = [p1, p2, p2, p3, p3, p4, p4, p1]
-		shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+		shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 		batch = batch_for_shader(shader, 'LINES', {"pos": coords})
 		shader.bind()
 		shader.uniform_float("color", (0, 0, 0, 1))
