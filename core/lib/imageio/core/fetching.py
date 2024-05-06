@@ -51,7 +51,8 @@ def get_remote_file(fname, directory=None, force_download=False):
     fname : str
         The path to the file on the local system.
     """
-    _url_root = 'https://github.com/imageio/imageio-binaries/raw/master/'
+    #_url_root = 'https://github.com/imageio/imageio-binaries/raw/master/'
+    _url_root = 'https://github.com/domlysz/freeimage_bin/raw/master/'
     url = _url_root + fname
     fname = op.normcase(fname)  # convert to native
     # Get dirs to look for the resource

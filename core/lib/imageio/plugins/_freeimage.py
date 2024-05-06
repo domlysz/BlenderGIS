@@ -31,8 +31,9 @@ TEST_NUMPY_NO_STRIDES = False  # To test pypy fallback
 FNAME_PER_PLATFORM = {
     'osx32': 'libfreeimage-3.16.0-osx10.6.dylib',  # universal library
     'osx64': 'libfreeimage-3.16.0-osx10.6.dylib',
-    'win32': 'FreeImage-3.15.4-win32.dll',
-    'win64': 'FreeImage-3.15.1-win64.dll',
+    'osx-arm64': 'libfreeimage.3.18.0.dylib',
+    'win32': 'FreeImage-3.18.0-win32.dll',
+    'win64': 'FreeImage-3.18.0-win64.dll',
     'linux32': 'libfreeimage-3.16.0-linux32.so',
     'linux64': 'libfreeimage-3.16.0-linux64.so',
 }
@@ -51,7 +52,8 @@ def get_freeimage_lib():
     plat = get_platform()
     if plat and plat in FNAME_PER_PLATFORM:
         try:
-            return get_remote_file('freeimage/' + FNAME_PER_PLATFORM[plat])
+            #return get_remote_file('freeimage/' + FNAME_PER_PLATFORM[plat])
+            return get_remote_file(FNAME_PER_PLATFORM[plat])
         except InternetNotAllowedError:
             pass
         except RuntimeError as e:  # pragma: no cover
