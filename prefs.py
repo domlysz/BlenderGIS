@@ -44,7 +44,8 @@ DEFAULT_CRS = [
 DEFAULT_DEM_SERVER = [
 	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff&API_Key={API_KEY}", 'OpenTopography SRTM 30m', 'OpenTopography.org web service for SRTM 30m global DEM'),
 	("https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&west={W}&east={E}&south={S}&north={N}&outputFormat=GTiff&API_Key={API_KEY}", 'OpenTopography SRTM 90m', 'OpenTopography.org web service for SRTM 90m global DEM'),
-	("http://www.gmrt.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org GMRT', 'Marine-geo.org web service for GMRT global DEM (terrestrial (ASTER) and bathymetry)')
+	("http://www.gmrt.org/services/GridServer?west={W}&east={E}&south={S}&north={N}&layer=topo&format=geotiff&resolution=high", 'Marine-geo.org GMRT', 'Marine-geo.org web service for GMRT global DEM (terrestrial (ASTER) and bathymetry)'),
+	("https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=normal&FORMAT=image/geotiff&LAYERS=ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES&WIDTH={WIDTH}&HEIGHT={HEIGHT}&CRS=EPSG:4326&BBOX={S},{W},{N},{E}", 'Geoplateforme', 'Elevation data from IGN')
 ]
 
 DEFAULT_OVERPASS_SERVER =  [

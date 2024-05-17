@@ -82,13 +82,13 @@ class IMPORTGIS_OT_dem_query(Operator):
 			self.report({'ERROR'}, "Too large extent")
 			return {'CANCELLED'}
 
-		bbox = reprojBbox(geoscn.crs, 4326, bbox)
+		bboxLatLon = reprojBbox(geoscn.crs, 4326, bbox)
 
 		if 'SRTM' in prefs.demServer:
-			if bbox.ymin > 60:
+			if bboxLatLon.ymin > 60:
 				self.report({'ERROR'}, "SRTM is not available beyond 60 degrees north")
 				return {'CANCELLED'}
-			if bbox.ymax < -56:
+			if bboxLatLon.ymax < -56:
 				self.report({'ERROR'}, "SRTM is not available below 56 degrees south")
 				return {'CANCELLED'}
 
@@ -104,10 +104,18 @@ class IMPORTGIS_OT_dem_query(Operator):
 		#url template
 		#http://opentopo.sdsc.edu/otr/getdem?demtype=SRTMGL3&west=-120.168457&south=36.738884&east=-118.465576&north=38.091337&outputFormat=GTiff
 		e = 0.002 #opentopo service does not always respect the entire bbox, so request for a little more
-		xmin, xmax = bbox.xmin - e, bbox.xmax + e
-		ymin, ymax = bbox.ymin - e, bbox.ymax + e
+		xmin, xmax = bboxLatLon.xmin - e, bboxLatLon.xmax + e
+		ymin, ymax = bboxLatLon.ymin - e, bboxLatLon.ymax + e
 
-		url = prefs.demServer.format(W=xmin, E=xmax, S=ymin, N=ymax, API_KEY=prefs.opentopography_api_key)
+		url = prefs.demServer
+		if "{WIDTH}" in url and "{HEIGHT}" in url:
+			targetRes = 5
+			w = bbox.dimensions.x / targetRes
+			h = bbox.dimensions.y / targetRes
+			url = url.format(W=xmin, E=xmax, S=ymin, N=ymax, WIDTH=w, HEIGHT=h)
+		else:
+			url = url.format(W=xmin, E=xmax, S=ymin, N=ymax, API_KEY=prefs.opentopography_api_key)
+
 		log.debug(url)
 
 		# Download the file from url and save it locally
