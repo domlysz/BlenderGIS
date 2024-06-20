@@ -78,7 +78,11 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 			# 3 => like 2 but with extra edges to make valid BMesh faces.
 			'''
 			log.info("Triangulate {} points...".format(len(mesh.vertices)))
-			verts, edges, faces, overts, oedges, ofaces  = delaunay_2d_cdt([v.co.to_2d() for v in mesh.vertices], [], [], 0, 0.1)
+			edgeVerts=[]
+			for e in mesh.edges:
+				if e.use_edge_sharp:
+					edgeVerts.append([e.vertices[0],e.vertices[1]])
+			verts, edges, faces, overts, oedges, ofaces  = delaunay_2d_cdt([v.co.to_2d() for v in mesh.vertices], edgeVerts, [], 0, 0.1)
 			verts = [ (v.x, v.y, mesh.vertices[overts[i][0]].co.z) for i, v in enumerate(verts)] #retrieve z values
 			log.info("Getting {} triangles".format(len(faces)))
 			log.info("Create mesh...")
