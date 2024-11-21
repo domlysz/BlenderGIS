@@ -46,8 +46,8 @@ from ..core.errors import OverlapError
 from ..core.proj import Reproj
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
-from bpy.types import Operator, OperatorFileListElement
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.types import Operator
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -207,14 +207,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	def poll(cls, context):
 		return context.mode == 'OBJECT'
 
-	files: CollectionProperty(
-        name="BVH files",
-        type=OperatorFileListElement,
-        )
-	
-	directory: StringProperty(subtype='DIR_PATH')
-
-	def execute_gis(self, context, nfilepath):
+	def execute(self, context):
 		prefs = context.preferences.addons[PKG].preferences
 
 		bpy.ops.object.select_all(action='DESELECT')
@@ -254,11 +247,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			rprjToScene = None
 
 		#Path
-
-		for file in self.files:
-			print("t")
-
-		filePath = nfilepath # self.filepath
+		filePath = self.filepath
 		name = os.path.basename(filePath)[:-4]
 
 		######################################
@@ -491,20 +480,6 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 
 		return {'FINISHED'}
 
-
-
-	def process_files(self, context):
-			files = self.files
-			directory = self.directory
-
-			for file in self.files:
-				path = os.path.join(directory, file.name)
-				self.execute_gis(context, path)
-			return {'FINISHED'}
-
-	def execute(self, context):
-		self.process_files(context)
-		return {'FINISHED'}
 
 def register():
 	try:
