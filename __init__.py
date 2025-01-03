@@ -234,6 +234,7 @@ class VIEW3D_MT_menu_gis_mesh(bpy.types.Menu):
 			self.layout.operator("tesselation.voronoi", icon_value=icons_dict["voronoi"].icon_id, text='Voronoi')
 		if EARTH_SPHERE:
 			self.layout.operator("earth.sphere", icon="WORLD", text='lonlat to sphere')
+			self.layout.operator("earth.plane", icon="VIEW_PERSPECTIVE", text='sphere to lonlat')
 			#self.layout.operator("earth.curvature", icon="SPHERECURVE", text='Earth curvature correction')
 			self.layout.operator("earth.curvature", icon_value=icons_dict["curve"].icon_id, text='Earth curvature correction')
 
