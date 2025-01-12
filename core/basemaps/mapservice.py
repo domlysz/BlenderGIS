@@ -26,7 +26,6 @@ import threading
 import queue
 import time
 import urllib.request
-import imghdr
 import sys, time, os
 
 #core imports
@@ -37,6 +36,8 @@ from ..utils import BBOX
 from ..proj.reproj import reprojPt, reprojBbox, reprojImg
 from ..proj.ellps import dd2meters, meters2dd
 from ..proj.srs import SRS
+from PIL import Image
+from io import BytesIO
 
 from .. import settings
 USER_AGENT = settings.user_agent
@@ -592,8 +593,10 @@ class MapService():
 
 		#Make sure the stream is correct
 		if data is not None:
-			format = imghdr.what(None, data)
-			if format is None:
+			try:
+				image = Image.open(BytesIO(data))  # Attempt to open the binary data as an image
+				image.verify()  # Verifies that the file is a valid image
+			except (IOError, SyntaxError):  # If it's not a valid image, set data to None
 				data = None
 
 		if data is None:
