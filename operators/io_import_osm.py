@@ -280,10 +280,10 @@ class OSM_IMPORT():
 							offset = None
 
 					if offset is None:
-						minH = self.defaultHeight - self.randomHeightThreshold
+						minH = int(self.defaultHeight - self.randomHeightThreshold)
 						if minH < 0 :
 							minH = 0
-						maxH = self.defaultHeight + self.randomHeightThreshold
+						maxH = int(self.defaultHeight + self.randomHeightThreshold)
 						offset = random.randint(minH, maxH)
 
 					#Extrude
