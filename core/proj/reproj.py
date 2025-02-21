@@ -224,7 +224,7 @@ class Reproj():
 					raise ReprojError('Too limited built in reprojection capabilities')
 			if self.iproj == 'EPSGIO':
 				if not  EPSGIO.ping():
-					raise ReprojError('Cannot access epsg.io service')
+					raise ReprojError('Cannot access maptiler service')
 
 
 		if self.iproj == 'GDAL':
@@ -240,7 +240,7 @@ class Reproj():
 			if crs1.isEPSG and crs2.isEPSG:
 				self.crs1, self.crs2 = crs1.code, crs2.code
 			else:
-				raise ReprojError('EPSG.io support only EPSG code')
+				raise ReprojError('MapTiler support only EPSG code')
 
 		elif self.iproj == 'BUILTIN':
 			if ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)):

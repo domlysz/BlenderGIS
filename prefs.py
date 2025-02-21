@@ -398,7 +398,7 @@ class BGIS_OT_add_predef_crs(Operator):
 
 	def search(self, context):
 		if not EPSGIO.ping():
-			self.report({'ERROR'}, "Cannot request epsg.io website")
+			self.report({'ERROR'}, "Cannot request maptiler website")
 		else:
 			results = EPSGIO.search(self.query)
 			self.results = json.dumps(results)
