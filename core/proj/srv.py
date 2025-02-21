@@ -33,6 +33,12 @@ REPROJ_TIMEOUT = 60
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
+
+def batched(iterable, size):
+	for i in range(0, len(iterable), size):
+		yield iterable[i:i + size]
+
+
 ######################################
 # EPSG.io
 # https://github.com/klokantech/epsg.io
@@ -92,31 +98,18 @@ class EPSGIO():
 			x, y = points[0]
 			return [EPSGIO.reprojPt(epsg1, epsg2, x, y)]
 
-		urlTemplate = "https://api.maptiler.com/coordinates/{{POINTS}}.json?s_srs={CRS1}&t_srs={CRS2}&key={API_KEY}".format(
+		urlTemplate = "https://api.maptiler.com/coordinates/transform/{{POINTS}}.json?s_srs={CRS1}&t_srs={CRS2}&key={API_KEY}".format(
 			CRS1=epsg1,
 			CRS2=epsg2,
 			API_KEY=EPSGIO._apikey()
 		)
 
-		#data = ';'.join([','.join(map(str, p)) for p in points])
-
-		precision = 4
+		precision = 7
 		data = [','.join( [str(round(v, precision)) for v in p[:2]] ) for p in points ]
-		part, parts = [], []
-		for i,p in enumerate(data):
-			l = sum([len(p) for p in part]) + len(';'*len(part))
-			if l + len(p) < 4000: #limit is 4094
-				part.append(p)
-			else:
-				parts.append(part)
-				part = [p]
-			if i == len(data)-1:
-				parts.append(part)
-		parts = [';'.join(part) for part in parts]
-
 		result = []
-		for part in parts:
-			url = urlTemplate.replace("{POINTS}", part)
+		for batch in batched(data, 50): # Max 50 items are allowed for coordinates
+			points = ';'.join(batch)
+			url = urlTemplate.replace("{POINTS}", points)
 			log.debug(url)
 
 			try:
