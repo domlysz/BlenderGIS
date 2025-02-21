@@ -116,7 +116,7 @@ class BGIS_PREFS(AddonPreferences):
 			items.append( ('PYPROJ', 'pyProj', 'Force pyProj as reprojection engine') )
 		#if EPSGIO.ping(): #too slow
 		#	items.append( ('EPSGIO', 'epsg.io', '') )
-		items.append( ('EPSGIO', 'epsg.io', 'Force epsg.io as reprojection engine') )
+		items.append( ('EPSGIO', 'maptiler.com', 'Force api.maptiler.com as reprojection engine') )
 		items.append( ('BUILTIN', 'Built in', 'Force reprojection through built in Python functions') )
 		return items
 
@@ -239,7 +239,12 @@ class BGIS_PREFS(AddonPreferences):
 
 	opentopography_api_key: StringProperty(
 		name = "",
-		description="you need to register and request a key from opentopography website"
+		description="You need to register and request a key from opentopography website"
+	)
+
+	maptiler_api_key: StringProperty(
+		name = "MapTiler API Key",
+		description="Register an account and create an API key from https://cloud.maptiler.com/account/keys/"
 	)
 
 
@@ -337,6 +342,11 @@ class BGIS_PREFS(AddonPreferences):
 		box = layout.box()
 		box.label(text='System')
 		box.prop(self, "projEngine")
+		
+		if self.projEngine == 'AUTO' or self.projEngine == 'EPSGIO':
+			row = box.row().split(factor=1.0)
+			row.prop(self, "maptiler_api_key")
+
 		box.prop(self, "imgEngine")
 		box.prop(self, "logLevel")
 
@@ -393,21 +403,21 @@ class BGIS_OT_add_predef_crs(Operator):
 			results = EPSGIO.search(self.query)
 			self.results = json.dumps(results)
 			if results:
-				self.crs = 'EPSG:' + results[0]['code']
+				self.crs = 'EPSG:' + str(results[0]['id']['code'])
 				self.name = results[0]['name']
 
 	def updEnum(self, context):
 		crsItems = []
 		if self.results != '':
 			for result in json.loads(self.results):
-				srid = 'EPSG:' + result['code']
-				crsItems.append( (result['code'], result['name'], srid) )
+				srid = 'EPSG:' + str(result['id']['code'])
+				crsItems.append( (result['id']['code'], result['name'], srid) )
 		return crsItems
 
 	def fill(self, context):
 		if self.results != '':
-			crs = [crs for crs in json.loads(self.results) if crs['code'] == self.crsEnum][0]
-			self.crs = 'EPSG:' + crs['code']
+			crs = [crs for crs in json.loads(self.results) if crs['id']['code'] == self.crsEnum][0]
+			self.crs = 'EPSG:' + str(crs['id']['code'])
 			self.desc = crs['name']
 
 	query: StringProperty(name='Query', description='Hit enter to process the search', update=search)
