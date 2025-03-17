@@ -240,6 +240,55 @@ SOURCES = {
 		"referer": "http://www.osm-wms.de/"
 	},
 
+	
+	"GEOPF_WMS": {
+		"name": 'GéoPF WMS',
+		"description": 'Services WMS de la Géoplateforme',
+		"service": 'WMS',
+		"grid": 'WM',
+		"layers": {
+			"ORTHO": {
+				"urlKey": 'ORTHOIMAGERY.ORTHOPHOTOS',
+				"name": 'Orthophotos',
+				"description": 'Orthophotographies à haute résolution',
+				"format": 'jpeg',
+				"style": '',
+				"zmin": 0,
+			},
+			"CADASTRE": {
+				"urlKey": 'CADASTRALPARCELS.PARCELS',
+				"name": 'Parcelles cadastrales',
+				"description": 'Limites des parcelles cadastrales',
+				"format": 'png',
+				"style": 'bdparcellaire',
+				"zmin": 0,
+				"zmax": 22
+			},
+			"RGE_ALTI": {
+				"urlKey": 'ELEVATION.ELEVATIONGRIDCOVERAGE',
+				"name": 'RGE Alti',
+				"description": 'Modèle Numérique de Terrain (MNT) haute précision',
+				"format": 'geotiff',
+				"style": '',
+				"zmin": 0,
+				"zmax": 22
+			}
+		},
+		"urlTemplate": {
+			"BASE_URL": 'https://data.geopf.fr/wms-r?',
+			"SERVICE": 'WMS',
+        		"REQUEST": 'GetMap',
+			"CRS": '{CRS}',
+			"LAYERS": '{LAY}',
+			"FORMAT": 'image/{FORMAT}',
+			"STYLES": '{STYLE}',
+			"BBOX": '{BBOX}',
+			"WIDTH": '{WIDTH}',
+			"HEIGHT": '{HEIGHT}',
+			"TRANSPARENT": 'True'
+		},
+		"referer": 'https://data.geopf.fr/'
+	},
 
 }
 """
