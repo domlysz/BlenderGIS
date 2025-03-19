@@ -254,6 +254,7 @@ SOURCES = {
 				"format": 'jpeg',
 				"style": '',
 				"zmin": 0,
+				"zmax": 19
 			},
 			"CADASTRE": {
 				"urlKey": 'CADASTRALPARCELS.PARCELS',
@@ -262,7 +263,7 @@ SOURCES = {
 				"format": 'png',
 				"style": 'bdparcellaire',
 				"zmin": 0,
-				"zmax": 22
+				"zmax": 19
 			},
 			"RGE_ALTI": {
 				"urlKey": 'ELEVATION.ELEVATIONGRIDCOVERAGE',
@@ -271,7 +272,7 @@ SOURCES = {
 				"format": 'geotiff',
 				"style": '',
 				"zmin": 0,
-				"zmax": 22
+				"zmax": 19
 			}
 		},
 		"urlTemplate": {
