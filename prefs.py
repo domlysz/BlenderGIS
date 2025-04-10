@@ -9,7 +9,7 @@ from bpy.types import Operator, Panel, AddonPreferences
 import addon_utils
 
 from . import bl_info
-from .core.proj.reproj import EPSGIO
+from .core.proj.reproj import MapTilerCoordinates
 from .core.proj.srs import SRS
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core import settings
@@ -241,7 +241,10 @@ class BGIS_PREFS(AddonPreferences):
 		name = "",
 		description="you need to register and request a key from opentopography website"
 	)
-
+	maptiler_api_key: StringProperty(
+		name = "",
+		description = "API key for MapTiler Coordinates API (required for EPSG.io migration)"
+	)
 
 	################
 	#IO options
@@ -333,6 +336,11 @@ class BGIS_PREFS(AddonPreferences):
 		row = box.row()
 		row.label(text="Opentopography Api Key")
 		box.row().prop(self, "opentopography_api_key")
+
+		row = box.row()
+		row.label(text="MapTiler API Key")
+		box.row().prop(self, "maptiler_api_key")
+
 		#System
 		box = layout.box()
 		box.label(text='System')
@@ -387,21 +395,28 @@ class BGIS_OT_add_predef_crs(Operator):
 		return True
 
 	def search(self, context):
-		if not EPSGIO.ping():
-			self.report({'ERROR'}, "Cannot request epsg.io website")
+		prefs = context.preferences.addons[PKG].preferences
+		api_key = prefs.maptiler_api_key
+		
+		if not api_key:
+			self.report({'ERROR'}, "MapTiler API key is required. Please set it in the preferences.")
+			return
+			
+		if not MapTilerCoordinates.ping(api_key=api_key):
+			self.report({'ERROR'}, "Cannot connect to MapTiler API")
 		else:
-			results = EPSGIO.search(self.query)
+			results = MapTilerCoordinates.search(self.query, api_key=api_key)
 			self.results = json.dumps(results)
 			if results:
-				self.crs = 'EPSG:' + results[0]['code']
+				self.crs = 'EPSG:' + str(results[0]['id']['code'])
 				self.name = results[0]['name']
 
 	def updEnum(self, context):
 		crsItems = []
 		if self.results != '':
 			for result in json.loads(self.results):
-				srid = 'EPSG:' + result['code']
-				crsItems.append( (result['code'], result['name'], srid) )
+				srid = 'EPSG:' + str(result['id']['code'])
+				crsItems.append( (str(result['id']['code']), result['name'], srid) )
 		return crsItems
 
 	def fill(self, context):

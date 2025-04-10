@@ -32,15 +32,18 @@ DEFAULT_TIMEOUT = 2
 REPROJ_TIMEOUT = 60
 
 ######################################
-# EPSG.io
-# https://github.com/klokantech/epsg.io
+# MapTiler Coordinates API (formerly EPSG.io)
+# Migration guide: https://docs.maptiler.com/cloud/api/coordinates/
 
-
-class EPSGIO():
+class MapTilerCoordinates():
 
 	@staticmethod
-	def ping():
-		url = "http://epsg.io"
+	def ping(api_key=None):
+		"""Test connection to MapTiler API server"""
+		if api_key is None:
+			api_key = settings.maptiler_api_key
+			
+		url = "https://api.maptiler.com/coordinates/search/epsg.json?key=" + api_key
 		try:
 			rq = Request(url, headers={'User-Agent': USER_AGENT})
 			urlopen(rq, timeout=DEFAULT_TIMEOUT)
@@ -54,17 +57,20 @@ class EPSGIO():
 		except:
 			raise
 
-
 	@staticmethod
-	def reprojPt(epsg1, epsg2, x1, y1):
-
-		url = "http://epsg.io/trans?x={X}&y={Y}&z={Z}&s_srs={CRS1}&t_srs={CRS2}"
+	def reprojPt(epsg1, epsg2, x1, y1, api_key=None):
+		"""Reproject a single point using MapTiler Coordinates API"""
+		if api_key is None:
+			api_key = settings.maptiler_api_key
+			
+		# New endpoint format with API key
+		url = "https://api.maptiler.com/coordinates/transform/{X},{Y}.json?s_srs={CRS1}&t_srs={CRS2}&key={KEY}"
 
 		url = url.replace("{X}", str(x1))
 		url = url.replace("{Y}", str(y1))
-		url = url.replace("{Z}", '0')
 		url = url.replace("{CRS1}", str(epsg1))
 		url = url.replace("{CRS2}", str(epsg2))
+		url = url.replace("{KEY}", api_key)
 
 		log.debug(url)
 
@@ -77,38 +83,37 @@ class EPSGIO():
 
 		obj = json.loads(response)
 
-		return (float(obj['x']), float(obj['y']))
+		# The MapTiler response format is different from the old EPSG.io format
+		# MapTiler returns coordinates as an array in the response body
+		return (float(obj[0]), float(obj[1]))
 
 	@staticmethod
-	def reprojPts(epsg1, epsg2, points):
-
+	def reprojPts(epsg1, epsg2, points, api_key=None):
+		"""Reproject multiple points using MapTiler Coordinates API"""
+		if api_key is None:
+			api_key = settings.maptiler_api_key
+			
 		if len(points) == 1:
 			x, y = points[0]
-			return [EPSGIO.reprojPt(epsg1, epsg2, x, y)]
+			return [MapTilerCoordinates.reprojPt(epsg1, epsg2, x, y, api_key=api_key)]
 
-		urlTemplate = "http://epsg.io/trans?data={POINTS}&s_srs={CRS1}&t_srs={CRS2}"
+		# New endpoint with batch transformation (up to 50 points)
+		urlTemplate = "https://api.maptiler.com/coordinates/transform/{POINTS}.json?s_srs={CRS1}&t_srs={CRS2}&key={KEY}"
 
 		urlTemplate = urlTemplate.replace("{CRS1}", str(epsg1))
 		urlTemplate = urlTemplate.replace("{CRS2}", str(epsg2))
-
-		#data = ';'.join([','.join(map(str, p)) for p in points])
+		urlTemplate = urlTemplate.replace("{KEY}", api_key)
 
 		precision = 4
-		data = [','.join( [str(round(v, precision)) for v in p] ) for p in points ]
-		part, parts = [], []
-		for i,p in enumerate(data):
-			l = sum([len(p) for p in part]) + len(';'*len(part))
-			if l + len(p) < 4000: #limit is 4094
-				part.append(p)
-			else:
-				parts.append(part)
-				part = [p]
-			if i == len(data)-1:
-				parts.append(part)
-		parts = [';'.join(part) for part in parts]
-
+		data = [','.join([str(round(v, precision)) for v in p]) for p in points]
+		
+		# MapTiler API supports up to 50 points per request in batch mode
+		batch_size = 50
+		batches = [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
+		
 		result = []
-		for part in parts:
+		for batch in batches:
+			part = ';'.join(batch)
 			url = urlTemplate.replace("{POINTS}", part)
 			log.debug(url)
 
@@ -120,32 +125,58 @@ class EPSGIO():
 				raise
 
 			obj = json.loads(response)
-			result.extend( [(float(p['x']), float(p['y'])) for p in obj] )
+			
+			# MapTiler API returns an array of coordinate pairs
+			result.extend([(float(p[0]), float(p[1])) for p in obj])
 
 		return result
 
 	@staticmethod
-	def search(query):
+	def search(query, api_key=None):
+		"""Search coordinate systems using MapTiler Coordinates API"""
+		if api_key is None:
+			api_key = settings.maptiler_api_key
+			
 		query = str(query).replace(' ', '+')
-		url = "http://epsg.io/?q={QUERY}&format=json"
+		# New endpoint with API key
+		url = "https://api.maptiler.com/coordinates/search/{QUERY}.json?key={KEY}"
 		url = url.replace("{QUERY}", query)
+		url = url.replace("{KEY}", api_key)
+		
 		log.debug('Search crs : {}'.format(url))
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		response = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
 		obj = json.loads(response)
-		log.debug('Search results : {}'.format([ (r['code'], r['name']) for r in obj['results'] ]))
+		
+		log.debug('Search results : {}'.format([(r['id']['code'], r['name']) for r in obj['results']]))
 		return obj['results']
 
 	@staticmethod
-	def getEsriWkt(epsg):
-		url = "http://epsg.io/{CODE}.esriwkt"
+	def getEsriWkt(epsg, api_key=None):
+		"""Get ESRI WKT for a specific EPSG code using MapTiler Coordinates API"""
+		if api_key is None:
+			api_key = settings.maptiler_api_key
+			
+		# New endpoint with API key
+		url = "https://api.maptiler.com/coordinates/search/{CODE}.json?exports=true&key={KEY}"
 		url = url.replace("{CODE}", str(epsg))
+		url = url.replace("{KEY}", api_key)
+		
 		log.debug(url)
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
-		wkt = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
-		return wkt
+		response = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
+		obj = json.loads(response)
+		
+		if obj['results'] and len(obj['results']) > 0 and 'exports' in obj['results'][0]:
+			return obj['results'][0]['exports']['esriwkt']
+		else:
+			log.error('Could not find ESRI WKT for EPSG:{}'.format(epsg))
+			return None
 
 
+# For backward compatibility, you can keep the EPSGIO class as an alias to MapTilerCoordinates
+class EPSGIO(MapTilerCoordinates):
+	pass
 
 
 ######################################
@@ -173,11 +204,10 @@ class TWCC():
 
 
 ######################################
-#http://spatialreference.org/ref/epsg/2154/esriwkt/
+# http://spatialreference.org/ref/epsg/2154/esriwkt/
 
-#class SpatialRefOrg():
-
+# class SpatialRefOrg():
 
 
 ######################################
-#http://prj2epsg.org/search
+# http://prj2epsg.org/search
