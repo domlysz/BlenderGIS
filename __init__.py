@@ -26,7 +26,7 @@ bl_info = {
 	'license': 'GPL',
 	'deps': '',
 	'version': (2, 2, 10),
-	'blender': (2, 83, 0),
+	'blender': (2, 79, 0),
 	'location': 'View3D > Tools > GIS',
 	'warning': '',
 	'wiki_url': 'https://github.com/domlysz/BlenderGIS/wiki',
@@ -39,8 +39,7 @@ bl_info = {
 class BlenderVersionError(Exception):
 	pass
 
-if bl_info['blender'] > bpy.app.version:
-	raise BlenderVersionError(f"This addon requires Blender >= {bl_info['blender']}")
+
 
 #Modules
 CAM_GEOPHOTO = True
@@ -409,3 +408,4 @@ def unregister():
 
 if __name__ == "__main__":
 	register()
+
