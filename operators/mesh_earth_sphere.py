@@ -2,7 +2,7 @@ import bpy
 from bpy.types import Operator
 from bpy.props import IntProperty
 
-from math import cos, sin, radians, sqrt
+from math import cos, sin, radians, sqrt, atan2, asin, degrees
 from mathutils import Vector
 
 import logging
@@ -13,8 +13,17 @@ def lonlat2xyz(R, lon, lat):
 	lon, lat = radians(lon), radians(lat)
 	x = R * cos(lat) * cos(lon)
 	y = R * cos(lat) * sin(lon)
-	z = R *sin(lat)
+	z = R * sin(lat)
 	return Vector((x, y, z))
+
+def xyz2lonlat(x, y, z, r=100, z_scale=1):
+	R = sqrt(x**2 + y**2 + z**2)
+	lon_rad = atan2(y, x)
+	lat_rad = asin(z/R)
+	R = (R-r) / z_scale
+	lon = degrees(lon_rad)
+	lat = degrees(lat_rad)
+	return Vector((lon, lat, R))
 
 
 class OBJECT_OT_earth_sphere(Operator):
@@ -24,6 +33,7 @@ class OBJECT_OT_earth_sphere(Operator):
 	bl_options = {"REGISTER", "UNDO"}
 
 	radius: IntProperty(name = "Radius", default=100, description="Sphere radius", min=1)
+	z_scale: IntProperty(name = "Z scale", default=1, description="Scale for the z axis")
 
 	def execute(self, context):
 		scn = bpy.context.scene
@@ -50,8 +60,39 @@ class OBJECT_OT_earth_sphere(Operator):
 			m = obj.matrix_world
 			for vertex in mesh.vertices:
 				co = m @ vertex.co
-				lon, lat = co.x, co.y
-				vertex.co = m.inverted() @ lonlat2xyz(self.radius, lon, lat)
+				lon, lat, z = co.x, co.y, co.z
+				vertex.co = m.inverted() @ lonlat2xyz(self.radius + z*self.z_scale, lon, lat)
+
+		return {'FINISHED'}
+
+class OBJECT_OT_earth_plane(Operator):
+	bl_idname = "earth.plane"
+	bl_label = "sphere to latlon"
+	bl_description = "Transform data on a sphere to longitude/latitude on a plane"
+	bl_options = {"REGISTER", "UNDO"}
+
+	radius: IntProperty(name = "Radius", default=100, description="Sphere radius", min=1)
+	z_scale: IntProperty(name = "Z scale", default=1, description="Scale for the z axis")
+
+	def execute(self, context):
+		scn = bpy.context.scene
+		objs = bpy.context.selected_objects
+
+		if not objs:
+			self.report({'INFO'}, "No selected object")
+			return {'CANCELLED'}
+
+		for obj in objs:
+			if obj.type != 'MESH':
+				log.warning("Object {} is not a mesh".format(obj.name))
+				continue
+
+			mesh = obj.data
+			m = obj.matrix_world
+			for vertex in mesh.vertices:
+				co = m @ vertex.co
+				vertex.co = m.inverted() @ xyz2lonlat(co.x, co.y, co.z, self.radius, self.z_scale)
+
 
 		return {'FINISHED'}
 
@@ -92,6 +133,7 @@ class OBJECT_OT_earth_curvature(Operator):
 
 classes = [
 	OBJECT_OT_earth_sphere,
+ 	OBJECT_OT_earth_plane,
 	OBJECT_OT_earth_curvature
 ]
 
