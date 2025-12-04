@@ -173,24 +173,46 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#Basemaps
 
-	def getCacheFolder(self):
-		return bpy.path.abspath(self.get("cacheFolder", ''))
-
-	def setCacheFolder(self, value):
-		if os.access(value, os.X_OK | os.W_OK):
-			self["cacheFolder"] = value
-		else:
-			log.error("The selected cache folder has no write access")
-			self["cacheFolder"] = "The selected folder has no write access"
-
 	cacheFolder: StringProperty(
-		name = "Cache folder",
-		default = APP_DATA, #Does not works !?
-		description = "Define a folder where to store Geopackage SQlite db",
-		subtype = 'DIR_PATH',
-		get = getCacheFolder,
-		set = setCacheFolder
-		)
+	name = "Cache folder",
+	default = "",
+	description = "Define a folder where to store Geopackage SQlite db",
+	subtype = 'DIR_PATH'
+	)
+
+	def validateCacheFolder(self):
+		"""Validate and create cache folder if needed"""
+		folder = self.cacheFolder
+		if not folder or folder.strip() == '':
+			# Use default
+			folder = APP_DATA
+			self.cacheFolder = folder
+			
+		# Normalize path
+		folder = os.path.normpath(os.path.abspath(folder))
+		
+		# Create if doesn't exist
+		if not os.path.exists(folder):
+			try:
+				os.makedirs(folder, exist_ok=True)
+				print(f"BlenderGIS: Created cache folder: {folder}")
+			except Exception as e:
+				print(f"BlenderGIS: ERROR - Cannot create cache folder: {e}")
+				log.error(f"Cannot create cache folder {folder}: {e}")
+				return False
+		
+		# Test write access
+		try:
+			test_file = os.path.join(folder, '.bgis_write_test')
+			with open(test_file, 'w') as f:
+				f.write('test')
+			os.remove(test_file)
+			print(f"BlenderGIS: ✓ Cache folder validated: {folder}")
+			return True
+		except Exception as e:
+			print(f"BlenderGIS: WARNING - No write access to cache folder: {e}")
+			log.warning(f"No write access to cache folder {folder}: {e}")
+			return False
 
 	synchOrj: BoolProperty(
 		name="Synch. lat/long",
@@ -842,18 +864,17 @@ BGIS_OT_edit_overpass_server
 
 def register():
 	for cls in classes:
-		try:
-			bpy.utils.register_class(cls)
-		except ValueError as e:
-			#log.error('Cannot register {}'.format(cls), exc_info=True)
-			log.warning('{} is already registered, now unregister and retry... '.format(cls))
-			bpy.utils.unregister_class(cls)
-			bpy.utils.register_class(cls)
+		bpy.utils.register_class(cls)
 
-	# set default cache folder
 	prefs = bpy.context.preferences.addons[PKG].preferences
 	if prefs.cacheFolder == '':
 		prefs.cacheFolder = APP_DATA
+		print(f"BlenderGIS: Set default cache folder to: {APP_DATA}")
+	else:
+		print(f"BlenderGIS: Using cache folder: {prefs.cacheFolder}")
+	
+	# Validate the cache folder
+	prefs.validateCacheFolder()
 
 
 def unregister():
