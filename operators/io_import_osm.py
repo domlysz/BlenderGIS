@@ -284,7 +284,7 @@ class OSM_IMPORT():
 						if minH < 0 :
 							minH = 0
 						maxH = self.defaultHeight + self.randomHeightThreshold
-						offset = random.randint(minH, maxH)
+						offset = random.randint(int(minH), int(maxH))
 
 					#Extrude
 					"""
