@@ -173,23 +173,24 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#Basemaps
 
-	def getCacheFolder(self):
-		return bpy.path.abspath(self.get("cacheFolder", ''))
+	def getCacheFolder(self, v, isSet):
+		print(bpy.path.abspath(v))
+		return bpy.path.abspath(v)
 
-	def setCacheFolder(self, value):
-		if os.access(value, os.X_OK | os.W_OK):
-			self["cacheFolder"] = value
+	def setCacheFolder(self, newVal, currentVal, isSet):
+		if os.access(newVal, os.X_OK | os.W_OK):
+			print('ok')
+			return newVal
 		else:
 			log.error("The selected cache folder has no write access")
-			self["cacheFolder"] = "The selected folder has no write access"
 
 	cacheFolder: StringProperty(
 		name = "Cache folder",
 		default = APP_DATA, #Does not works !?
 		description = "Define a folder where to store Geopackage SQlite db",
 		subtype = 'DIR_PATH',
-		get = getCacheFolder,
-		set = setCacheFolder
+		get_transform = getCacheFolder,
+		set_transform = setCacheFolder
 		)
 
 	synchOrj: BoolProperty(
