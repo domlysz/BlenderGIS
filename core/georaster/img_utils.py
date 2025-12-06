@@ -21,16 +21,19 @@
 
 
 import struct
-import imghdr
+from PIL import Image
+from io import BytesIO
 
 
 def isValidStream(data):
-	if data is None:
-		return False
-	format = imghdr.what(None, data)
-	if format is None:
-		return False
-	return True
+    if data is None:
+        return False
+    try:
+        image = Image.open(BytesIO(data))
+        image.verify()  # Verifies that the file is an image
+        return True
+    except (IOError, SyntaxError):
+        return False
 
 
 def getImgFormat(filepath):
