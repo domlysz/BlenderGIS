@@ -23,7 +23,7 @@ import math
 from .srs import SRS
 from .utm import UTM, UTM_EPSG_CODES
 from .ellps import GRS80
-from .srv import EPSGIO
+from .srv import MapTilerCoordinates
 
 from ..errors import ReprojError
 from ..utils import BBOX
