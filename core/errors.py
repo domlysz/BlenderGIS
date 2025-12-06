@@ -12,3 +12,9 @@ class ReprojError(Exception):
 		self.value = value
 	def __str__(self):
 		return repr(self.value)
+
+class ApiKeyError(Exception):
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Missing or wrong API key"

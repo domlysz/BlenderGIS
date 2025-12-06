@@ -25,6 +25,7 @@ from urllib.error import URLError, HTTPError
 import json
 
 from .. import settings
+from ..errors import ApiKeyError
 
 USER_AGENT = settings.user_agent
 
@@ -37,40 +38,34 @@ REPROJ_TIMEOUT = 60
 
 class MapTilerCoordinates():
 
-	@staticmethod
-	def ping(api_key=None):
+	def __init__(self, apiKey=None):
+		if apiKey is None:
+			if settings.maptiler_api_key:
+				self.apiKey = settings.maptiler_api_key
+			else:
+				raise ApiKeyError
+				log.error('Missing MapTilerCoordinates API key')
+		else:
+			self.apiKey = apiKey
+
 		"""Test connection to MapTiler API server"""
-		if api_key is None:
-			api_key = settings.maptiler_api_key
-			
-		url = "https://api.maptiler.com/coordinates/search/epsg.json?key=" + api_key
+		url = "https://api.maptiler.com"
 		try:
 			rq = Request(url, headers={'User-Agent': USER_AGENT})
 			urlopen(rq, timeout=DEFAULT_TIMEOUT)
-			return True
 		except URLError as e:
 			log.error('Cannot ping {} web service, {}'.format(url, e.reason))
-			return False
+			raise e
 		except HTTPError as e:
 			log.error('Cannot ping {} web service, http error {}'.format(url, e.code))
-			return False
+			raise e
 		except:
 			raise
 
-	@staticmethod
-	def reprojPt(epsg1, epsg2, x1, y1, api_key=None):
+	def reprojPt(self, epsg1, epsg2, x1, y1):
 		"""Reproject a single point using MapTiler Coordinates API"""
-		if api_key is None:
-			api_key = settings.maptiler_api_key
-			
-		# New endpoint format with API key
-		url = "https://api.maptiler.com/coordinates/transform/{X},{Y}.json?s_srs={CRS1}&t_srs={CRS2}&key={KEY}"
 
-		url = url.replace("{X}", str(x1))
-		url = url.replace("{Y}", str(y1))
-		url = url.replace("{CRS1}", str(epsg1))
-		url = url.replace("{CRS2}", str(epsg2))
-		url = url.replace("{KEY}", api_key)
+		url = f"https://api.maptiler.com/coordinates/transform/{x1},{y1}.json?s_srs={epsg1}&t_srs={epsg2}&key={self.apiKey}"
 
 		log.debug(url)
 
@@ -81,28 +76,23 @@ class MapTilerCoordinates():
 			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 			raise
 
-		obj = json.loads(response)
+		obj = json.loads(response)['results'][0]
 
-		# The MapTiler response format is different from the old EPSG.io format
-		# MapTiler returns coordinates as an array in the response body
-		return (float(obj[0]), float(obj[1]))
+		return (float(obj['x']), float(obj['y']))
 
-	@staticmethod
-	def reprojPts(epsg1, epsg2, points, api_key=None):
+
+	def reprojPts(self, epsg1, epsg2, points):
 		"""Reproject multiple points using MapTiler Coordinates API"""
-		if api_key is None:
-			api_key = settings.maptiler_api_key
-			
+
 		if len(points) == 1:
 			x, y = points[0]
-			return [MapTilerCoordinates.reprojPt(epsg1, epsg2, x, y, api_key=api_key)]
+			return [self.reprojPt(epsg1, epsg2, x, y)]
 
-		# New endpoint with batch transformation (up to 50 points)
-		urlTemplate = "https://api.maptiler.com/coordinates/transform/{POINTS}.json?s_srs={CRS1}&t_srs={CRS2}&key={KEY}"
-
-		urlTemplate = urlTemplate.replace("{CRS1}", str(epsg1))
-		urlTemplate = urlTemplate.replace("{CRS2}", str(epsg2))
-		urlTemplate = urlTemplate.replace("{KEY}", api_key)
+		urlTemplate = "https://api.maptiler.com/coordinates/transform/{{POINTS}}.json?s_srs={CRS1}&t_srs={CRS2}&key={KEY}".format(
+			CRS1=epsg1,
+			CRS2=epsg2,
+			KEY=self.apiKey
+		)
 
 		precision = 4
 		data = [','.join([str(round(v, precision)) for v in p]) for p in points]
@@ -124,24 +114,18 @@ class MapTilerCoordinates():
 				log.error('Http request fails url:{}, code:{}, error:{}'.format(url, err.code, err.reason))
 				raise
 
-			obj = json.loads(response)
+			obj = json.loads(response)['results']
 			
-			# MapTiler API returns an array of coordinate pairs
-			result.extend([(float(p[0]), float(p[1])) for p in obj])
+			result.extend([(float(p['x']), float(p['y'])) for p in obj])
 
 		return result
 
-	@staticmethod
-	def search(query, api_key=None):
+	def search(self, query):
 		"""Search coordinate systems using MapTiler Coordinates API"""
-		if api_key is None:
-			api_key = settings.maptiler_api_key
-			
+
 		query = str(query).replace(' ', '+')
 		# New endpoint with API key
-		url = "https://api.maptiler.com/coordinates/search/{QUERY}.json?key={KEY}"
-		url = url.replace("{QUERY}", query)
-		url = url.replace("{KEY}", api_key)
+		url = f"https://api.maptiler.com/coordinates/search/{query}.json?exports=true&key={self.apiKey}"
 		
 		log.debug('Search crs : {}'.format(url))
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
@@ -151,25 +135,12 @@ class MapTilerCoordinates():
 		log.debug('Search results : {}'.format([(r['id']['code'], r['name']) for r in obj['results']]))
 		return obj['results']
 
-	@staticmethod
-	def getEsriWkt(epsg, api_key=None):
+	def getEsriWkt(self, epsg):
 		"""Get ESRI WKT for a specific EPSG code using MapTiler Coordinates API"""
-		if api_key is None:
-			api_key = settings.maptiler_api_key
-			
-		# New endpoint with API key
-		url = "https://api.maptiler.com/coordinates/search/{CODE}.json?exports=true&key={KEY}"
-		url = url.replace("{CODE}", str(epsg))
-		url = url.replace("{KEY}", api_key)
-		
-		log.debug(url)
-		rq = Request(url, headers={'User-Agent': USER_AGENT})
-		response = urlopen(rq, timeout=DEFAULT_TIMEOUT).read().decode('utf8')
-		obj = json.loads(response)
-		
-		if obj['results'] and len(obj['results']) > 0 and 'exports' in obj['results'][0]:
-			return obj['results'][0]['exports']['esriwkt']
-		else:
+		obj = self.search(epsg)
+		try:
+			return obj[0]['exports']['wkt']
+		except:
 			log.error('Could not find ESRI WKT for EPSG:{}'.format(epsg))
 			return None
 
@@ -188,13 +159,7 @@ class TWCC():
 	@staticmethod
 	def reprojPt(epsg1, epsg2, x1, y1):
 
-		url = "http://twcc.fr/en/ws/?fmt=json&x={X}&y={Y}&in=EPSG:{CRS1}&out=EPSG:{CRS2}"
-
-		url = url.replace("{X}", str(x1))
-		url = url.replace("{Y}", str(y1))
-		url = url.replace("{Z}", '0')
-		url = url.replace("{CRS1}", str(epsg1))
-		url = url.replace("{CRS2}", str(epsg2))
+		url = f"http://twcc.fr/en/ws/?fmt=json&x={x1}&y={y1}&in=EPSG:{epsg1}&out=EPSG:{epsg2}"
 
 		rq = Request(url, headers={'User-Agent': USER_AGENT})
 		response = urlopen(rq, timeout=REPROJ_TIMEOUT).read().decode('utf8')

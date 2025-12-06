@@ -1,4 +1,4 @@
 from .srs import SRS
 from .reproj import Reproj, reprojPt, reprojPts, reprojBbox, reprojImg
-from .srv import EPSGIO, TWCC
+from .srv import EPSGIO, TWCC, MapTilerCoordinates
 from .ellps import dd2meters, meters2dd, Ellps, GRS80

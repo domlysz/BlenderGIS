@@ -31,6 +31,10 @@ class Settings():
 		self._proj_engine = kwargs['proj_engine']
 		self._img_engine = kwargs['img_engine']
 		self.user_agent = kwargs['user_agent']
+		if 'maptiler_api_key' in kwargs:
+			self.maptiler_api_key = kwargs['maptiler_api_key']
+		else:
+			self.maptiler_api_key = None
 
 	@property
 	def proj_engine(self):

@@ -354,7 +354,7 @@ def register():
 	#update core settings according to addon prefs
 	settings.proj_engine = preferences.projEngine
 	settings.img_engine = preferences.imgEngine
-
+	settings.maptiler_api_key = preferences.maptiler_api_key
 
 def unregister():
 

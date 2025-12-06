@@ -116,7 +116,7 @@ class BGIS_PREFS(AddonPreferences):
 			items.append( ('PYPROJ', 'pyProj', 'Force pyProj as reprojection engine') )
 		#if EPSGIO.ping(): #too slow
 		#	items.append( ('EPSGIO', 'epsg.io', '') )
-		items.append( ('EPSGIO', 'epsg.io', 'Force epsg.io as reprojection engine') )
+		items.append( ('EPSGIO', 'epsg.io / MapTilerCoords', 'Force epsg.io as reprojection engine') )
 		items.append( ('BUILTIN', 'Built in', 'Force reprojection through built in Python functions') )
 		return items
 
@@ -240,9 +240,14 @@ class BGIS_PREFS(AddonPreferences):
 		name = "",
 		description="you need to register and request a key from opentopography website"
 	)
+
+	def updateMapTilerApiKey(self, context):
+		settings.maptiler_api_key = self.maptiler_api_key
+
 	maptiler_api_key: StringProperty(
 		name = "",
-		description = "API key for MapTiler Coordinates API (required for EPSG.io migration)"
+		description = "API key for MapTiler Coordinates API (required for EPSG.io migration)",
+		update = updateMapTilerApiKey
 	)
 
 	################
@@ -332,13 +337,13 @@ class BGIS_PREFS(AddonPreferences):
 		row.operator("bgis.rmv_dem_server", icon='REMOVE')
 		row.operator("bgis.reset_dem_server", icon='PLAY_REVERSE')
 
-		row = box.row()
+		row = box.row().split(factor=0.2)
 		row.label(text="Opentopography Api Key")
-		box.row().prop(self, "opentopography_api_key")
+		row.prop(self, "opentopography_api_key")
 
-		row = box.row()
+		row = box.row().split(factor=0.2)
 		row.label(text="MapTiler API Key")
-		box.row().prop(self, "maptiler_api_key")
+		row.prop(self, "maptiler_api_key")
 
 		#System
 		box = layout.box()
@@ -394,21 +399,19 @@ class BGIS_OT_add_predef_crs(Operator):
 		return True
 
 	def search(self, context):
-		prefs = context.preferences.addons[PKG].preferences
-		api_key = prefs.maptiler_api_key
-		
-		if not api_key:
+
+		apiKey = settings.maptiler_api_key
+
+		if not apiKey:
 			self.report({'ERROR'}, "MapTiler API key is required. Please set it in the preferences.")
 			return
 			
-		if not MapTilerCoordinates.ping(api_key=api_key):
-			self.report({'ERROR'}, "Cannot connect to MapTiler API")
-		else:
-			results = MapTilerCoordinates.search(self.query, api_key=api_key)
-			self.results = json.dumps(results)
-			if results:
-				self.crs = 'EPSG:' + str(results[0]['id']['code'])
-				self.name = results[0]['name']
+		mtc = MapTilerCoordinates(apiKey=apiKey)
+		results = mtc.search(self.query)
+		self.results = json.dumps(results)
+		if results:
+			self.crs = 'EPSG:' + str(results[0]['id']['code'])
+			self.name = results[0]['name']
 
 	def updEnum(self, context):
 		crsItems = []
@@ -420,8 +423,8 @@ class BGIS_OT_add_predef_crs(Operator):
 
 	def fill(self, context):
 		if self.results != '':
-			crs = [crs for crs in json.loads(self.results) if crs['code'] == self.crsEnum][0]
-			self.crs = 'EPSG:' + crs['code']
+			crs = [crs for crs in json.loads(self.results) if str(crs['id']['code']) == self.crsEnum][0]
+			self.crs = 'EPSG:' + str(crs['id']['code'])
 			self.desc = crs['name']
 
 	query: StringProperty(name='Query', description='Hit enter to process the search', update=search)
