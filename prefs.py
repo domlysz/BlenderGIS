@@ -174,12 +174,10 @@ class BGIS_PREFS(AddonPreferences):
 	#Basemaps
 
 	def getCacheFolder(self, v, isSet):
-		print(bpy.path.abspath(v))
 		return bpy.path.abspath(v)
 
 	def setCacheFolder(self, newVal, currentVal, isSet):
 		if os.access(newVal, os.X_OK | os.W_OK):
-			print('ok')
 			return newVal
 		else:
 			log.error("The selected cache folder has no write access")
