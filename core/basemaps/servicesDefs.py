@@ -241,6 +241,63 @@ SOURCES = {
 	},
 
 
+	"GEOPORTAIL" : {
+		"name" : 'Geoportail',
+		"description" : 'Geoportail.fr',
+		"service": 'WMTS',
+		"grid": 'WM',
+		"matrix" : 'PM',
+		"layers" : {
+			"ORTHO" : {"urlKey" : 'ORTHOIMAGERY.ORTHOPHOTOS', "name" : 'Orthophotos', "description" : '',
+				"format" : 'jpeg', "style" : 'normal', "zmin" : 0, "zmax" : 22},
+			"CAD" : {"urlKey" : 'CADASTRALPARCELS.PARCELS', "name" : 'Cadastre', "description" : '',
+				"format" : 'png', "style" : 'bdparcellaire', "zmin" : 0, "zmax" : 22}
+		},
+		"urlTemplate": {
+			"BASE_URL" : 'https://data.geopf.fr/wmts?',
+			"SERVICE" : 'WMTS',
+			"VERSION" : '1.0.0',
+			"REQUEST" : 'GetTile',
+			"LAYER" : '{LAY}',
+			"STYLE" : '{STYLE}',
+			"FORMAT" : 'image/{FORMAT}',
+			"TILEMATRIXSET" : '{MATRIX}',
+			"TILEMATRIX" : '{Z}',
+			"TILEROW" : '{Y}',
+			"TILECOL" : '{X}'
+			},
+		"referer": "http://www.geoportail.gouv.fr/accueil"
+	},
+
+	"GEOPORTAIL2" : {
+		"name" : 'Geoportail ©scan',
+		"description" : 'Geoportail.fr',
+		"service": 'WMTS',
+		"grid": 'WM',
+		"matrix" : 'PM',
+		"layers" : {
+			"SCAN25" : {"urlKey" : 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR', "name" : 'Scan25', "description" : '',
+				"format" : 'jpeg', "style" : 'normal', "zmin" : 0, "zmax" : 22},
+			"SCAN" : {"urlKey" : 'GEOGRAPHICALGRIDSYSTEMS.MAPS', "name" : 'Scan', "description" : '',
+				"format" : 'jpeg', "style" : 'normal', "zmin" : 0, "zmax" : 22}
+		},
+		"urlTemplate": {
+			"BASE_URL" : 'https://data.geopf.fr/private/wmts?',
+			"SERVICE" : 'WMTS',
+			"VERSION" : '1.0.0',
+			"REQUEST" : 'GetTile',
+			"LAYER" : '{LAY}',
+			"STYLE" : '{STYLE}',
+			"FORMAT" : 'image/{FORMAT}',
+			"TILEMATRIXSET" : '{MATRIX}',
+			"TILEMATRIX" : '{Z}',
+			"TILEROW" : '{Y}',
+			"TILECOL" : '{X}',
+			"apikey" : "ign_scan_ws"
+			},
+		"referer": "http://www.geoportail.gouv.fr/accueil"
+	}
+
 }
 """
 	#http://wms.craig.fr/ortho?SERVICE=WMS&REQUEST=GetCapabilities
@@ -304,36 +361,6 @@ SOURCES = {
 		"referer": "http://www.craig.fr/"
 	},
 
-
-	"GEOPORTAIL" : {
-		"name" : 'Geoportail',
-		"description" : 'Geoportail.fr',
-		"service": 'WMTS',
-		"grid": 'WM',
-		"matrix" : 'PM',
-		"layers" : {
-			"ORTHO" : {"urlKey" : 'ORTHOIMAGERY.ORTHOPHOTOS', "name" : 'Orthophotos', "description" : '',
-				"format" : 'jpeg', "style" : 'normal', "zmin" : 0, "zmax" : 22},
-			"SCAN" : {"urlKey" : 'GEOGRAPHICALGRIDSYSTEMS.MAPS', "name" : 'Scan', "description" : '',
-				"format" : 'jpeg', "style" : 'normal', "zmin" : 0, "zmax" : 22},
-			"CAD" : {"urlKey" : 'CADASTRALPARCELS.PARCELS', "name" : 'Cadastre', "description" : '',
-				"format" : 'png', "style" : 'bdparcellaire', "zmin" : 0, "zmax" : 22}
-		},
-		"urlTemplate": {
-			"BASE_URL" : 'https://wxs.ign.fr/an7nvfzojv5wa96dsga5nk8w/geoportail/wmts?',
-			"SERVICE" : 'WMTS',
-			"VERSION" : '1.0.0',
-			"REQUEST" : 'GetTile',
-			"LAYER" : '{LAY}',
-			"STYLE" : '{STYLE}',
-			"FORMAT" : 'image/{FORMAT}',
-			"TILEMATRIXSET" : '{MATRIX}',
-			"TILEMATRIX" : '{Z}',
-			"TILEROW" : '{Y}',
-			"TILECOL" : '{X}'
-			},
-		"referer": "http://www.geoportail.gouv.fr/accueil"
-	},
 
 
 }
