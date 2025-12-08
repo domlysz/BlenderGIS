@@ -26,7 +26,7 @@ import threading
 import queue
 import time
 import urllib.request
-import imghdr
+from ..lib import imghdr
 import sys, time, os
 
 #core imports

@@ -21,7 +21,7 @@
 
 
 import struct
-import imghdr
+from ..lib import imghdr
 
 
 def isValidStream(data):
