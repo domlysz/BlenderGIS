@@ -43,6 +43,32 @@ GRIDS = {
 		"resFactor" : 2
 	},
 
+	"WM2X" : {
+		"name" : 'Web Mercator 2X Scale',
+		"description" : 'Global grid in web mercator projection for use with 2x scaled map tiles',
+		"CRS": 'EPSG:3857',
+		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
+		"bboxCRS": 'EPSG:4326',
+		#"bbox": [-20037508, -20037508, 20037508, 20037508],
+		#"bboxCRS": 3857,
+		"tileSize": 512,
+		"originLoc": "NW", #North West or South West
+		"resFactor" : 2
+	},
+
+	"WM4X" : {
+		"name" : 'Web Mercator 4X Scale',
+		"description" : 'Global grid in web mercator projection for use with 4x scaled map tiles',
+		"CRS": 'EPSG:3857',
+		"bbox": [-180, -cutoff_lat, 180, cutoff_lat], #w,s,e,n
+		"bboxCRS": 'EPSG:4326',
+		#"bbox": [-20037508, -20037508, 20037508, 20037508],
+		#"bboxCRS": 3857,
+		"tileSize": 1024,
+		"originLoc": "NW", #North West or South West
+		"resFactor" : 2
+	},
+
 
 	"WGS84" : {
 		"name" : 'WGS84',
@@ -147,12 +173,45 @@ SOURCES = {
 		"quadTree": False,
 		"layers" : {
 			"SAT" : {"urlKey" : 's', "name" : 'Satellite', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
-			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22}
+			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22},
+			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
 		},
 		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}",
 		"referer": "https://www.google.com/maps"
 	},
 
+	"GOOGLE2X" : {
+		"name" : 'Google 2X Scale',
+		"description" : 'Google map with higher resolution',
+		"service": 'TMS',
+		"grid": 'WM2X',
+		"quadTree": False,
+		"layers" : {
+			"SAT" : {"urlKey" : 's', "name" : 'Satellite', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22},
+			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+		},
+		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&scale=2",
+		"referer": "https://www.google.com/maps"
+	},
+
+	"GOOGLE4X" : {
+		"name" : 'Google 4X Scale',
+		"description" : 'Google map with the highest resolution',
+		"service": 'TMS',
+		"grid": 'WM4X',
+		"quadTree": False,
+		"layers" : {
+			"SAT" : {"urlKey" : 's', "name" : 'Satellite', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"MAP" : {"urlKey" : 'm', "name" : 'Map', "description" : '', "format" : 'png', "zmin" : 0, "zmax" : 22},
+			"HYB" : {"urlKey" : 'y', "name" : 'Hybrid', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+			"TER" : {"urlKey" : 'p', "name" : 'Terrain', "description" : '', "format" : 'jpeg', "zmin" : 0, "zmax" : 22},
+		},
+		"urlTemplate": "http://mt0.google.com/vt/lyrs={LAY}&x={X}&y={Y}&z={Z}&scale=4",
+		"referer": "https://www.google.com/maps"
+	},
 
 	"OSM" : {
 		"name" : 'OSM',
