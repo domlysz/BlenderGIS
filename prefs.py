@@ -423,9 +423,10 @@ class BGIS_OT_add_predef_crs(Operator):
 		apiKey = settings.maptiler_api_key
 
 		if not apiKey:
-			self.report({'ERROR'}, "MapTiler API key is required. Please set it in the preferences.")
+			#self.report({'ERROR'}, "MapTiler API key is required. Please set it in the preferences.") #report is not available outsite of the execute function
+			log.error("No Maptiler API key")
 			return
-			
+
 		mtc = MapTilerCoordinates(apiKey=apiKey)
 		results = mtc.search(self.query)
 		self.results = json.dumps(results)
@@ -464,8 +465,13 @@ class BGIS_OT_add_predef_crs(Operator):
 		layout = self.layout
 		layout.prop(self, 'search')
 		if self.search:
-			layout.prop(self, 'query')
-			layout.prop(self, 'crsEnum')
+			prefs = context.preferences.addons[PKG].preferences
+			if not prefs.maptiler_api_key:
+				layout.label(text="Searching require a MapTiler API key", icon_value=3)
+				layout.prop(prefs, "maptiler_api_key", text='API Key')
+			else:
+				layout.prop(self, 'query')
+				layout.prop(self, 'crsEnum')
 			layout.separator()
 		layout.prop(self, 'crs')
 		layout.prop(self, 'name')
