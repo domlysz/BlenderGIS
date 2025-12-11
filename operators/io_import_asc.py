@@ -267,8 +267,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
                     # reproject world-space source coordinate, then transform back to target local-space
                     pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
                     pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
-                
-                vertices.append(pt + (float(coldata[x]),))
+                vertices.append(pt + (val,))
 
         log.debug(f"Got vertices: {len(vertices)}")
         vertex_mask = [v is not None for v in vertices]
