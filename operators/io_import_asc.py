@@ -201,6 +201,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
         ncols = int(meta['ncols'])
         cellsize = float(meta['cellsize'])
         nodata = float(meta['nodata_value'])
+        log.debug(f"{nodata=}, {type(nodata)=}")
 
         # options are lower left cell corner, or lower left cell centre
         reprojection = {}
@@ -229,9 +230,8 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
             geoscn.setOriginPrj(*centre)
             dx, dy = geoscn.getOriginPrj()
 
-        index = 0
+        log.info('Importing grid of size {}x{} with step {}...'.format(ncols, nrows,  step))
         vertices = []
-        faces = []
 
         # determine row read method
         read = self.read_row_whitespace
@@ -251,31 +251,55 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
 
             for x in range(0, ncols, step):
                 # TODO: exclude nodata values (implications for face generation)
-                if not (self.importMode == 'CLOUD' and coldata[x] == nodata):
-                    pt = (x * cellsize + offset.x, y * cellsize + offset.y)
-                    if rprj:
-                        # reproject world-space source coordinate, then transform back to target local-space
-                        pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
-                        pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
-                    try:
-                        vertices.append(pt + (float(coldata[x]),))
-                    except ValueError as e:
-                        log.error('Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
-                        self.report({'ERROR'}, 'Cannot convert value to float')
-                        return {'CANCELLED'}
+                try:
+                    val = float(coldata[x])
+                except ValueError as e:
+                    log.error('Value "{val}" in row {row}, column {col} could not be converted to a float.'.format(val=coldata[x], row=nrows-y, col=x))
+                    self.report({'ERROR'}, 'Cannot convert value to float')
+                    return {'CANCELLED'}
+                
+                if int(val) == int(nodata):
+                    vertices.append(None)
+                    continue
+                 
+                pt = (x * cellsize + offset.x, y * cellsize + offset.y)
+                if rprj:
+                    # reproject world-space source coordinate, then transform back to target local-space
+                    pt = rprjToScene.pt(pt[0] + reprojection['from'].x, pt[1] + reprojection['from'].y)
+                    pt = (pt[0] - reprojection['to'].x, pt[1] - reprojection['to'].y)
+                
+                vertices.append(pt + (float(coldata[x]),))
 
+        log.debug(f"Got vertices: {len(vertices)}")
+        vertex_mask = [v is not None for v in vertices]
+        faces = []
         if self.importMode == 'MESH':
             step_ncols = math.ceil(ncols / step)
             for r in range(0, math.ceil(nrows / step) - 1):
                 for c in range(0, step_ncols - 1):
-                    v1 = index
+                    v1 = r * step_ncols + c
                     v2 = v1 + step_ncols
                     v3 = v2 + 1
                     v4 = v1 + 1
-                    faces.append((v1, v2, v3, v4))
-                    index += 1
-                index += 1
-
+                    if all(vertex_mask[i] for i in (v1, v2, v3, v4)):
+                        faces.append((v1, v2, v3, v4))
+                
+            # Remap vertices to remove None entries
+            old_to_new = {}
+            new_vertices = []
+            for i, v in enumerate(vertices):
+                if v is not None:
+                    old_to_new[i] = len(new_vertices)
+                    new_vertices.append(v)
+                    
+            log.debug(f"Total vertices: {len(vertices)}")
+            log.debug(f"Valid vertices: {len(new_vertices)} ({(len(new_vertices) / (len(vertices))):.2%})")
+            # Remap faces to new indices
+            new_faces = [tuple(old_to_new[i] for i in f) for f in faces]
+                
+            faces = new_faces
+            vertices = new_vertices
+            log.debug(f"Number of faces : {len(faces)}")
         # Create mesh
         me = bpy.data.meshes.new(name)
         ob = bpy.data.objects.new(name, me)
@@ -288,6 +312,8 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
         ob.select_set(True)
 
         me.from_pydata(vertices, [], faces)
+        if me.validate(verbose=True):
+            log.error("Mesh validation failed, see console for more infos")
         me.update()
         f.close()
 
