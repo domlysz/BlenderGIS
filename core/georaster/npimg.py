@@ -263,7 +263,7 @@ class NpImage():
 		if img.mode == 'P': #palette (indexed color)
 			img = img.convert('RGBA')
 		data = np.asarray(img)
-		data.setflags(write=True) #PIL return a non writable array
+		#data.setflags(write=True) #PIL return a non writable array
 		return self._applySubBox(data)
 
 	def _npFromGDAL(self, ds):
