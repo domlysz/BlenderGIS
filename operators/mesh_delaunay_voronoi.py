@@ -2,22 +2,55 @@
 #import DelaunayVoronoi
 import bpy
 import time
+from typing import Iterable
 from .utils import computeVoronoiDiagram, computeDelaunayTriangulation
 from ..core.utils import perf_clock
+from bpy.props import BoolProperty, FloatProperty
 
 try:
 	from mathutils.geometry import delaunay_2d_cdt
+	from mathutils import Vector
 except ImportError:
 	NATIVE = False
 else:
 	NATIVE = True
 
+try:
+	import shapely
+except ImportError:
+	IS_SHAPELY = False
+else:
+    IS_SHAPELY = True
+
+
 import logging
 log = logging.getLogger(__name__)
+
+
+if IS_SHAPELY:
+	def get_inside_faces(faces: Iterable[tuple[int, int, int]], verts: tuple[list[Vector]], hull: shapely.geometry.base.BaseGeometry) -> list[tuple[int, int, int]]:
+		"""
+		Return only the faces that are inside the given hull polygon.
+		"""
+		inside_faces : list[tuple[int, int, int]]= []
+		for i0, i1, i2 in faces:
+			x0, y0, _ = verts[i0]
+			x1, y1, _ = verts[i1]
+			x2, y2, _ = verts[i2]
+
+			cx = (x0 + x1 + x2) / 3.0
+			cy = (y0 + y1 + y2) / 3.0
+
+			p = shapely.geometry.Point(cx, cy)
+			if hull.contains(p) or hull.touches(p):
+				inside_faces.append((i0, i1, i2))
+		return inside_faces
+
 
 class Point:
 	def __init__(self, x, y, z):
 		self.x, self.y, self.z = x, y, z
+
 
 def unique(L):
 	"""Return a list of unhashable elements in s, but without duplicates.
@@ -47,6 +80,14 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 	bl_label = "Triangulation" #operator's label
 	bl_description = "Terrain points cloud Delaunay triangulation in 2.5D" #tooltip
 	bl_options = {"UNDO"}
+	alpha_concave_hull: FloatProperty(
+			name="Ratio",
+			description="Number in the range [0, 1]. Higher numbers will include fewer vertices in the hull.",
+			default=-1 )
+	allow_holes: BoolProperty(
+			name="Allow holes in concave hull",
+			description="If set to True, the concave hull may have holes.",
+			default=False )
 
 	def execute(self, context):
 		w = context.window
@@ -77,13 +118,32 @@ class OBJECT_OT_tesselation_delaunay(bpy.types.Operator):
 			# 2 => the input constraints, intersected.
 			# 3 => like 2 but with extra edges to make valid BMesh faces.
 			'''
+			output_type = int(0) 
+			log.debug(f"delaunay_2d_cdt output type: {output_type}")
 			log.info("Triangulate {} points...".format(len(mesh.vertices)))
-			verts, edges, faces, overts, oedges, ofaces  = delaunay_2d_cdt([v.co.to_2d() for v in mesh.vertices], [], [], 0, 0.1)
+			points_2d = [v.co.to_2d() for v in mesh.vertices] 
+			verts, edges, faces, overts, oedges, ofaces  = delaunay_2d_cdt(points_2d, [], [], output_type, 0.1)
 			verts = [ (v.x, v.y, mesh.vertices[overts[i][0]].co.z) for i, v in enumerate(verts)] #retrieve z values
 			log.info("Getting {} triangles".format(len(faces)))
-			log.info("Create mesh...")
-			tinMesh = bpy.data.meshes.new("TIN")
-			tinMesh.from_pydata(verts, edges, faces)
+			log.info(f"Use convex hull: {self.alpha_concave_hull}")
+			if self.alpha_concave_hull > 0:
+				if not IS_SHAPELY:
+					raise ImportError("Required addon (Shapely) for concave hull calculation not found.")
+				log.info("Creating concave hull")
+				geometry =  shapely.geometry.MultiPoint([tuple(pt) for pt in verts])
+				concave_gs = shapely.concave_hull(geometry, ratio=self.alpha_concave_hull, allow_holes=self.allow_holes)
+				log.debug(f"Total faces before filtering: {len(faces)}")
+				inside_faces = get_inside_faces(faces, verts, concave_gs)
+				log.debug(f"Total faces after filtering: {len(inside_faces)}")
+				log.info("Create mesh...")
+				tinMesh = bpy.data.meshes.new("TIN")
+				tinMesh.from_pydata(verts, [], inside_faces)
+			else:
+				#Create new mesh structure
+				log.info("Create mesh...")
+				tinMesh = bpy.data.meshes.new("TIN") #create a new mesh
+				tinMesh.from_pydata(verts, edges, faces) #Fill the mesh with triangles
+    
 			tinMesh.update()
 		else:
 			vertsPts = [vertex.co for vertex in mesh.vertices]
