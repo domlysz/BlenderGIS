@@ -135,7 +135,7 @@ class NpImage():
 
 		#init from PIL Image instance
 		if HAS_PIL:
-			if Image.isImageType(data):
+			if isinstance(data, Image.Image):
 				self.data = self._npFromPIL(data)
 
 		if self.data is None:
