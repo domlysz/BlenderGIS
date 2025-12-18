@@ -51,7 +51,7 @@ from .utils import placeObj, adjust3Dview, showTextures, rasterExtentToMesh, geo
 
 #OSM Nominatim API module
 #https://github.com/damianbraun/nominatim
-from .lib.osm.nominatim import nominatimQuery
+from .utils.nominatim import nominatimQuery
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1) #blendergis.basemaps
 
