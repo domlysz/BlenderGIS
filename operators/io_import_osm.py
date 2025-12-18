@@ -11,7 +11,7 @@ import bmesh
 from bpy.types import Operator, Panel, AddonPreferences
 from bpy.props import StringProperty, IntProperty, FloatProperty, BoolProperty, EnumProperty, FloatVectorProperty
 
-from .lib.osm import overpy
+import overpy
 
 from ..geoscene import GeoScene
 from .utils import adjust3Dview, getBBOX, DropToGround, isTopView

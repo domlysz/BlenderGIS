@@ -7,8 +7,8 @@ import mathutils
 import logging
 log = logging.getLogger(__name__)
 
-from ..core.lib.shapefile import Writer as shpWriter
-from ..core.lib.shapefile import POINTZ, POLYLINEZ, POLYGONZ, MULTIPOINTZ
+from shapefile import Writer as shpWriter
+from shapefile import POINTZ, POLYLINEZ, POLYGONZ, MULTIPOINTZ
 
 from bpy_extras.io_utils import ExportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty

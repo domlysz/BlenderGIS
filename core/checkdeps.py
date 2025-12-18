@@ -36,7 +36,7 @@ else:
 
 #Imageio freeimage plugin
 try:
-	from .lib import imageio
+	import imageio
 	imageio.plugins._freeimage.get_freeimage_lib() #try to download freeimage lib
 except Exception as e:
 	log.error("Cannot install ImageIO's Freeimage plugin", exc_info=True)

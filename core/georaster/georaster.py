@@ -24,7 +24,7 @@ import os
 import logging
 log = logging.getLogger(__name__)
 
-from ..lib import Tyf #geotags reader
+import Tyf #geotags reader
 
 from .georef import GeoRef
 from .npimg import NpImage

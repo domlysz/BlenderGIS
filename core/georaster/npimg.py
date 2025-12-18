@@ -39,7 +39,7 @@ if HAS_GDAL:
 	from osgeo import gdal
 
 if HAS_IMGIO:
-	from ..lib import imageio
+	import imageio
 
 
 class NpImage():

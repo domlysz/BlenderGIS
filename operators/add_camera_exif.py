@@ -35,7 +35,7 @@ from ..core.proj import reprojPt
 from ..core.georaster import getImgFormat
 
 #deps
-from ..core.lib import Tyf
+import Tyf
 
 
 def newEmpty(scene, name, location):

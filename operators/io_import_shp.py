@@ -10,7 +10,7 @@ from mathutils import Vector
 import logging
 log = logging.getLogger(__name__)
 
-from ..core.lib.shapefile import Reader as shpReader
+from shapefile import Reader as shpReader
 
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
