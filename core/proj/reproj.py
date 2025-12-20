@@ -220,8 +220,6 @@ class Reproj():
 			if self.iproj == 'BUILTIN':
 				if not ( ((crs1.isWM or crs1.isUTM) and crs2.isWGS84) or (crs1.isWGS84 and (crs2.isWM or crs2.isUTM)) ):
 					raise ReprojError('Too limited built in reprojection capabilities')
-			if self.iproj == 'EPSGIO':
-				self.mapTilerCoords = MapTilerCoordinates()
 
 		if self.iproj == 'GDAL':
 			self.crs1 = crs1.getOgrSpatialRef()
@@ -233,6 +231,7 @@ class Reproj():
 			self.crs2 = crs2.getPyProj()
 
 		elif self.iproj == 'EPSGIO':
+			self.mapTilerCoords = MapTilerCoordinates()
 			if crs1.isEPSG and crs2.isEPSG:
 				self.crs1, self.crs2 = crs1.code, crs2.code
 			else:
