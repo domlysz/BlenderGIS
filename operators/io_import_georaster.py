@@ -46,7 +46,7 @@ from ..core.errors import OverlapError
 from ..core.proj import Reproj
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import Operator
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
@@ -84,6 +84,11 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	reprojection: BoolProperty(
 			name="Specifiy raster CRS",
 			description="Specifiy raster CRS if it's different from scene CRS",
+			default=False )
+ 
+	setNodata: BoolProperty(
+			name="Set nodata values",
+			description="Assign value to existing nodata values to get an usuable displacement texture",
 			default=False )
 
 	# List of operator properties, the attributes will be assigned
@@ -139,6 +144,12 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			default=False
 			)
 	#
+	setNovalue: FloatProperty(
+			name="New nodata value",
+			description="Assign value to existing nodata values to get an usuable displacement texture",
+			default=0.0
+			)
+	#
 	step: IntProperty(name = "Step", default=1, description="Pixel step", min=1)
 
 	buildFaces: BoolProperty(name="Build faces", default=True, description='Build quad faces connecting pixel point cloud')
@@ -175,6 +186,9 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			if self.subdivision == 'mesh':
 				layout.prop(self, 'step')
 			layout.prop(self, 'fillNodata')
+			layout.prop(self, 'setNodata')
+			if self.setNodata:
+				layout.prop(self, 'setNovalue')
 		#
 		if self.importMode == 'DEM_RAW':
 			layout.prop(self, 'buildFaces')
@@ -384,7 +398,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 
 			# Load raster
 			try:
-				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, useGDAL=HAS_GDAL, raw=True)
+				grid = bpyGeoRaster(filePath, subBoxGeo=subBox, clip=self.clip, fillNodata=self.fillNodata, setNodata=self.setNodata, setNovalue=self.setNovalue, useGDAL=HAS_GDAL, raw=True)
 			except IOError as e:
 				log.error("Unable to open raster", exc_info=True)
 				self.report({'ERROR'}, "Unable to open raster, check logs for more infos")

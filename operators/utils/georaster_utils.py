@@ -217,7 +217,7 @@ def setDisplacer(obj, rast, uvTxtLayer, mid=0, interpolation=False):
 
 class bpyGeoRaster(GeoRaster):
 
-	def __init__(self, path, subBoxGeo=None, useGDAL=False, clip=False, fillNodata=False, raw=False):
+	def __init__(self, path, subBoxGeo=None, useGDAL=False, clip=False, fillNodata=False, setNodata=False, setNovalue=0.0, raw=False):
 
 		#First init parent class
 		GeoRaster.__init__(self, path, subBoxGeo=subBoxGeo, useGDAL=useGDAL)
@@ -230,6 +230,7 @@ class bpyGeoRaster(GeoRaster):
 		if self.format not in ['GTiff', 'TIFF', 'BMP', 'PNG', 'JPEG', 'JPEG2000'] \
 		or (clip and self.subBoxGeo is not None) \
 		or fillNodata \
+		or setNodata \
 		or self.ddtype == 'int16':
 
 			#Open the raster as numpy array (read only a subset if we want to clip it)
@@ -245,6 +246,9 @@ class bpyGeoRaster(GeoRaster):
 			#replace nodata with interpolated values
 			if fillNodata:
 				img.fillNodata()
+    
+			if setNodata:
+				img.setNodata(setNovalue)
 
 			#save to a new tiff file on disk
 			filepath = os.path.splitext(self.path)[0] + '_bgis.tif'

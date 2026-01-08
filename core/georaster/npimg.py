@@ -27,7 +27,7 @@ import numpy as np
 
 from .georef import GeoRef
 from ..proj.reproj import reprojImg
-from ..maths.fillnodata import replace_nans #inpainting function (ie fill nodata)
+from ..maths.fillnodata import replace_nans, set_nans #inpainting function (ie fill nodata)
 from ..utils import XY as xy
 from ..checkdeps import HAS_GDAL, HAS_PIL, HAS_IMGIO
 from .. import settings
@@ -459,6 +459,14 @@ class NpImage():
 			# Inpainting
 			self.data = replace_nans(self.data, max_iter=5, tolerance=0.5, kernel_size=2, method='localmean')
 
+	def setNodata(self, setNodata=1.0):
+		# Cast to float
+		self.cast2float()
+		# Fill mask with NaN (warning NaN is a special value for float arrays only)
+		self.data =  np.ma.filled(self.data, np.NaN)
+		self.data = set_nans(self.data, setNodata)
+
+ 
 	def reproj(self, crs1, crs2, out_ul=None, out_size=None, out_res=None, sqPx=False, resamplAlg='BL'):
 		ds1 = self.toGDAL()
 		if not self.isGeoref:

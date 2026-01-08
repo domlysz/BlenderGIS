@@ -33,6 +33,47 @@ import numpy as np
 DTYPEf = np.float32
 #DTYPEi = np.int32
 
+def set_nans(array, value):
+	"""
+	Replace NaN elements with a given value.
+
+	Parameters
+	----------
+	array : 2d np.ndarray
+		an array containing NaN elements that have to be replaced
+ 
+	value : float
+		Value with which to replace the NaN elements
+  
+	Returns
+	-------
+	filled : 2d np.ndarray
+	a copy of the input array, where NaN elements have been replaced.
+	"""
+ 
+	filled = np.empty( [array.shape[0], array.shape[1]], dtype=DTYPEf)
+	print("set nans to %s" %value)
+    
+    # indices where array is NaN
+	inans, jnans = np.nonzero( np.isnan(array) )
+ 
+	# number of NaN elements
+	n_nans = len(inans)
+    
+    # fill new array with input elements
+	for i in range(array.shape[0]):
+		for j in range(array.shape[1]):
+			filled[i,j] = array[i,j]
+   
+	for k in range(n_nans):
+		i = inans[k]
+		j = jnans[k]
+
+		# replace with value
+		filled[i,j] = value
+   
+	return filled
+   
 
 def replace_nans(array, max_iter, tolerance, kernel_size=1, method='localmean'):
 	"""
