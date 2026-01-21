@@ -130,8 +130,8 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		return objs
 
 	reprojection: BoolProperty(
-			name="Specifiy shapefile CRS",
-			description="Specifiy shapefile CRS if it's different from scene CRS",
+			name="Specify shapefile CRS",
+			description="Specify shapefile CRS if it's different from scene CRS",
 			default=False )
 
 	shpCRS: EnumProperty(
