@@ -1,11 +1,13 @@
 # -*- coding:utf-8 -*-
 import os, sys, time
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import Operator
 import bmesh
 import math
 from mathutils import Vector
+
+from calendar import isleap
 
 import logging
 log = logging.getLogger(__name__)
@@ -203,6 +205,39 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		description = "Choose field",
 		items = listFields )
 
+	# Write attributes to meshes
+	useMeshAttributes: BoolProperty(
+		name="Write face attributes",
+		description="Write numeric attributes to mesh faces",
+		default=False
+	)
+
+	# Convert date to float
+	useDateConversion: BoolProperty(
+		name="Convert date to float values",
+		description="Convert date attributes to floats, with decimals representing ratio of day in the year",
+		default=False
+	)
+
+	# Option to use a no-data value for NULL fields. Since mesh attributes can't be NULL, this can prevent confusion with true data that are actually 0.
+	useNoDataValue: BoolProperty(
+		name="Set a no-data value",
+		description="Set a no-data value to NULL fields",
+		default=True
+	)
+	noDataValue: FloatProperty(
+		name="No-data value",
+		description="No-data value to NULL fields",
+		default=-30000000.0
+	)
+
+	# Convert date to float
+	useDateConversion: BoolProperty(
+		name="Convert date to float values",
+		description="Convert date attributes to floats, with decimals representing ratio of day in the year",
+		default=False
+	)
+
 
 	def draw(self, context):
 		#Function used by blender to draw the panel.
@@ -230,6 +265,13 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 			self.useFieldName = False
 		if self.separateObjects and self.useFieldName:
 			layout.prop(self, 'fieldObjName')
+		#
+		layout.prop(self, 'useMeshAttributes')
+		if self.useMeshAttributes:
+			layout.prop(self, 'useDateConversion')
+			layout.prop(self, 'useNoDataValue')
+			if self.useNoDataValue:
+				layout.prop(self, 'noDataValue')
 		#
 		geoscn = GeoScene()
 		#geoscnPrefs = context.preferences.addons['geoscene'].preferences
@@ -287,7 +329,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		try:
 			bpy.ops.importgis.shapefile('INVOKE_DEFAULT', filepath=self.filepath, shpCRS=shpCRS, elevSource=self.vertsElevSource,
 				fieldElevName=elevField, objElevName=objElevName, fieldExtrudeName=extrudField, fieldObjName=nameField,
-				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects)
+				extrusionAxis=self.extrusionAxis, separateObjects=self.separateObjects, useMeshAttributes=self.useMeshAttributes, useDateConversion=self.useDateConversion, useNoDataValue=self.useNoDataValue, noDataValue=self.noDataValue)
 		except Exception as e:
 			log.error('Shapefile import fails', exc_info=True)
 			self.report({'ERROR'}, 'Shapefile import fails, check logs.')
@@ -330,12 +372,85 @@ class IMPORTGIS_OT_shapefile(Operator):
 			default=False
 			)
 
+	#Write attributes to mesh face
+	useMeshAttributes: BoolProperty(
+		name="Write face attributes",
+		description="Write shapefile field attributes to mesh faces",
+		default=False
+	)
+
+		# Use a no-data value
+	useNoDataValue: BoolProperty(
+		name="Set a no-data value",
+		description="Set a no-data value to NULL fields",
+		default=True
+	)
+	noDataValue: FloatProperty(
+		name="No-data value",
+		description="No-data value to NULL fields",
+		default=-30000000.0
+	)
+
+	# Convert date to float
+	useDateConversion: BoolProperty(
+		name="Convert date to float values",
+		description="Convert date attributes to floats, with decimals representing ratio of day in the year",
+		default=False
+	)
+
+
 	@classmethod
 	def poll(cls, context):
 		return context.mode == 'OBJECT'
 
 	def __del__(self):
 		bpy.context.window.cursor_set('DEFAULT')
+
+
+	# Function to write mesh attribtues
+	def writeAttributesToMesh(self, bm, fields, record, type="FACE"):
+		if type == "VERT":
+			targets = bm.verts
+		if type == "EDGE":
+			targets = bm.edges
+		if type == "FACE":
+			targets = bm.faces
+
+		# https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/attributes_reference.html#built-in-attributes
+		reserved = ("position", "radius", "id", "material_index", "crease", "sharp_face", "resolution", "cyclic", "handle_left", "handle_right")
+		
+		targets.ensure_lookup_table()
+
+		for i, field in enumerate(fields):
+			fieldName, fieldType, fieldLength, fieldDecLength = field
+			if fieldName != 'DeletionFlag':
+				if fieldName in reserved: 
+					fieldName = "_" + fieldName
+				if fieldType in ('N', 'F'):
+					v = record[i-1]
+					if v is None and self.useNoDataValue:
+						v = self.noDataValue
+					if v is not None and fieldName not in targets.layers.float.keys():
+						targets.layers.float.new(fieldName)
+						for i in range(len(targets)):
+							targets[i][targets.layers.float[fieldName]] = float(v)
+
+
+				elif fieldType == 'D' and self.useDateConversion:
+					v = record[i-1]
+					if v is None and self.useNoDataValue and fieldName not in targets.layers.float.keys():
+						targets.layers.float.new(fieldName)
+						for i in range(len(targets)):
+							targets[i][targets.layers.float[fieldName]] = self.noDataValue
+					elif v is not None and fieldName not in targets.layers.float.keys():
+						targets.layers.float.new(fieldName)
+						year = v.year
+						totalDaysOfYear = 365 + isleap(year)
+						# Prevent 12/31 from being converted to the next year
+						ratio = (v.timetuple().tm_yday - 1) / totalDaysOfYear
+						for i in range(len(targets)):
+							targets[i][targets.layers.float[fieldName]] = float(year+ratio)
+
 
 	def execute(self, context):
 
@@ -380,7 +495,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		fieldsNames = [field[0] for field in fields]
 		log.debug("DBF fields : "+str(fieldsNames))
 
-		if self.separateObjects or self.fieldElevName or self.fieldObjName or self.fieldExtrudeName:
+		if self.separateObjects or self.fieldElevName or self.fieldObjName or self.fieldExtrudeName or self.useMeshAttributes:
 			self.useDbf = True
 		else:
 			self.useDbf = False
@@ -475,7 +590,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 		bm = bmesh.new()
 		#Extrusion is exponentially slow with large bmesh
 		#it's fastest to extrude a small bmesh and then join it to a final large bmesh
-		if not self.separateObjects and self.fieldExtrudeName:
+		if not self.separateObjects and self.fieldExtrudeName or self.useMeshAttributes:
 			finalBm = bmesh.new()
 
 		progress = -1
@@ -588,6 +703,10 @@ class IMPORTGIS_OT_shapefile(Operator):
 						verts = result['verts']
 						bmesh.ops.translate(bm, verts=verts, vec=vect)
 
+					# Write field attributes to verts
+					if self.useMeshAttributes:
+						self.writeAttributesToMesh(bm, shp.fields, record, "VERT")
+
 				# LINES
 				if (shpType == 'PolyLine' or shpType == 'PolyLineZ'):
 					verts = [bm.verts.new(pt) for pt in geom]
@@ -601,6 +720,10 @@ class IMPORTGIS_OT_shapefile(Operator):
 						result = bmesh.ops.extrude_edge_only(bm, edges=edges)
 						verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)]
 						bmesh.ops.translate(bm, verts=verts, vec=vect)
+
+					# Write field attributes to edges
+					if self.useMeshAttributes:
+						self.writeAttributesToMesh(bm, shp.fields, record, "EDGE")
 
 				# NGONS
 				if (shpType == 'Polygon' or shpType == 'PolygonZ'):
@@ -635,6 +758,9 @@ class IMPORTGIS_OT_shapefile(Operator):
 								##verts = [elem for elem in result['geom'] if isinstance(elem, bmesh.types.BMVert)] #geom type filter
 								bmesh.ops.translate(bm, verts=verts, vec=vect)
 
+						# Write field attributes to faces
+						if self.useMeshAttributes:
+							self.writeAttributesToMesh(bm, shp.fields, record, "FACE")
 
 			if self.separateObjects:
 
@@ -691,10 +817,12 @@ class IMPORTGIS_OT_shapefile(Operator):
 							if v is not None:
 								#cast to float to avoid overflow error when affecting custom property
 								obj[fieldName] = float(record[i-1])
+						elif fieldType == 'D':
+							obj[fieldName] = str(record[i-1])
 						else:
 							obj[fieldName] = record[i-1]
 
-			elif self.fieldExtrudeName:
+			elif self.fieldExtrudeName or self.useMeshAttributes:
 				#Join to final bmesh (use from_mesh method hack)
 				buff = bpy.data.meshes.new(".temp")
 				bm.to_mesh(buff)
@@ -707,7 +835,7 @@ class IMPORTGIS_OT_shapefile(Operator):
 
 			mesh = bpy.data.meshes.new(shpName)
 
-			if self.fieldExtrudeName:
+			if self.fieldExtrudeName or self.useMeshAttributes:
 				bm.free()
 				bm = finalBm
 
