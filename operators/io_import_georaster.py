@@ -69,7 +69,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 
 	# ImportHelper class properties
 	filter_glob: StringProperty(
-			default="*.tif;*.jpg;*.jpeg;*.png;*.bmp",
+			default="*.tif;*.tiff;*.jpg;*.jpeg;*.png;*.bmp",
 			options={'HIDDEN'},
 			)
 
