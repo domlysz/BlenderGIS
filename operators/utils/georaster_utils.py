@@ -172,7 +172,7 @@ def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 			pt = (pt[0] + loc.x + dx, pt[1] + loc.y + dy)
 			if reproj is not None:
 				pt = reproj.pt(*pt)
-			#Compute UV coords --> pourcent from image origin (bottom left)
+			#Compute UV coords --> percent from image origin (bottom left)
 			dx_px, dy_px = rast.pxFromGeo(pt[0], pt[1], reverseY=True, round2Floor=False)
 			uvs[i * 2] = dx_px / rast.size[0]
 			uvs[i * 2 + 1] = dy_px / rast.size[1]
