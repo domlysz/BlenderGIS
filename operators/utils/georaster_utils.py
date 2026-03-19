@@ -163,6 +163,7 @@ def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 	mesh = obj.data
 	#Assign uv coords
 	loc = obj.location
+	uvs = [0.0] * (len(uvLayer.data) * 2)
 	for pg in mesh.polygons:
 		for i in pg.loop_indices:
 			vertIdx = mesh.loops[i].vertex_index
@@ -173,12 +174,10 @@ def geoRastUVmap(obj, uvLayer, rast, dx, dy, reproj=None):
 				pt = reproj.pt(*pt)
 			#Compute UV coords --> pourcent from image origin (bottom left)
 			dx_px, dy_px = rast.pxFromGeo(pt[0], pt[1], reverseY=True, round2Floor=False)
-			u = dx_px / rast.size[0]
-			v = dy_px / rast.size[1]
-			#Assign coords
-			#uvLoop = uvLoopLayer.data[i]
-			#uvLoop.uv = [u,v]
-			uvLayer.data[i].uv = [u,v]
+			uvs[i * 2] = dx_px / rast.size[0]
+			uvs[i * 2 + 1] = dy_px / rast.size[1]
+	#Batch assign all UVs in a single call
+	uvLayer.data.foreach_set("uv", uvs)
 
 def setDisplacer(obj, rast, uvTxtLayer, mid=0, interpolation=False):
 	#Config displacer
