@@ -21,6 +21,7 @@ from ..core.utils import perf_clock
 
 from ..core import settings
 USER_AGENT = settings.user_agent
+OVERPASS_REFERER = "https://github.com/domlysz/BlenderGIS"
 
 PKG, SUBPKG = __package__.split('.', maxsplit=1)
 
@@ -665,7 +666,11 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 
 		#Download from overpass api
 		log.debug('Requests overpass server : {}'.format(prefs.overpassServer))
-		api = overpy.Overpass(overpass_server=prefs.overpassServer, user_agent=USER_AGENT)
+		api = overpy.Overpass(
+			overpass_server=prefs.overpassServer,
+			referer=OVERPASS_REFERER,
+			user_agent=USER_AGENT,
+		)
 		query = queryBuilder(bbox, tags=list(self.filterTags), types=list(self.featureType), format='xml')
 		log.debug('Overpass query : {}'.format(query)) # can fails with non utf8 chars
 
