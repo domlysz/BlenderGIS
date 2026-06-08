@@ -2,7 +2,7 @@ Blender GIS
 ==========
 Blender minimum version required : v2.83
 
-Note : Since 2022, the OpenTopography web service requires an API key. Please register to opentopography.org and request a key. This service is still free.
+Note : The OpenTopography API requires a free key. Please [create an OpenTopography account](https://portal.opentopography.org/newUser) and then [request a key](https://portal.opentopography.org/requestService?service=api).
 
 
 [Wiki](https://github.com/domlysz/BlenderGIS/wiki/Home) - [FAQ](https://github.com/domlysz/BlenderGIS/wiki/FAQ) - [Quick start guide](https://github.com/domlysz/BlenderGIS/wiki/Quick-start) - [Flowchart](https://raw.githubusercontent.com/wiki/domlysz/blenderGIS/flowchart.jpg)
