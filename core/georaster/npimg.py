@@ -455,7 +455,7 @@ class NpImage():
 			# Cast to float
 			self.cast2float()
 			# Fill mask with NaN (warning NaN is a special value for float arrays only)
-			self.data =  np.ma.filled(self.data, np.NaN)
+			self.data =  np.ma.filled(self.data, np.nan)
 			# Inpainting
 			self.data = replace_nans(self.data, max_iter=5, tolerance=0.5, kernel_size=2, method='localmean')
 
