@@ -1,4 +1,4 @@
-class OverPyException(BaseException):
+class OverPyException(Exception):
     """OverPy base exception"""
     pass
 

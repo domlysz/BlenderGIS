@@ -673,7 +673,12 @@ class IMPORTGIS_OT_osm_query(Operator, OSM_IMPORT):
 			result = api.query(query)
 		except Exception as e:
 			log.error("Overpass query failed", exc_info=True)
-			self.report({'ERROR'}, "Overpass query failed, ckeck logs for more infos.")
+			if isinstance(e, overpy.exception.OverpassUnknownHTTPStatusCode):
+				msg = ("Overpass server returned HTTP {}. Check server availability or "
+					"choose another server in add-on preferences.").format(e.code)
+			else:
+				msg = "Overpass query failed; check the log for details."
+			self.report({'ERROR'}, msg)
 			return {'CANCELLED'}
 		else:
 			log.info('Overpass query successful')
