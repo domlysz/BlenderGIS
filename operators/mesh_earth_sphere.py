@@ -82,10 +82,14 @@ class OBJECT_OT_earth_curvature(Operator):
 
 		mesh = obj.data
 		viewpt = scn.cursor.location
+		world_matrix = obj.matrix_world
+		world_to_local = world_matrix.inverted()
 
 		for vertex in mesh.vertices:
-			d = (viewpt.xy - vertex.co.xy).length
-			vertex.co.z = vertex.co.z - getZDelta(d)
+			world_co = world_matrix @ vertex.co
+			d = (viewpt.xy - world_co.xy).length
+			world_co.z -= getZDelta(d)
+			vertex.co = world_to_local @ world_co
 
 		return {'FINISHED'}
 
