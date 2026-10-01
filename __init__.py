@@ -94,6 +94,8 @@ logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 logger.info('###### Starting new Blender session : {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
+original_excepthook = sys.excepthook
+
 def _excepthook(exc_type, exc_value, exc_traceback):
 	if 'BlenderGIS' in exc_traceback.tb_frame.f_code.co_filename:
 		logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
@@ -409,6 +411,12 @@ def unregister():
 		nodes_terrain_analysis_reclassify.unregister()
 	if EARTH_SPHERE:
 		mesh_earth_sphere.unregister()
+
+	# Restore process-wide hooks only if they still point to our wrappers.
+	if sys.excepthook is _excepthook:
+		sys.excepthook = original_excepthook
+	if threading.Thread.__init__ is init:
+		threading.Thread.__init__ = init_original
 
 if __name__ == "__main__":
 	register()
