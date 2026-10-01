@@ -71,7 +71,7 @@ class BBOX(dict):
 		'''iterate overs values in bottom left to upper right order
 		allows support of unpacking and conversion to tuple or list'''
 		if self.hasZ:
-			return iter([self.xmin, self.ymin, self.zmin, self.xmax, self.ymax, self.ymax])
+			return iter([self.xmin, self.ymin, self.zmin, self.xmax, self.ymax, self.zmax])
 		else:
 			return iter([self.xmin, self.ymin, self.xmax, self.ymax])
 
