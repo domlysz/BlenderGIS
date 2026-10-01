@@ -19,6 +19,7 @@ from ..core.utils.gradient import Color, Stop, Gradient
 
 from ..core.maths.interpo import scale
 from ..core.maths.kmeans1D import kmeans1d, getBreaks
+from ..core.utils.enum_items import keep_enum_items
 #from ..core.maths.jenks_caspall import jenksCaspall
 
 #Folder containing SVG gradients
@@ -773,6 +774,7 @@ class RECLASS_OT_svg_gradient(Operator):
 	bl_idname = "reclass.svg_gradient"
 	bl_label = "Define colors gradient with presets"
 
+	@keep_enum_items
 	def listSVG(self, context):
 		#Function used to update the gradient list used by the dropdown box.
 		svgs = [] #list containing tuples of each object

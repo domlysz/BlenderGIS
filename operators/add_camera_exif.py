@@ -32,6 +32,7 @@ from ..geoscene import GeoScene
 
 #core
 from ..core.proj import reprojPt
+from ..core.utils.enum_items import keep_enum_items
 from ..core.georaster import getImgFormat
 
 #deps
@@ -223,6 +224,7 @@ class CAMERA_OT_geophotos_setactive(Operator):
     bl_label = "Switch geophoto camera"
     bl_options = {"REGISTER"}
 
+    @keep_enum_items
     def listGeoCam(self, context):
         scn = context.scene
         #put each object in a tuple (key, label, tooltip)

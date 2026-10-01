@@ -44,6 +44,7 @@ USER_AGENT = settings.user_agent
 #bgis imports
 from ..geoscene import GeoScene, SK, georefManagerLayout
 from ..prefs import PredefCRS
+from ..core.utils.enum_items import keep_enum_items
 
 #utilities
 from .utils import getBBOX, mouseTo3d
@@ -360,6 +361,7 @@ class VIEW3D_OT_map_start(Operator):
 	def check(self, context):
 		return True
 
+	@keep_enum_items
 	def listSources(self, context):
 		srcItems = []
 		for srckey, src in SOURCES.items():
@@ -367,6 +369,7 @@ class VIEW3D_OT_map_start(Operator):
 			srcItems.append( (srckey, src['name'], src['description']) )
 		return srcItems
 
+	@keep_enum_items
 	def listGrids(self, context):
 		grdItems = []
 		src = SOURCES[self.src]
@@ -379,6 +382,7 @@ class VIEW3D_OT_map_start(Operator):
 				grdItems.append( (gridkey, grd['name'], grd['description']) )
 		return grdItems
 
+	@keep_enum_items
 	def listLayers(self, context):
 		layItems = []
 		src = SOURCES[self.src]

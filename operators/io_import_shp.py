@@ -16,6 +16,7 @@ from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
 from ..core import BBOX
 from ..core.proj import Reproj
+from ..core.utils.enum_items import keep_enum_items
 from ..core.utils import perf_clock
 
 from .utils import adjust3Dview, getBBOX, DropToGround
@@ -104,6 +105,7 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 	def check(self, context):
 		return True
 
+	@keep_enum_items
 	def listFields(self, context):
 		fieldsItems = []
 		try:
@@ -118,9 +120,11 @@ class IMPORTGIS_OT_shapefile_props_dialog(Operator):
 		return fieldsItems
 
 	# Shapefile CRS definition
+	@keep_enum_items
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
 
+	@keep_enum_items
 	def listObjects(self, context):
 		objs = []
 		for index, object in enumerate(bpy.context.scene.objects):

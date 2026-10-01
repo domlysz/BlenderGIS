@@ -17,6 +17,7 @@ from bpy.types import Operator
 from ..geoscene import GeoScene
 
 from ..core.proj import SRS
+from ..core.utils.enum_items import keep_enum_items
 
 class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 	"""Export from ESRI shapefile file format (.shp)"""
@@ -53,6 +54,7 @@ class EXPORTGIS_OT_shapefile(Operator, ExportHelper):
 			default = 'SELECTED'
 			)
 
+	@keep_enum_items
 	def listCollections(self, context):
 		return [(c.name, c.name, "Collection") for c in bpy.data.collections]
 

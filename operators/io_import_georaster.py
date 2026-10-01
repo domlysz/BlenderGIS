@@ -44,6 +44,7 @@ if HAS_GDAL:
 from ..core import XY as xy
 from ..core.errors import OverlapError
 from ..core.proj import Reproj
+from ..core.utils.enum_items import keep_enum_items
 
 from bpy_extras.io_utils import ImportHelper #helper class defines filename and invoke() function which calls the file selector
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
@@ -59,6 +60,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	bl_label = "Import georaster"
 	bl_options = {"UNDO"}
 
+	@keep_enum_items
 	def listObjects(self, context):
 		#Function used to update the objects list (obj_list) used by the dropdown box.
 		objs = [] #list containing tuples of each object
@@ -74,6 +76,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 			)
 
 	# Raster CRS definition
+	@keep_enum_items
 	def listPredefCRS(self, context):
 		return PredefCRS.getEnumItems()
 	rastCRS: EnumProperty(
@@ -101,6 +104,7 @@ class IMPORTGIS_OT_georaster(Operator, ImportHelper):
 	objectsLst: EnumProperty(attr="obj_list", name="Objects", description="Choose object to edit", items=listObjects)
 	#
 	#Subdivise (as DEM option)
+	@keep_enum_items
 	def listSubdivisionModes(self, context):
 		items = [ ('subsurf', 'Subsurf', "Add a subsurf modifier"), ('none', 'None', "No subdivision")]
 		if not self.demOnMesh:

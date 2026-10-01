@@ -18,6 +18,7 @@ from .utils import adjust3Dview, getBBOX, DropToGround, isTopView
 
 from ..core.proj import Reproj, reprojBbox, reprojPt, utm
 from ..core.utils import perf_clock
+from ..core.utils.enum_items import keep_enum_items
 
 from ..core import settings
 USER_AGENT = settings.user_agent
@@ -105,6 +106,7 @@ def joinBmesh(src_bm, dest_bm):
 class OSM_IMPORT():
 	"""Import from Open Street Map"""
 
+	@keep_enum_items
 	def enumTags(self, context):
 		items = []
 		##prefs = context.preferences.addons[PKG].preferences
@@ -134,6 +136,7 @@ class OSM_IMPORT():
 			)
 
 	# Elevation object
+	@keep_enum_items
 	def listObjects(self, context):
 		objs = []
 		for index, object in enumerate(bpy.context.scene.objects):

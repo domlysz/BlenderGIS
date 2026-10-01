@@ -18,6 +18,7 @@ from ..core.proj import Reproj
 from ..core.utils import XY
 from ..geoscene import GeoScene, georefManagerLayout
 from ..prefs import PredefCRS
+from ..core.utils.enum_items import keep_enum_items
 
 from .utils import bpyGeoRaster as GeoRaster
 from .utils import placeObj, adjust3Dview, showTextures, addTexture, getBBOX
@@ -41,6 +42,7 @@ class IMPORTGIS_OT_ascii_grid(Operator, ImportHelper):
     )
 
     # Raster CRS definition
+    @keep_enum_items
     def listPredefCRS(self, context):
         return PredefCRS.getEnumItems()
     fileCRS: EnumProperty(

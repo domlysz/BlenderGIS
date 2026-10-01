@@ -13,6 +13,7 @@ from .core.proj.reproj import MapTilerCoordinates
 from .core.proj.srs import SRS
 from .core.checkdeps import HAS_GDAL, HAS_PYPROJ, HAS_PIL, HAS_IMGIO
 from .core import settings
+from .core.utils.enum_items import keep_enum_items
 
 PKG = __package__
 
@@ -92,6 +93,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#Predefined Spatial Ref. Systems
 
+	@keep_enum_items
 	def listPredefCRS(self, context):
 		return [tuple(elem) for elem in json.loads(self.predefCrsJson)]
 
@@ -108,6 +110,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#proj engine
 
+	@keep_enum_items
 	def getProjEngineItems(self, context):
 		items = [ ('AUTO', 'Auto detect', 'Auto select the best library for reprojection tasks') ]
 		if HAS_GDAL:
@@ -133,6 +136,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#img engine
 
+	@keep_enum_items
 	def getImgEngineItems(self, context):
 		items = [ ('AUTO', 'Auto detect', 'Auto select the best imaging library') ]
 		if HAS_GDAL:
@@ -158,6 +162,7 @@ class BGIS_PREFS(AddonPreferences):
 
 	osmTagsJson: StringProperty(default=json.dumps(DEFAULT_OSM_TAGS)) #just a serialized list of tags
 
+	@keep_enum_items
 	def listOsmTags(self, context):
 		prefs = context.preferences.addons[PKG].preferences
 		tags = json.loads(prefs.osmTagsJson)
@@ -230,6 +235,7 @@ class BGIS_PREFS(AddonPreferences):
 	################
 	#Network
 
+	@keep_enum_items
 	def listOverpassServer(self, context):
 		return [tuple(entry) for entry in json.loads(self.overpassServerJson)]
 
@@ -243,6 +249,7 @@ class BGIS_PREFS(AddonPreferences):
 		items = listOverpassServer
 		)
 
+	@keep_enum_items
 	def listDemServer(self, context):
 		return [tuple(entry) for entry in json.loads(self.demServerJson)]
 
@@ -434,6 +441,7 @@ class BGIS_OT_add_predef_crs(Operator):
 			self.crs = 'EPSG:' + str(results[0]['id']['code'])
 			self.name = results[0]['name']
 
+	@keep_enum_items
 	def updEnum(self, context):
 		crsItems = []
 		if self.results != '':
