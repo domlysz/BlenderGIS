@@ -138,6 +138,12 @@ def _fetch_file(url, file_name, print_destination=True):
             # temp file must be closed prior to the move
             if not local_file.closed:
                 local_file.close()
+            downloaded_size = os.path.getsize(temp_file_name)
+            if downloaded_size != file_size:
+                raise IOError(
+                    'Incomplete download: expected %s bytes, got %s'
+                    % (file_size, downloaded_size)
+                )
             shutil.move(temp_file_name, file_name)
             if print_destination is True:
                 sys.stdout.write('File saved as %s.\n' % file_name)
