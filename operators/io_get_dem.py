@@ -128,8 +128,8 @@ class IMPORTGIS_OT_dem_query(Operator):
 			log.error('Http request fails url:{}, code:{}, error:{}'.format(url, getattr(err, 'code', None), err.reason))
 			self.report({'ERROR'}, "Cannot reach OpenTopography web service, check logs for more infos")
 			return {'CANCELLED'}
-		except TimeoutError:
-			log.error('Http request does not respond. url:{}, code:{}, error:{}'.format(url, getattr(err, 'code', None), err.reason))
+		except TimeoutError as err:
+			log.error('Http request timed out. url:{}, error:{}'.format(url, err))
 			info = "Cannot reach SRTM web service provider, server can be down or overloaded. Please retry later"
 			log.info(info)
 			self.report({'ERROR'}, info)
