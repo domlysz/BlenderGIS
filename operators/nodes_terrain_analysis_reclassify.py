@@ -991,7 +991,8 @@ def unregister():
 	del bpy.types.Scene.uiListIndex
 	del bpy.types.Scene.colorRampPreview
 	#Clear handlers
-	bpy.app.handlers.depsgraph_update_post.clear()
+	if scene_update in bpy.app.handlers.depsgraph_update_post:
+		bpy.app.handlers.depsgraph_update_post.remove(scene_update)
 	#Unregister
 	for cls in classes:
 		bpy.utils.unregister_class(cls)
