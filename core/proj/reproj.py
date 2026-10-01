@@ -75,6 +75,9 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=Fa
 	if not HAS_GDAL:
 		raise NotImplementedError
 
+	if out_res is not None and (not math.isfinite(out_res) or out_res <= 0):
+		raise ValueError("Output resolution must be a finite positive number")
+
 	geoTrans = ds1.GetGeoTransform()
 	if geoTrans is not None:
 		xmin, resx, rotx, ymax, roty, resy = geoTrans
@@ -120,8 +123,8 @@ def reprojImg(crs1, crs2, ds1, out_ul=None, out_size=None, out_res=None, sqPx=Fa
 		resx, resy = out_res, -out_res
 		#reprojected image size depend on final bbox and expected resolution
 		xmin, ymin, xmax, ymax = reprojBbox(crs1, crs2, bbox)
-		img_w = int( (xmax - xmin) / resx )
-		img_h = int( (ymax - ymin) / resy )
+		img_w = max(1, int( (xmax - xmin) / resx ))
+		img_h = max(1, int( (ymax - ymin) / -resy ))
 
 	#submit image size and ...
 	if out_res is None and out_size is not None:
